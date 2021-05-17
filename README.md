@@ -32,15 +32,14 @@ Download the plugin zip file attached to this article by clicking "I Accept" at 
 
 The following plugin dependencies are required. Depending on your Jenkins configuration, they may automatically be installed/updated as needed to meet the minimum requirements of the Jenkins plugin for ServiceNow DevOps.  If not, you must manually ensure that the correct plugin versions are present:
 
-- org.jenkins-ci.plugins.scm-api 2.2.8
 - org.jenkins-ci.plugins.credentials 2.1.18
-- org.jenkins-ci.plugins.workflow.workflow-step-api 2.19
+- org.jenkins-ci.plugins.jackson2-api 2.8.11.3
 - org.jenkins-ci.plugins.structs 1.17
 - org.jenkins-ci.plugins.workflow.workflow-api 2.34
-- org.jenkins-ci.plugins.mailer 1.20
+- org.jenkins-ci.plugins.workflow.workflow-cps 2.56
+- org.jenkins-ci.plugins.workflow.workflow-job 2.25
+- org.jenkins-ci.plugins.workflow.workflow-support 2.20
 - org.jenkins-ci.annotation-indexer 1.12
-- org.jenkins-ci.plugins.plain-credentials 1.3
-- org.jenkins-ci.plugins.workflow.workflow-aggregator 2.6
 - com.google.code.gson.gson 2.8.5
 - org.jenkins-ci.plugins.junit 1.28
 

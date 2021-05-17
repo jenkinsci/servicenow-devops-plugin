@@ -1,0 +1,28 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+		 xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+	<f:section title="ServiceNow DevOps Configuration">
+		<f:optionalBlock field="snDevopsEnabled" title="ServiceNow DevOps Enabled">
+			<f:entry title="Instance URL" field="instanceUrl">
+				<f:textbox placeholder="https://&lt;your-instance&gt;.service-now.com/"/>
+			</f:entry>
+			<f:entry title="API Version" field="apiVersion">
+				<f:textbox placeholder="v1"/>
+			</f:entry>
+			<f:entry title="Orchestration Tool ID" field="toolId">
+				<f:textbox placeholder="The sys_id of the orchestration tool"/>
+			</f:entry>
+			<f:entry title="Artifact Tool ID" field="snArtifactToolId">
+				<f:textbox placeholder="The sys_id of the artifact tool"/>
+			</f:entry>
+			 <f:entry field="credentialsId" title="Credentials">
+                <c:select/>
+              </f:entry>
+			<f:entry title="Debug Mode" field="debug">
+				<f:checkbox/>
+			</f:entry>
+			<f:validateButton title="Test Connection" progress="Testing..." method="testConnection"
+							  with="instanceUrl,apiVersion,toolId,credentialsId"/>
+		</f:optionalBlock>
+	</f:section>
+</j:jelly>
