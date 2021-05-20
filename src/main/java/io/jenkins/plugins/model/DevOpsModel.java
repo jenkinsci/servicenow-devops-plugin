@@ -916,7 +916,8 @@ public class DevOpsModel {
 									json.put(DevOpsConstants.SCM_LOG_ATTR.toString(),
 											fContent);
 								} catch (IOException e1) {
-									e1.printStackTrace();
+									printDebug("_getJobDetails", new String[]{"IOException"},
+											new String[]{e1.getMessage()});
 								}
 							}
 						}
@@ -969,7 +970,8 @@ public class DevOpsModel {
 				fn = ctx.get(FlowNode.class);
 				vars = ctx.get(EnvVars.class);
 			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
+				printDebug("registerPipelineAndNotify", new String[]{"IOException"},
+						new String[]{e.getMessage()});
 			}
 
 			String changeRequestDetails = stepExecution.getStep().getChangeRequestDetails();
@@ -1137,7 +1139,8 @@ public class DevOpsModel {
 				try {
 					vars = ctx.get(EnvVars.class);
 				} catch (Exception e) {
-					e.printStackTrace();
+					printDebug("handlePipeline", new String[]{"Exception"},
+							new String[]{e.getMessage()});
 				}
 
 				// If Job is under change control, register and notify SN with callback URL

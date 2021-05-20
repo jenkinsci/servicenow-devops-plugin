@@ -172,9 +172,11 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					ex.addListener(new DevOpsRunListener.DevOpsStageListener(run, vars, new DevOpsNotificationModel(), model.isDebug()));
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			printDebug("onResume", new String[]{"IOException"},
+					new String[]{e.getMessage()}, model.isDebug());
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			printDebug("onResume", new String[]{"InterruptedException"},
+					new String[]{e.getMessage()}, model.isDebug());
 		}
 		super.onResume();
 
@@ -284,7 +286,8 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			run = getContext().get(Run.class);
 			listener = getContext().get(TaskListener.class);
 		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
+			printDebug("evaluateResultForPipeline", new String[]{"IOException or InterruptedException"},
+					new String[]{e.getMessage()}, model.isDebug());
 		}
 		if (run != null && result != null) {
 			// If there's a token, this function was called by onTriggered callback handler
@@ -296,7 +299,8 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					fn = getContext().get(FlowNode.class);
 					vars = getContext().get(EnvVars.class);
 				} catch (IOException | InterruptedException e) {
-					e.printStackTrace();
+					printDebug("evaluateResultForPipeline", new String[]{"IOException or InterruptedException"},
+							new String[]{e.getMessage()}, model.isDebug());
 				}
 				Job<?, ?> job = run.getParent();
 				if (job != null) {

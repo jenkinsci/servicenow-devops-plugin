@@ -384,7 +384,8 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.log(Level.WARNING,
+					" DevOpsRunStatusAction.getTestFiles | Error when extracting report file | " + e.getMessage());
 		}
 	}
 

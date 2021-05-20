@@ -72,7 +72,7 @@ public final class GenericUtils {
 					}
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				Logger.getLogger(GenericUtils.class.getName()).warning(e.getMessage());
 			}
 		}
 		return null;
@@ -188,7 +188,7 @@ public final class GenericUtils {
 			try {
 				vars = run.getEnvironment(listener);
 			} catch (IOException | InterruptedException e) {
-				e.printStackTrace();
+				Logger.getLogger(GenericUtils.class.getName()).warning(e.getMessage());
 			}
 		}
 		return vars;

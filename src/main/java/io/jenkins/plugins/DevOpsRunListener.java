@@ -199,7 +199,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						return tagValue;
 				}
 			} catch (Exception ignore) {
-				ignore.printStackTrace();
+				_printDebug("getStageStatusFromTag", new String[]{"Exception"},
+						new String[]{ignore.getMessage()}, isDebug());
 			}
 
 			return tagValue;
@@ -556,9 +557,11 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 								new DevOpsStageListener(run, _vars, notificationModel,
 										debug));
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						printDebug("handlePipeline", new String[]{"InterruptedException"},
+								new String[]{e.getMessage()}, debug);
 					} catch (ExecutionException e) {
-						e.printStackTrace();
+						printDebug("handlePipeline", new String[]{"ExecutionException"},
+								new String[]{e.getMessage()}, debug);
 					}
 				}
 			}, Executors.newSingleThreadExecutor());
