@@ -33,7 +33,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.138.4</jenkins.version>
@@ -117,13 +117,12 @@
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>
                 <artifactId>maven-hpi-plugin</artifactId>
-                <configuration>
-                    <!-- JENKINS-50520: since we need a custom version of Guice -->
+                <!--<configuration>
                     <maskClasses>com.google.inject.
                         com.google.common.
                     </maskClasses>
                     <minimumJavaVersion>8</minimumJavaVersion>
-                </configuration>
+                </configuration>-->
             </plugin>
 
         </plugins>
