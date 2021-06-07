@@ -18,8 +18,6 @@ import hudson.FilePath;
  *   /   \
  * child  child
  * 
- * @author tarun.murala
- * @author prashanth.pedduri
  */
 
 public class DevOpsPipelineGraph {

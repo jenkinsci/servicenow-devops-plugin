@@ -29,7 +29,6 @@ import io.jenkins.plugins.utils.DevOpsConstants;
  * 			"repositoryName": "repo1","version": "3.1"}, {"name": "artifact2",
  * 				"repositoryName": "repo2","version": "9.2"}],"branchName":"master"}""")
  * 
- * @author prashanth.pedduri
  *
  */
 public class DevOpsPipelineCreateArtifactPackageStep extends Step implements Serializable {

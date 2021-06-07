@@ -14,7 +14,6 @@ import io.jenkins.plugins.pipeline.steps.DevOpsPipelineCreateArtifactPackageStep
 
 /**
  * 
- * @author prashanth.pedduri
  *
  */
 public class DevOpsPipelineCreateArtifactPackageStepExecution extends SynchronousStepExecution<Boolean> {

@@ -34,7 +34,6 @@ import io.jenkins.plugins.utils.DevOpsConstants;
  * 		"repositoryName": "repo2"}],"stageName": 
  * 		"Build","branchName": "master"}""")
  * 
- * @author prashanth.pedduri
  *
  */
 public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializable {

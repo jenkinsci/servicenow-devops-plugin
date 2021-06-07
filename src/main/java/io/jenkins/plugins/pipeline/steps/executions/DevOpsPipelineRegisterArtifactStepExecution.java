@@ -14,7 +14,6 @@ import io.jenkins.plugins.pipeline.steps.DevOpsPipelineRegisterArtifactStep;
 
 /**
  * 
- * @author prashanth.pedduri
  *
  */
 public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStepExecution<Boolean> {

@@ -28,7 +28,6 @@ import jenkins.tasks.SimpleBuildStep;
  * Register Artifact build step.
  * Can be configured on free-style job.
  * 
- * @author prashanth.pedduri
  *
  */
 public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBuildStep, Serializable{

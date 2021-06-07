@@ -28,7 +28,6 @@ import jenkins.tasks.SimpleBuildStep;
  * Artifact package create build step.
  * Can be configured on free-style job.
  * 
- * @author prashanth.pedduri
  *
  */
 public class DevOpsCreateArtifactPackageBuildStep extends Builder implements SimpleBuildStep, Serializable{

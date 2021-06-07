@@ -33,7 +33,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.138.4</jenkins.version>
@@ -130,7 +130,7 @@
 
     <developers>
       <developer>
-        <id>bhavani.velivala</id>
+        <id>app-devops-integrations@servicenow.com</id>
         <name>ServiceNow</name>
         <email>app-devops-integrations@servicenow.com</email>
       </developer>

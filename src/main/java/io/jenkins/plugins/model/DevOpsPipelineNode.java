@@ -19,8 +19,6 @@ import io.jenkins.plugins.utils.GenericUtils;
  *      		(like stage1 -- stage2 -- stageN ) to  map actual sequence 
  *      		of stages within the pipeline.
  * 
- * @author tarun.murala
- * @author prashanth.pedduri
  */
 public class DevOpsPipelineNode {
 	
