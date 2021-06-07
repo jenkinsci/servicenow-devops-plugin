@@ -446,7 +446,6 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
     /*
 API (wfapi) for individual stage execution example (build #6, stageId #6)
-http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/describe
  */
 
 	public DevOpsRunStatusStageModel createRunStatusStage(FlowNode fn, final Run<?, ?> run,
