@@ -28,19 +28,34 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.6</version>
+        <version>4.18</version>
         <relativePath />
     </parent>
+
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
+
     <properties>
+        <revision>1.0-alpha-1</revision>
+        <changelist>-SNAPSHOT</changelist>
+        <gitHubRepo>jenkinsci/servicenow-devops-plugin</gitHubRepo>
         <jenkins.version>2.176.4</jenkins.version>
         <java.level>8</java.level>
     </properties>
+
     <name>ServiceNow DevOps Plugin</name>
     <description>ServiceNow Enterprise DevOps plugin.</description>
+
+    <url>https://github.com/jenkinsci/servicenow-devops-plugin</url>
+    <scm>
+        <connection>scm:git:ssh://github.com/${gitHubRepo}.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/${gitHubRepo}.git</developerConnection>
+        <url>https://github.com/${gitHubRepo}</url>
+        <tag>${scmTag}</tag>
+    </scm>
+
     <licenses>
         <license>
             <name>MIT License</name>
@@ -48,8 +63,28 @@
         </license>
     </licenses>
 
-    <dependencies>
+    <developers>
+        <developer>
+            <id>app-devops-integrations@servicenow.com</id>
+            <name>ServiceNow DevOps Integrations</name>
+            <email>app-devops-integrations@servicenow.com</email>
+        </developer>
+    </developers>
 
+    <repositories>
+        <repository>
+            <id>repo.jenkins-ci.org</id>
+            <url>https://repo.jenkins-ci.org/public/</url>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>repo.jenkins-ci.org</id>
+            <url>https://repo.jenkins-ci.org/public/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <dependencies>
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -109,52 +144,17 @@
             <artifactId>workflow-support</artifactId> 
             <version>2.20</version>
         </dependency>
-
     </dependencies>
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.jenkins-ci.tools</groupId>
-                <artifactId>maven-hpi-plugin</artifactId>
-                <!--<configuration>
-                    <maskClasses>com.google.inject.
-                        com.google.common.
-                    </maskClasses>
-                    <minimumJavaVersion>8</minimumJavaVersion>
-                </configuration>-->
-            </plugin>
-
-        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.jenkins-ci.tools</groupId>
+                    <artifactId>maven-hpi-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
 
-    <developers>
-      <developer>
-        <id>app-devops-integrations@servicenow.com</id>
-        <name>ServiceNow</name>
-        <email>app-devops-integrations@servicenow.com</email>
-      </developer>
-    </developers>
-
-
-    <url>https://github.com/ServiceNow/${project.artifactId}</url>
-    <scm>
-        <connection>scm:git:git://github.com/ServiceNow/${project.artifactId}.git</connection>
-        <developerConnection>scm:git:git@github.com:ServiceNow/${project.artifactId}.git</developerConnection>
-        <url>https://github.com/ServiceNow/${project.artifactId}</url>
-      <tag>HEAD</tag>
-  </scm>
-
-    <repositories>
-        <repository>
-            <id>repo.jenkins-ci.org</id>
-            <url>https://repo.jenkins-ci.org/public/</url>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>repo.jenkins-ci.org</id>
-            <url>https://repo.jenkins-ci.org/public/</url>
-        </pluginRepository>
-    </pluginRepositories>
 </project>
