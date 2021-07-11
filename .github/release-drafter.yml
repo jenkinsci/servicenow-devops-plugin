@@ -1,0 +1,4 @@
+_extends: .github
+name-template: v$NEXT_PATCH_VERSION
+tag-template: servicenow-devops-$NEXT_MINOR_VERSION
+version-template: $MAJOR.$MINOR.$PATCH
