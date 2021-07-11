@@ -34,10 +34,11 @@
 
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>${changelist}</version>
+    <version>${revision}-${changelist}</version>
     <packaging>hpi</packaging>
 
     <properties>
+        <revision>0.1-beta</revision>
         <changelist>999999-SNAPSHOT</changelist>
         <gitHubRepo>jenkinsci/servicenow-devops-plugin</gitHubRepo>
 	    <jenkins.version>2.176.4</jenkins.version>
