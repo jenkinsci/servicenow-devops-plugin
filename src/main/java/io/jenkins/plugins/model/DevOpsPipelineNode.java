@@ -1,6 +1,7 @@
 package io.jenkins.plugins.model;
 
 import java.io.IOException;
+import java.util.logging.Level;
 
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -119,7 +120,7 @@ public class DevOpsPipelineNode {
 				this.executionUrl = this.getFlowNode().getUrl();
 			} catch (IOException e) {
 				GenericUtils.printDebug(DevOpsPipelineNode.class.getName(), "setExecutionURL",
-						new String[] { "message" }, new String[] { "Skipping declarative stage" }, true);
+						new String[] { "message" }, new String[] { "Skipping declarative stage" }, Level.FINE);
 			}
 		}
 	}

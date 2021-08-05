@@ -7,15 +7,20 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.logging.Level;
@@ -70,6 +75,7 @@ import io.jenkins.plugins.model.DevOpsRunStatusStageModel;
 import io.jenkins.plugins.model.DevOpsRunStatusTestCaseModel;
 import io.jenkins.plugins.model.DevOpsRunStatusTestModel;
 import io.jenkins.plugins.model.DevOpsRunStatusTestSuiteModel;
+import io.jenkins.plugins.model.DevOpsSonarQubeModel;
 import io.jenkins.plugins.model.DevOpsTestSummary;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
@@ -103,10 +109,10 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 	// Called from onStarted/onCompleted RunListener, or from onNewHead GraphListener
 	public DevOpsRunStatusModel createRunStatus(FlowNode fn, Run<?, ?> run, EnvVars vars,
-	                                            String runPhase, String stagePhase,
-	                                            boolean isStageStart,
-	                                            String upstreamStageTaskExecutionURL,
-	                                            String upstreamStageName) {
+												String runPhase, String stagePhase,
+												boolean isStageStart,
+												String upstreamStageTaskExecutionURL,
+												String upstreamStageName) {
 		// pass in the upstream execution url
 		Jenkins jenkins = Jenkins.getInstanceOrNull();
 		DevOpsRunStatusModel status = new DevOpsRunStatusModel();
@@ -115,7 +121,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 			status.setNumber(run.getNumber());
 			status.setUrl(jenkinsUrl + run.getUrl());
 			status.setTimestamp(run.getTimeInMillis() +
-			                    run.getDuration()); //adding duration to address DEF0069821
+								run.getDuration()); //adding duration to address DEF0069821
 			hudson.model.Result result = run.getResult();
 			if (result != null) {
 				status.setResult(result.toString());
@@ -183,7 +189,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 			}*/
 
 
-			// populate test summary
+			// populate test summary and sonar details
 			if (!isStageStart) {
 
 				long stageEndtime = 0;
@@ -206,6 +212,43 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 							stageModel.getName());
 					stageName= rootNode.getName();
 				}
+
+
+
+				// START : Add sonar details to status and pipeline graph
+				//if (this.pipelineGraph.getNodeByName(stageName)!=null && this.pipelineGraph.isRootNode(stageModel.getName())) {
+				if(((DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) ||
+						DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
+						DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
+						stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()) &&
+								this.pipelineGraph.isRootNode(stageModelName))) {
+					List<DevOpsSonarQubeModel> sonarQubeModelList = getSonarQubeAnalysis(run,
+							stageName, pipelineNameForPayload, status.getNumber(),
+							stageEndtime, stageModel.getId(), status.getPronoun(), status.isMultiBranch(), scmModel.getBranch());
+
+					try {
+
+						if (sonarQubeModelList != null && sonarQubeModelList.size() > 0) {
+							List<DevOpsSonarQubeModel> finalList = new ArrayList<>();
+
+							for (DevOpsSonarQubeModel sonarQubeModel : sonarQubeModelList) {
+								if (!this.pipelineGraph.isSonarQubeModelResultPublished(sonarQubeModel)) {
+									finalList.add(sonarQubeModel);
+									this.pipelineGraph.addToJobSonarQubeModelResults(sonarQubeModel);
+								}
+							}
+
+							if (finalList.size() > 0)
+								status.setSonarQubeAnalysisModels(finalList);
+
+						}
+					} catch (Exception e) {
+						printDebug("createRunStatus", new String[]{"Exception"}, new String[]{e.getMessage()},
+								Level.SEVERE);
+					}
+				}
+
+				//END : Sonar block
 
 				List<DevOpsTestSummary> testSummaryList = createTestSummary(run,
 						stageName, pipelineNameForPayload, status.getNumber(),
@@ -243,7 +286,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 							JSONObject stageObj = testInfo.getJSONObject("stages");
 							String stagename =null;
 							if (status.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-							    status.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())){
+									status.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())){
 								stagename= jobModel.getName();
 							} else {
 								stagename= stageModel.getName();
@@ -266,7 +309,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 				FilePath workspace= null;
 				WorkspaceAction action=null;
 				if (nodeById!=null)
-					 action = nodeById.getWsAction();
+					action = nodeById.getWsAction();
 
 				if (action!=null) {
 					workspace = action.getWorkspace();
@@ -277,7 +320,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 				if (workspace!=null && testResultFiles.toString().length()>0) {
 					long startTime=0L;
 					if (nodeById!=null)
-					    startTime = nodeById.getStartTime();
+						startTime = nodeById.getStartTime();
 					else
 						startTime = run.getTimestamp().getTimeInMillis();
 
@@ -301,16 +344,16 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 			//get log for free style if it is completed phas or
 			// for pipeline if status.log is null and this is not start stage
 			if (((DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) ||
-			      DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
-			     DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
-					    stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()) &&
-					    this.pipelineGraph.isRootNode(stageModelName) &&
-					    (stageModel.getLog() == null || stageModel.getLog().size() == 0) &&
-					    !isStageStart &&
-					    !(DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) &&
-					      DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()
-							      .equals(job.getPronoun()))
-			    )) {
+					DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
+					DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
+					stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()) &&
+							this.pipelineGraph.isRootNode(stageModelName) &&
+							(stageModel.getLog() == null || stageModel.getLog().size() == 0) &&
+							!isStageStart &&
+							!(DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) &&
+									DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()
+											.equals(job.getPronoun()))
+			)) {
 				try {
 					List<String> rlogList = new ArrayList<>();
 					String logText = extractLog(run.getLogText());
@@ -326,18 +369,18 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 	}
 
 	private DevOpsTestSummary createTestSummaryFromFile(FilePath testFile,String stageName, String pipelineName,
-	                                       int buildNumber,long stageStarttime, String pronoun, String isMultiBranch, String branchName){
+														int buildNumber,long stageStarttime, String pronoun, String isMultiBranch, String branchName){
 		try {
 			if (testFile ==null)
 				return null;
 
 			LOGGER.log(Level.INFO, "DevOpsRunStatusAction.createTestSummaryFromFile(): Creating test summary from " +
-			                                                                    "file -" + testFile.getName());
+					"file -" + testFile.getName());
 			String fileString = testFile.readToString();
 
 			String projectName = null;
 			if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-			    pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())){
+					pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())){
 				projectName= pipelineName;
 				pipelineName=null;
 				stageName= projectName;
@@ -359,14 +402,14 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 			return testSummary;
 		}	catch (Exception ignore) {
 			LOGGER.log(Level.WARNING, "DevOpsRunStatusAction.createTestSummaryFromFile()- Error getting test " +
-			                                                                "report content - " + ignore.getMessage());
+					"report content - " + ignore.getMessage());
 		}
 		return null;
 	}
 
 
 	private void getTestFiles(FilePath ws, String testResults, List<FilePath> fileList,
-	                          long stageStartTime){
+							  long stageStartTime){
 		try{
 			LOGGER.log(Level.INFO, "DevOpsRunStatusAction.getTestFiles: testResults-" + testResults);
 
@@ -384,8 +427,8 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 
 		} catch (Exception e) {
-			LOGGER.log(Level.WARNING,
-					" DevOpsRunStatusAction.getTestFiles | Error when extracting report file | " + e.getMessage());
+			printDebug("handlePipeline", new String[]{"getTestFiles"}, new String[]{e.getMessage()},
+					Level.SEVERE);
 		}
 	}
 
@@ -449,10 +492,10 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
  */
 
 	public DevOpsRunStatusStageModel createRunStatusStage(FlowNode fn, final Run<?, ?> run,
-	                                                      String phase, boolean isStageStart,
-	                                                      String baseTaskExecutionURL,
-	                                                      String upstreamTaskExecutionURL,
-	                                                      String upstreamStageName) {
+														  String phase, boolean isStageStart,
+														  String baseTaskExecutionURL,
+														  String upstreamTaskExecutionURL,
+														  String upstreamStageName) {
 		DevOpsRunStatusStageModel stageModel = new DevOpsRunStatusStageModel();
 		if (run != null && fn != null && phase != null && baseTaskExecutionURL != null) {
 			if (isStageStart) {
@@ -463,7 +506,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 				stageModel.setDuration(0);
 				stageModel.setTimestamp(System.currentTimeMillis());
 				stageModel.setUrl(baseTaskExecutionURL + "execution/node/" + stageModel.getId() +
-				                  "/wfapi/describe");
+						"/wfapi/describe");
 				if (upstreamTaskExecutionURL != null)
 					stageModel.setUpstreamTaskExecutionURL(upstreamTaskExecutionURL);
 				if (upstreamStageName != null)
@@ -475,7 +518,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 				nodeById.setWsAction(wsAction);
 				nodeById.setStartTime(stageModel.getTimestamp());
 				//((StepStartNode) fn).get
-	
+
 				if(!this.pipelineGraph.isRootNode(stageModel.getName())) {
 					DevOpsPipelineNode rootNode = (new DevOpsModel()).getRootNode(run,
 							stageModel.getName());
@@ -489,7 +532,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 					stageModel.setDuration(getTime(startNode, (StepEndNode) fn));
 					stageModel
 							.setUrl(baseTaskExecutionURL + "execution/node/" + stageModel.getId() +
-							        "/wfapi/describe");
+									"/wfapi/describe");
 					if (upstreamTaskExecutionURL != null)
 						stageModel.setUpstreamTaskExecutionURL(upstreamTaskExecutionURL);
 					if (upstreamStageName != null)
@@ -535,7 +578,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 				{
 					stageModel.setResult(Result.FAILURE.toString());
 
-					
+
 					if (null != nodeById)
 						nodeById.setStageExecStatus(DevOpsConstants.STAGE_RUN_FAILURE.toString());
 				} else {
@@ -551,8 +594,8 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 
 
 	private void getLogForStage(Deque<FlowNode> nodeStack, StepStartNode startNode,
-	                            Deque<String> logQueue,
-	                            int[] currSize, int sizeLimit) throws UnsupportedEncodingException {
+								Deque<String> logQueue,
+								int[] currSize, int sizeLimit) throws UnsupportedEncodingException {
 
 		while (!nodeStack.isEmpty() && currSize[0] < sizeLimit) {
 
@@ -599,8 +642,8 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 
 				// depth-first to go through all child nodes and add to lof
 				while (parentNode != null && !parentNode.equals(startNode) &&
-				       !CollectionUtils.isEmpty(parentNode.getParents()) &&
-				       currSize[0] < sizeLimit) {
+						!CollectionUtils.isEmpty(parentNode.getParents()) &&
+						currSize[0] < sizeLimit) {
 					extractAndAddLog(parentNode, logQueue, currSize, sizeLimit);
 					parentNode = parentNode.getParents().get(0);
 				}
@@ -617,7 +660,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 	}
 
 	private void extractAndAddLog(FlowNode fn, Deque<String> logQueue, int[] currSize,
-	                              int sizeLimit) throws UnsupportedEncodingException {
+								  int sizeLimit) throws UnsupportedEncodingException {
 
 		if (fn == null || currSize[0] >= sizeLimit)
 			return;
@@ -681,7 +724,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 		from = end - chunkSize < 0 ? 0 : end - chunkSize;
 		String chunk = original.substring(from, to); // get chunk
 		while (chunk.getBytes(StandardCharsets.UTF_8).length >
-		       chunkSize) { // adjust chunk to proper byte size if necessary
+				chunkSize) { // adjust chunk to proper byte size if necessary
 			chunk = original.substring(from++, to);
 		}
 
@@ -707,10 +750,61 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 		return status;
 	}
 
+	public List<DevOpsSonarQubeModel> getSonarQubeAnalysis(final Run<?, ?> run, String stageName, String pipelineName,
+														   int buildNumber, long stageEndTime, String blockId, String pronoun, String isMultiBranch,
+														   String branchName) {
+		List<DevOpsSonarQubeModel> finalSonarQubeModelList = new ArrayList<>();
+		try {
+			for (Action sonarAction : run.getAllActions()) {
+				if (sonarAction.getClass().getName().equalsIgnoreCase("hudson.plugins.sonar.action.SonarAnalysisAction")) {
+					DevOpsSonarQubeModel sonarModel = new DevOpsSonarQubeModel();
+					Method[] methods = sonarAction.getClass().getMethods();
+					String ceTaskId = null;
+					String url = null;
+					StringBuffer urlBuilder = new StringBuffer();
+
+					Map<String, Method> methodMap = new HashMap<String, Method>();
+					for (Method m : methods) {
+						methodMap.put(m.getName(), m);
+					}
+
+					if (methodMap.containsKey("getCeTaskId")) {
+						Method m = methodMap.get("getCeTaskId");
+						ceTaskId = m.invoke(sonarAction).toString();
+					}
+
+					if (methodMap.containsKey("getServerUrl")) {
+						Method m = methodMap.get("getServerUrl");
+						urlBuilder = urlBuilder.append(m.invoke(sonarAction).toString());
+					} else if (methodMap.containsKey("getInstallationUrl")) {
+						Method m = methodMap.get("getInstallationUrl");
+						urlBuilder = urlBuilder.append(m.invoke(sonarAction).toString());
+					} else if (methodMap.containsKey("getUrl")) {
+						Method m = methodMap.get("getUrl");
+						String tempUrl = m.invoke(sonarAction).toString(); //invoke sonarAnalysisAction getUrl() method
+						String serverUrl = tempUrl.substring(0, tempUrl.indexOf("/dashboard"));
+						urlBuilder = urlBuilder.append(serverUrl);
+					}
+
+					sonarModel.setScanID(ceTaskId);
+					sonarModel.setUrl(urlBuilder.toString());
+					finalSonarQubeModelList.add(sonarModel);
+				}
+			}
+		} catch (RuntimeException ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getSonarQubeAnalysis()- RunTime Exception :  "
+					+  ignore.getMessage());
+		}catch (Exception ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getSonarQubeAnalysis()- Exception occured : "
+					+  ignore.getMessage());
+		}
+		return finalSonarQubeModelList;
+	}
+
 	public List<DevOpsTestSummary> createTestSummary(final Run<?, ?> run,String stageName,
-	                                                 String pipelineName, int buildNumber,
-	                                                 long stageEndTime, String blockId,
-	                                                 String pronoun, String isMultiBranch, String branchName){
+													 String pipelineName, int buildNumber,
+													 long stageEndTime, String blockId,
+													 String pronoun, String isMultiBranch, String branchName){
 		List<DevOpsTestSummary> finalTestSummaryList = new ArrayList<>();
 		try {
 			List<? extends Action> testActions = run.getAllActions().stream()
@@ -745,15 +839,15 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 		}catch (Exception ignore){
 			LOGGER.log(Level.WARNING,
 					" DevOpsRunStatusAction.createTestSummary()- Error when extracting " +
-					"testResults | " + ignore.getMessage());
+							"testResults | " + ignore.getMessage());
 		}
 		return finalTestSummaryList;
 	}
 
 	private List<DevOpsTestSummary> processTestResult(Run run,
-	                                                   AbstractTestResultAction testAction, Object result,String stageName,
-	                                                   String pipelineName, int buildNumber,
-	                                                   long stageEndTime, String blockId, String pronoun, String isMultiBranch, String branchName) {
+													  AbstractTestResultAction testAction, Object result,String stageName,
+													  String pipelineName, int buildNumber,
+													  long stageEndTime, String blockId, String pronoun, String isMultiBranch, String branchName) {
 		if (run == null || result == null) {
 			return null;
 		}
@@ -763,9 +857,9 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 			TabulatedResult testResult = (TabulatedResult) result;
 
 			if ((pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
-			     pronoun.equalsIgnoreCase(
-					     DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
-							     .toString())) && testResult.hasMultipleBlocks()) {
+					pronoun.equalsIgnoreCase(
+							DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
+									.toString())) && testResult.hasMultipleBlocks()) {
 				PipelineBlockWithTests aBlock =
 						testResult.getPipelineBlockWithTests(blockId);
 				if (aBlock == null) {
@@ -775,7 +869,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 
 			String projectName = null;
 			if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-			    pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())){
+					pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())){
 				projectName= pipelineName;
 				pipelineName=null;
 				stageName= projectName;
@@ -811,11 +905,11 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 			}
 		} catch (ClassCastException e) {
 			LOGGER.log(Level.WARNING,"Got ClassCast exception while converting results to Tabulated Result from action: " +
-			                         testAction.getClass().getName() + ". Ignoring as we only want test results for processing.");
+					testAction.getClass().getName() + ". Ignoring as we only want test results for processing.");
 		} catch (Exception ignore){
 			LOGGER.log(Level.WARNING,
 					" DevOpsRunStatusAction.processTestResult() - Error when extracting " +
-					"testResults | " + ignore.getMessage());
+							"testResults | " + ignore.getMessage());
 		}
 		return devOpsTestSummaryList;
 	}
@@ -830,7 +924,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 	}
 
 	public DevOpsRunStatusTestModel createRunStatusTest(final Run<?, ?> run, String pronoun,
-	                                                    String stageId, String stageName) {
+														String stageId, String stageName) {
 		DevOpsRunStatusTestModel status = new DevOpsRunStatusTestModel();
 		if (run != null) {
 			TestResultAction testResultAction = run.getAction(TestResultAction.class);
@@ -840,11 +934,11 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 					status.setDuration(testResult.getDuration());
 					status.setName(testResult.getDisplayName() + " - "+ testResult.getName());
 					if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
-					    pronoun.equalsIgnoreCase(
-							    DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
-									    .toString())) {
+							pronoun.equalsIgnoreCase(
+									DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
+											.toString())) {
 						if (stageId != null && stageName != null && !stageId.isEmpty() &&
-						    !stageName.isEmpty()) {
+								!stageName.isEmpty()) {
 							int passed = 0;
 							int skipped = 0;
 							int failed = 0;
@@ -859,7 +953,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 									if (blockIds != null && blockNames != null) {
 										if (blockIds.size() >= 1 && blockNames.size() >= 1) {
 											if (blockIds.contains(stageId.trim()) &&
-											    blockNames.contains(stageName.trim())) {
+													blockNames.contains(stageName.trim())) {
 												DevOpsRunStatusTestSuiteModel suite =
 														new DevOpsRunStatusTestSuiteModel();
 												suite.setDuration(suiteResult.getDuration());
@@ -931,10 +1025,10 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 										} else {
 											printDebug("createRunStatusTest",
 													new String[]{"blockIds"},
-													new String[]{blockIds.toString()}, true);
+													new String[]{blockIds.toString()}, Level.FINE);
 											printDebug("createRunStatusTest",
 													new String[]{"blockNames"},
-													new String[]{blockNames.toString()}, true);
+													new String[]{blockNames.toString()}, Level.FINE);
 										}
 									}
 								}
@@ -948,7 +1042,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 							status.setTotal(failed + passed + skipped + fixed + regression);
 						}
 					} else if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-					           pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
+							pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
 						int passed = 0;
 						int skipped = 0;
 						int failed = 0;
@@ -1066,10 +1160,10 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 		return culprits;
 	}
 
-	private void printDebug(String methodName, String[] variables, String[] values, boolean debug) {
+	private void printDebug(String methodName, String[] variables, String[] values, Level logLevel) {
 		GenericUtils
 				.printDebug(DevOpsRunStatusAction.class.getName(), methodName, variables, values,
-						debug);
+						logLevel);
 	}
 
 	public DevOpsPipelineGraph getPipelineGraph() {

@@ -12,6 +12,7 @@ public class DevOpsRunStatusModel {
 	private DevOpsRunStatusTestModel testModel;
 	private DevOpsRunStatusJobModel jobModel;
 	private List<DevOpsTestSummary> testSummaries;
+	private List<DevOpsSonarQubeModel> sonarQubeAnalysisModels;
 	private List<String> log;
 	private String url;
 	private int number;
@@ -182,6 +183,19 @@ public class DevOpsRunStatusModel {
 			this.testSummaries = new ArrayList<DevOpsTestSummary>();
 
 		this.testSummaries.add(testSummary);
+	}
+	public List<DevOpsSonarQubeModel> getSonarQubeAnalysisModels() {
+		return sonarQubeAnalysisModels;
+	}
+
+	public void setSonarQubeAnalysisModels(List<DevOpsSonarQubeModel> sonarQubeAnalysisModels) {
+		this.sonarQubeAnalysisModels = sonarQubeAnalysisModels;
+	}
+	public void addToSonarQubeAnalysisModels(DevOpsSonarQubeModel sonarQubeAnalysisModel) {
+		if (this.sonarQubeAnalysisModels == null)
+			this.sonarQubeAnalysisModels = new ArrayList<DevOpsSonarQubeModel>();
+
+		this.sonarQubeAnalysisModels.add(sonarQubeAnalysisModel);
 	}
 }
 

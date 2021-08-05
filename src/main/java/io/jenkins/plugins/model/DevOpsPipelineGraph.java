@@ -36,6 +36,7 @@ public class DevOpsPipelineGraph {
 	}
 
 	private Set<DevOpsTestSummary> jobTestResults = new HashSet<DevOpsTestSummary>();
+	private Set<DevOpsSonarQubeModel> jobSonarQubeModelResults = new HashSet<DevOpsSonarQubeModel>();
 	public DevOpsPipelineNode getNodeById(String id) {
 		return this.graph.get(id);
 	}
@@ -153,5 +154,12 @@ public class DevOpsPipelineGraph {
 
 	public void addToJobTestResults(DevOpsTestSummary testSummary) {
 		this.jobTestResults.add(testSummary);
+	}
+	public boolean isSonarQubeModelResultPublished(DevOpsSonarQubeModel sonarQubeModel) {
+		return this.jobSonarQubeModelResults.contains(sonarQubeModel);
+	}
+
+	public void addToJobSonarQubeModelResults(DevOpsSonarQubeModel sonarQubeModel) {
+		this.jobSonarQubeModelResults.add(sonarQubeModel);
 	}
 }

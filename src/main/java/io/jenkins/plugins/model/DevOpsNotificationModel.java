@@ -29,7 +29,7 @@ public class DevOpsNotificationModel {
 		if (model != null) {//&&
 
 			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-			printDebug("send", null, null, devopsConfig.isDebug());
+			printDebug("send", null, null, Level.FINE);
 
 			JSONObject params = new JSONObject();
 			params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(),
@@ -48,7 +48,7 @@ public class DevOpsNotificationModel {
 
 		if (testModel != null) {//&&
 			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-			printDebug("sendTestResults", null, null, devopsConfig.isDebug());
+			printDebug("sendTestResults", null, null, Level.FINE);
 
 			sendNotification(devopsConfig.getTestUrl(), gson.toJson(testModel), new JSONObject());
 		} else {
@@ -62,14 +62,13 @@ public class DevOpsNotificationModel {
 		if (GenericUtils.isDevOpsConfigurationEnabled() && GenericUtils.isDevOpsConfigurationValid()) {//&&
 				DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-				printDebug("sendNotification", null, null, devopsConfig.isDebug());
+				printDebug("sendNotification", null, null, Level.FINE);
 
 				String toolId = devopsConfig.getToolId();
 				params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
 				String user = devopsConfig.getUser();
 				String pwd = devopsConfig.getPwd();
-				CommUtils.call("POST", notificationUrl, params, data, user, pwd,
-						devopsConfig.isDebug());
+				CommUtils.call("POST", notificationUrl, params, data, user, pwd, null);
 
 		} else {
 			LOGGER.log(Level.INFO,
@@ -80,8 +79,8 @@ public class DevOpsNotificationModel {
 	}
 
 
-	private void printDebug(String methodName, String[] variables, String[] values, boolean debug) {
-		GenericUtils.printDebug(DevOpsNotificationModel.class.getName(), methodName, variables, values, debug);
+	private void printDebug(String methodName, String[] variables, String[] values, Level logLevel) {
+		GenericUtils.printDebug(DevOpsNotificationModel.class.getName(), methodName, variables, values, logLevel);
 	}
 
 }

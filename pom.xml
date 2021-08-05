@@ -33,7 +33,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1-beta.5</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.176.4</jenkins.version>
@@ -110,6 +110,18 @@
             <version>2.20</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.7</version>
+        </dependency>
+
+	    <dependency>
+            <groupId>com.evanlennick</groupId>
+            <artifactId>retry4j</artifactId>
+            <version>0.15.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -117,12 +129,6 @@
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>
                 <artifactId>maven-hpi-plugin</artifactId>
-                <!--<configuration>
-                    <maskClasses>com.google.inject.
-                        com.google.common.
-                    </maskClasses>
-                    <minimumJavaVersion>8</minimumJavaVersion>
-                </configuration>-->
             </plugin>
 
         </plugins>

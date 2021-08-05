@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
 
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.actions.StageAction;
@@ -52,27 +53,20 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		private final Run<?, ?> run;
 		private final EnvVars vars;
 		private DevOpsNotificationModel notificationModel;
-		private boolean debug;
 
 		public DevOpsStageListener(Run<?, ?> run, EnvVars vars,
-		                           DevOpsNotificationModel notificationModel,
-		                           boolean debug) {
+		                           DevOpsNotificationModel notificationModel) {
 			this.run = run;
 			this.vars = vars;
 			this.notificationModel = notificationModel;
-			this.debug = debug;
-		}
-
-		private boolean isDebug() {
-			return debug;
 		}
 
 		@Override
 		public void onNewHead(FlowNode flowNode) {
-			_printDebug("onNewHead", null, null, isDebug());
+			_printDebug("onNewHead", null, null, Level.FINE);
 			if (isStageStart(flowNode)) {
 				_printDebug("onNewHead", new String[]{"message"},
-						new String[]{"stageStart"}, isDebug());
+						new String[]{"stageStart"}, Level.FINE);
 				if (!isDeclarativeStage(flowNode, true)) {
 
 					String upstreamTaskExecutionURL = null;
@@ -119,10 +113,10 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						notificationModel.send(action.getModel());
 				} else
 					_printDebug("onNewHead", new String[]{"message"},
-							new String[]{"Skipping declarative stage"}, isDebug());
+							new String[]{"Skipping declarative stage"}, Level.FINE);
 			} else if (isStageEnd(flowNode)) {
 				_printDebug("onNewHead", new String[]{"message"},
-						new String[]{"stageEnd"}, isDebug());
+						new String[]{"stageEnd"}, Level.FINE);
 				if (!isDeclarativeStage(flowNode, false)) {
 					// check the start node to see if this stage was skipped
 					StepStartNode startNode = ((StepEndNode) flowNode).getStartNode();
@@ -182,7 +176,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 					}
 				} else
 					_printDebug("onNewHead", new String[]{"message"},
-							new String[]{"Skipping declarative stage"}, isDebug());
+							new String[]{"Skipping declarative stage"}, Level.FINE);
 			}
 
 		}
@@ -190,7 +184,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		private String getStageStatusFromTag(FlowNode fn) {
 			String tagValue =null;
 			try {
-				_printDebug("getStageStatusFromTag", null, null, isDebug());
+				_printDebug("getStageStatusFromTag", null, null, Level.FINE);
 
 				TagsAction tagsAction = fn.getPersistentAction(TagsAction.class);
 				if (tagsAction != null) {
@@ -199,8 +193,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						return tagValue;
 				}
 			} catch (Exception ignore) {
-				_printDebug("getStageStatusFromTag", new String[]{"Exception"},
-						new String[]{ignore.getMessage()}, isDebug());
+				_printDebug("getStageStatusFromTag", new String[]{"Exception"}, new String[]{ignore.getMessage()},
+						Level.SEVERE);
 			}
 
 			return tagValue;
@@ -277,7 +271,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 
 		private boolean isStageStart(FlowNode fn) {
-			_printDebug("isStageStart", null, null, isDebug());
+			_printDebug("isStageStart", null, null, Level.FINE);
 			return fn != null && (
 					(fn.getAction(StageAction.class) != null) ||
 					(fn.getAction(LabelAction.class) != null &&
@@ -286,7 +280,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 
 		private boolean isStageEnd(FlowNode fn) {
-			_printDebug("isStageEnd", null, null, isDebug());
+			_printDebug("isStageEnd", null, null, Level.FINE);
 			if (fn != null && isStageEndStep(fn)) {
 				DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
 				if (action != null) {
@@ -308,14 +302,14 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 
 		private boolean isStageStartStep(FlowNode fn) {
-			_printDebug("isStageStartStep", null, null, isDebug());
+			_printDebug("isStageStartStep", null, null, Level.FINE);
 			if (fn instanceof StepStartNode)
 				return ((StepStartNode) fn).getStepName().equalsIgnoreCase("stage");
 			return false;
 		}
 
 		private boolean isStageEndStep(FlowNode fn) {
-			_printDebug("isStageEndStep", null, null, isDebug());
+			_printDebug("isStageEndStep", null, null, Level.FINE);
 			if (fn instanceof StepEndNode) {
 				StepStartNode ssn = ((StepEndNode) fn).getStartNode();
 				if (ssn != null) {
@@ -326,9 +320,9 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 
 		private void _printDebug(String methodName, String[] variables, String[] values,
-		                         boolean debug) {
+		                         Level logLevel) {
 			GenericUtils.printDebug(DevOpsStageListener.class.getName(), methodName,
-					variables, values, debug);
+					variables, values, logLevel);
 		}
 
 	}
@@ -337,24 +331,23 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 	public void onCompleted(final Run<?, ?> run, TaskListener listener) {
 		super.onCompleted(run, listener);
 		DevOpsModel model = new DevOpsModel();
-		printDebug("onCompleted", null, null, model.isDebug());
+		printDebug("onCompleted", null, null, Level.FINE);
 		try {
 			if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
 				String pronoun = run.getParent().getPronoun();
 				printDebug("onCompleted", new String[]{"pronoun"}, new String[]{pronoun},
-						model.isDebug());
+						Level.FINE);
 				EnvVars vars = GenericUtils.getEnvVars(run, listener);
 				// Pipeline
 				if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 				    pronoun.equalsIgnoreCase(
 						    DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString()))
-					handleRunCompleted(run, vars,
-							model.isDebug()); // not necessary in case we don't want run Start/Completed events
+					handleRunCompleted(run, vars); // not necessary in case we don't want run Start/Completed events
 					// Freestyle
 				else if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
 				         pronoun.equalsIgnoreCase(
 						         DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()))
-					handleRunCompleted(run, vars, model.isDebug());
+					handleRunCompleted(run, vars);
 			}
 		} finally {
 			model.removeFromTrackingCache(run.getParent().getFullName(), run.getId());
@@ -367,7 +360,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 	                                    BuildListener listener)
 			throws IOException, InterruptedException, RunnerAbortedException {
 		DevOpsModel model = new DevOpsModel();
-		printDebug("setUpEnvironment", null, null, model.isDebug());
+		printDebug("setUpEnvironment", null, null, Level.FINE);
 		if (build != null) {
 			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.getPipelineInfo(build.getParent(), build.getId());
 			DevOpsJobProperty jobProperties = model.getJobProperty(build.getParent());
@@ -402,8 +395,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						}
 						// Schedule the next Job once current has resumed, in case of parallel pipeline executions
 						//if (model.isQueueJobs()) {
-						//	if (model.scheduleNextJob(build, job, 5) && model.isDebug())
-						//		printDebug("setupEnvironment", new String[]{"message"}, new String[]{"Next queued Job has been scheduled."}, model.isDebug());
+						//	if (model.scheduleNextJob(build, job, 5) && Level.FINE)
+						//		printDebug("setupEnvironment", new String[]{"message"}, new String[]{"Next queued Job has been scheduled."}, Level.FINE);
 						//}
 					}
 				}
@@ -413,7 +406,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 								.println("[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
 					else {
 						printDebug("setUpEnvironment", new String[]{"message"},
-								new String[]{pipelineInfo.getErrorMessage()}, model.isDebug());
+								new String[]{pipelineInfo.getErrorMessage()}, Level.WARNING);
 						listener.getLogger().println("[ServiceNow DevOps] " + pipelineInfo.getErrorMessage());
 						build.setResult(Result.FAILURE);
 						throw new RunnerAbortedException();
@@ -428,7 +421,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 	private boolean shouldStopDueToLocalError(final Run<?, ?> run, BuildListener listener, Job<?, ?> job,
 	                                          DevOpsModel model){
 
-		printDebug("shouldStopDueToLocalError", null, null, model.isDebug());
+		printDebug("shouldStopDueToLocalError", null, null, Level.FINE);
 		boolean result = false;
 		if (run != null && job != null && listener != null) {
 			if (job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
@@ -445,7 +438,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 					}
 					printDebug("shouldStop", new String[]{"message"},
 							new String[]{msg},
-							model.isDebug());
+							Level.FINE);
 					listener.getLogger().println(
 							"[ServiceNow DevOps]" + msg);
 				}
@@ -456,7 +449,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 
 	private boolean shouldStop(final Run<?, ?> run, BuildListener listener, Job<?, ?> job,
 	                           DevOpsModel model) {
-		printDebug("shouldStop", null, null, model.isDebug());
+		printDebug("shouldStop", null, null, Level.FINE);
 		boolean result = false;
 		if (run != null && job != null && listener != null) {
 			if (job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
@@ -474,7 +467,10 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 							listener.getLogger()
 									.println("[ServiceNow DevOps] Job was canceled");
 							printDebug("shouldStop", new String[]{"message"},
-									new String[]{"Job was canceled"}, model.isDebug());
+									new String[]{"Job was canceled"}, Level.INFO);
+							String changeComments = model.getChangeComments(_result);
+							if (!GenericUtils.isEmpty(changeComments))
+								listener.getLogger().println("[ServiceNow DevOps] Cancel comments: " + changeComments);
 						}
 						// Not canceled and not approved
 						else {
@@ -484,15 +480,19 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 							}
 							printDebug("shouldStop", new String[]{"message"},
 									new String[]{msg},
-									model.isDebug());
+									Level.FINE);
 							//i
 							listener.getLogger().println(
 									"[ServiceNow DevOps]" + msg);
+
+							String changeComments = model.getChangeComments(_result);
+							if (!GenericUtils.isEmpty(changeComments))
+								listener.getLogger().println("[ServiceNow DevOps] Rejection comments: " + changeComments);
 						}
 					} else {
 						printDebug("shouldStop", new String[]{"message"},
 								new String[]{"Job has been approved for execution"},
-								model.isDebug());
+								Level.INFO);
 						listener.getLogger().println(
 								"[ServiceNow DevOps] Job has been approved for execution");
 					}
@@ -508,13 +508,13 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 	public void onStarted(final Run<?, ?> run, TaskListener listener) {
 		super.onStarted(run, listener);
 		DevOpsModel model = new DevOpsModel();
-		printDebug("onStarted", null, null, model.isDebug());
+		printDebug("onStarted", null, null, Level.FINE);
 		EnvVars vars = GenericUtils.getEnvVars(run, listener);
 		if (vars != null) {
 			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.checkIsTracking(run.getParent(),
 					run.getId(), vars.get("BRANCH_NAME"));
 			printDebug("onStarted", new String[]{"pipelineInfo"}, new String[]{pipelineInfo.toString()},
-					model.isDebug());
+					Level.FINE);
 			if (pipelineInfo != null) {
 				model.addToPipelineInfoCache(run.getParent().getFullName(), run.getId(), pipelineInfo);
 				
@@ -526,23 +526,21 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 					if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 						pronoun.equalsIgnoreCase(
 								DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString())) {
-						handleRunStarted(run, vars,
-								model.isDebug()); // not necessary in case we don't want run Start/Completed events
-						handlePipeline(run, vars, model.isDebug());//, configProp);
+						handleRunStarted(run, vars); // not necessary in case we don't want run Start/Completed events
+						handlePipeline(run, vars);//, configProp);
 					}
 					// Freestyle
 					else if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
 							pronoun.equalsIgnoreCase(
 									DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()))
-						handleRunStarted(run, vars, model.isDebug());
+						handleRunStarted(run, vars);
 				}
 			}
 		}
 	}
 
-	private void handlePipeline(final Run<?, ?> run, EnvVars vars,
-	                            boolean debug) {
-		printDebug("handlePipeline", null, null, debug);
+	private void handlePipeline(final Run<?, ?> run, EnvVars vars) {
+			printDebug("handlePipeline", null, null, Level.FINE);
 		if (run instanceof WorkflowRun) {
 			EnvVars _vars = vars;
 			ListenableFuture<FlowExecution> promise =
@@ -554,22 +552,21 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						FlowExecution ex =
 								((WorkflowRun) run).getExecutionPromise().get();
 						ex.addListener(
-								new DevOpsStageListener(run, _vars, notificationModel,
-										debug));
+								new DevOpsStageListener(run, _vars, notificationModel));
 					} catch (InterruptedException e) {
-						printDebug("handlePipeline", new String[]{"InterruptedException"},
-								new String[]{e.getMessage()}, debug);
+						printDebug("handlePipeline", new String[]{"InterruptedException"}, new String[]{e.getMessage()},
+								Level.SEVERE);
 					} catch (ExecutionException e) {
-						printDebug("handlePipeline", new String[]{"ExecutionException"},
-								new String[]{e.getMessage()}, debug);
+						printDebug("handlePipeline", new String[]{"ExecutionException"}, new String[]{e.getMessage()},
+								Level.SEVERE);
 					}
 				}
 			}, Executors.newSingleThreadExecutor());
 		}
 	}
 
-	private void handleRunStarted(final Run<?, ?> run, EnvVars vars, boolean debug) {
-		printDebug("handleRunStarted", null, null, debug);
+	private void handleRunStarted(final Run<?, ?> run, EnvVars vars) {
+		printDebug("handleRunStarted", null, null, Level.FINE);
 		if (run != null) {
 			DevOpsRunStatusAction action = new DevOpsRunStatusAction();
 			DevOpsRunStatusModel model = action.createRunStatus(null, run, vars,
@@ -582,8 +579,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 	}
 
-	private void handleRunCompleted(final Run<?, ?> run, EnvVars vars, boolean debug) {
-		printDebug("handleRunCompleted", null, null, debug);
+	private void handleRunCompleted(final Run<?, ?> run, EnvVars vars) {
+		printDebug("handleRunCompleted", null, null, Level.FINE);
 		if (run != null) {
 			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
 			if (action != null) {
@@ -609,9 +606,9 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 	}
 
 	private void printDebug(String methodName, String[] variables, String[] values,
-	                        boolean debug) {
+	                        Level logLevel) {
 		GenericUtils.printDebug(DevOpsRunListener.class.getName(), methodName, variables,
-				values, debug);
+				values, logLevel);
 	}
 
 }
