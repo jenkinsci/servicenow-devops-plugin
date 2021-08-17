@@ -1,16 +1,21 @@
 package io.jenkins.plugins.utils;
 
 import java.io.IOException;
+import java.util.Locale;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import hudson.EnvVars;
+import hudson.logging.LogRecorder;
+import hudson.logging.LogRecorderManager;
 import hudson.model.FreeStyleProject;
 import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.config.DevOpsConfiguration;
+import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
@@ -72,28 +77,100 @@ public final class GenericUtils {
 					}
 				}
 			} catch (Exception e) {
-				Logger.getLogger(GenericUtils.class.getName()).warning(e.getMessage());
+				printDebug("GenericUtils", "parseResponseResult", new String[]{"Exception"},
+						new String[]{e.getMessage()}, Level.SEVERE);
 			}
 		}
 		return null;
 	}
 
-	public static void printDebug(String className, String methodName, String[] variables,
-	                              String[] values, boolean debug) {
-		if (debug) {
-			if (variables != null && values != null) {
-				if (variables.length == values.length) {
-					for (int i = 0; i < variables.length; i++) {
-						String message =
-								className + "." + methodName + "(), " + variables[i] +
-								": " + values[i];
-						Logger.getLogger(GenericUtils.class.getName()).info(message);
+	public static Boolean checkIfAttributeExist(JSONObject jsonObject, String attr) {
+		Boolean valid = false;
+		if (jsonObject != null) {
+			try {
+				if (jsonObject.containsKey(DevOpsConstants.COMMON_RESPONSE_RESULT.toString())) {
+					JSONObject result = jsonObject.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+					if (result.containsKey(attr)) {
+						Object valueObj = result.get(attr);
+						if (valueObj != null)
+							valid = true;
 					}
-				}
-			} else {
-				String message = className + "." + methodName + "()";
-				Logger.getLogger(GenericUtils.class.getName()).info(message);
+				} 
+			} catch (Exception e) {
+				printDebug("GenericUtils", "checkIfAttributeExist", new String[]{"Exception"},
+						new String[]{e.getMessage()}, Level.SEVERE);
 			}
+		}
+		return valid;
+	}
+
+	private static Logger getLogger() {
+		return Logger.getLogger(getLoggerName());
+	}
+
+	private static String getLoggerName() {
+		return DevOpsConstants.LOGGER_NAME.toString();
+	}
+
+	private static void createLogRecorder(String name, Level logLevel) {
+		Jenkins jenkins = Jenkins.getInstanceOrNull();
+		if (jenkins != null) {
+			LogRecorderManager logRecorderManager = jenkins.getLog();
+
+			if (logRecorderManager.getLogRecorder(getLoggerName()) == null) {
+				logRecorderManager.doNewLogRecorder(getLoggerName());
+			}
+			LogRecorder logRecorder = logRecorderManager.getLogRecorder(getLoggerName());
+			LogRecorder.Target logRecorderTarget = null;
+
+			for (LogRecorder.Target target : logRecorder.targets) {
+				if (target.name == getLoggerName()) {
+					logRecorderTarget = target;
+				}
+			}
+
+			if (logRecorderTarget == null){
+				logRecorderTarget = new LogRecorder.Target(getLoggerName(), logLevel);
+				logRecorder.targets.add(logRecorderTarget);
+			} else {
+				if (!logRecorderTarget.getLevel().equals(logLevel)) {
+					logRecorder.targets.remove(logRecorderTarget);
+					logRecorderTarget = new LogRecorder.Target(getLoggerName(), logLevel);
+					logRecorder.targets.add(logRecorderTarget);
+				}
+			}
+	}
+	}
+
+
+	public static void configureLogger(String logLevel) {
+		Level lv;
+		Level logRecorderLogLevel;
+		if (logLevel.equals("inherit")) {
+			lv = null;
+			logRecorderLogLevel = Logger.getLogger("").getLevel();
+		} else {
+			lv = Level.parse(logLevel.toUpperCase(Locale.ENGLISH));
+			logRecorderLogLevel = lv;
+		}
+		getLogger().setLevel(lv);
+		createLogRecorder(getLoggerName(), logRecorderLogLevel);
+	}
+
+	public static void printDebug(String className, String methodName, String[] variables,
+	                              String[] values, Level logLevel) {
+		if (variables != null && values != null) {
+			if (variables.length == values.length) {
+				for (int i = 0; i < variables.length; i++) {
+					String message =
+							className + "." + methodName + "(), " + variables[i] +
+									": " + values[i];
+					getLogger().log(logLevel, message);
+				}
+			}
+		} else {
+			String message = className + "." + methodName + "()";
+			getLogger().log(logLevel, message);
 		}
 	}
 
@@ -188,7 +265,8 @@ public final class GenericUtils {
 			try {
 				vars = run.getEnvironment(listener);
 			} catch (IOException | InterruptedException e) {
-				Logger.getLogger(GenericUtils.class.getName()).warning(e.getMessage());
+				printDebug("GenericUtils", "getEnvVars", new String[]{"IOException"},
+						new String[]{e.getMessage()}, Level.SEVERE);
 			}
 		}
 		return vars;
@@ -209,4 +287,5 @@ public final class GenericUtils {
 	public static boolean isNotEmpty(final CharSequence cs) {
 		return !isEmpty(cs);
 	}
+
 }

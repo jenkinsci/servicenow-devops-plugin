@@ -18,7 +18,10 @@
 			 <f:entry field="credentialsId" title="Credentials">
                 <c:select/>
               </f:entry>
-			<f:entry title="Debug Mode" field="debug">
+			<f:entry title="LogLevel" field="logLevel">
+                <f:select/>
+            </f:entry>
+			<f:entry title="Force Tracking Check" field="trackCheck">
 				<f:checkbox/>
 			</f:entry>
 			<f:validateButton title="Test Connection" progress="Testing..." method="testConnection"

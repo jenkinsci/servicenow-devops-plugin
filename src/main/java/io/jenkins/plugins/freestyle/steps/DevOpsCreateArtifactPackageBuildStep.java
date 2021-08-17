@@ -2,6 +2,7 @@ package io.jenkins.plugins.freestyle.steps;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.logging.Level;
 
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -83,19 +84,19 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 		String _result = model.handleArtifactCreatePackage(run, listener, expandedName, expandedPayload, envVars);
 
 		printDebug("perform", new String[] { "message" },
-				new String[] { "handleArtifactCreatePackage responded with: "+_result }, model.isDebug());
+				new String[] { "handleArtifactCreatePackage responded with: "+_result }, Level.INFO);
 
 		if (null != _result && !_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 			GenericUtils.printConsoleLog(listener, "SUCCESS: Register package request was successful.");
 			printDebug("perform", new String[] { "message" },
 					new String[] { "SUCCESS : Register package request was successful." },
-					model.isDebug());
+					Level.INFO);
 		} else {
 			String errorMsg = "FAILED: Artifact package could not be created.";
 			if(null != _result)
 				errorMsg += " Cause: "+_result;
 			printDebug("perform", new String[] { "message" },
-					new String[] { errorMsg}, model.isDebug());
+					new String[] { errorMsg}, Level.WARNING);
 			GenericUtils.printConsoleLog(listener, errorMsg);
 			if (jobProperties != null && jobProperties.isIgnoreSNErrors()) {
 				GenericUtils.printConsoleLog(listener, "IGNORED: Artifact package creation error ignored.");
@@ -138,8 +139,8 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 		}
 	}
 	
-	private void printDebug(String methodName, String[] variables, String[] values, boolean debug) {
-		GenericUtils.printDebug(DevOpsPipelineMapStepExecution.class.getName(), methodName, variables, values, debug);
+	private void printDebug(String methodName, String[] variables, String[] values, Level logLevel) {
+		GenericUtils.printDebug(DevOpsPipelineMapStepExecution.class.getName(), methodName, variables, values, logLevel);
 	}
 
 }

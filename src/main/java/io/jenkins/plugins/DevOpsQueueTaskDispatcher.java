@@ -1,5 +1,6 @@
 package io.jenkins.plugins;
 
+import java.util.logging.Level;
 import hudson.Extension;
 import hudson.model.Job;
 import hudson.model.Queue;
@@ -51,7 +52,7 @@ public class DevOpsQueueTaskDispatcher<P, R> extends QueueTaskDispatcher {
 			Job<?, ?> job = (Job<?, ?>) item.task;
 			String pronoun = job.getPronoun();
 			GenericUtils.printDebug(DevOpsQueueTaskDispatcher.class.getName(), "canRun",
-					new String[]{"pronoun"}, new String[]{pronoun}, model.isDebug());
+					new String[]{"pronoun"}, new String[]{pronoun}, Level.FINE);
 			// Pipeline - gating done at the step execution level
 			if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 				pronoun.equalsIgnoreCase(

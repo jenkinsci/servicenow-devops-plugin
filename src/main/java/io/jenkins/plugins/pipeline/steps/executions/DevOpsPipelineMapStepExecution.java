@@ -1,5 +1,7 @@
 package io.jenkins.plugins.pipeline.steps.executions;
 
+import java.util.logging.Level;
+
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 
@@ -28,7 +30,7 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 
 	@Override
 	protected Boolean run() throws Exception {
-		printDebug("run", null, null, true);
+		printDebug("run", null, null, Level.FINE);
 		DevOpsModel model = new DevOpsModel();
 		Run<?, ?> run = getContext().get(Run.class);
 		TaskListener listener = getContext().get(TaskListener.class);
@@ -38,7 +40,7 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 			String message = "[ServiceNow DevOps] Step association is disabled.";
 			listener.getLogger().println(message);
 			printDebug("run", new String[]{"step mapping disabled"},
-					new String[]{message}, model.isDebug());
+					new String[]{message}, Level.FINE);
 			return true;
 		}
 
@@ -51,22 +53,22 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 				vars = ctx.get(EnvVars.class);
 			} catch (Exception e) {
 				printDebug("run", new String[]{"Exception"},
-						new String[]{e.getMessage()}, model.isDebug());
+						new String[]{e.getMessage()}, Level.SEVERE);
 			}
 			boolean _result = model.handleStepMapping(run, run.getParent(), this.step, vars);
 
 			printDebug("run", new String[]{"_result"},
-					new String[]{String.valueOf(_result)}, model.isDebug());
+					new String[]{String.valueOf(_result)}, Level.FINE);
 			result = Boolean.valueOf(_result);
 
 			if (_result) {
 				listener.getLogger()
 						.println("[ServiceNow DevOps] Step associated successfully");
 				printDebug("run", new String[]{"message"},
-						new String[]{"Step associated successfully"}, model.isDebug());
+						new String[]{"Step associated successfully"}, Level.FINE);
 			} else {
 				printDebug("run", new String[]{"message"},
-						new String[]{"Step could not be associated"}, model.isDebug());
+						new String[]{"Step could not be associated"}, Level.FINE);
 				String message = "[ServiceNow DevOps] Step could not be associated, perhaps you need to "
 						+ "set the Orchestration pipeline on the Pipeline and Orchestration stage on the Pipeline Steps";
 				listener.getLogger().println(message);
@@ -83,9 +85,9 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 	}
 
 	private void printDebug(String methodName, String[] variables, String[] values,
-	                        boolean debug) {
+	                        Level logLevel) {
 		GenericUtils
 				.printDebug(DevOpsPipelineMapStepExecution.class.getName(), methodName,
-						variables, values, debug);
+						variables, values, logLevel);
 	}
 }

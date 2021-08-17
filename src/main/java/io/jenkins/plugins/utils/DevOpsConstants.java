@@ -3,6 +3,8 @@ package io.jenkins.plugins.utils;
 public enum DevOpsConstants {
 	MAX_LOG_LINES,
 
+	LOGGER_NAME,
+
 	PIPELINE_PRONOUN,
 	FREESTYLE_PRONOUN,
 	FREESTYLE_MAVEN_PRONOUN,
@@ -22,7 +24,7 @@ public enum DevOpsConstants {
 
 	MAP_FUNCTION_NAME,
 	MAP_DISPLAY_NAME,
-	
+
 	ARTIFACT_REGISTER_STEP_FUNCTION_NAME,
 	ARTIFACT_REGISTER_STEP_DISPLAY_NAME,
 	ARTIFACT_NAME_ATTR,
@@ -34,10 +36,56 @@ public enum DevOpsConstants {
 	ARTIFACT_ARTIFACTS_ATTR,
 	ARTIFACT_REGISTER_STATUS_ATTR,
 	ARTIFACT_CURRENT_BUILD_INFO,
-	
+
 	ARTIFACT_PACKAGE_STEP_FUNCTION_NAME,
 	ARTIFACT_PACKAGE_STEP_DISPLAY_NAME,
 	ARTIFACT_PACKAGE_STEP_RESPONSE,
+
+
+	CONFIG_UPLOAD_STEP_FUNCTION_NAME,
+	CONFIG_UPLOAD_STEP_DISPLAY_NAME,
+	CONFIG_STATUS_STEP_FUNCTION_NAME,
+	CONFIG_STATUS_STEP_DISPLAY_NAME,
+	CONFIG_PUBLISH_STEP_FUNCTION_NAME,
+	CONFIG_PUBLISH_STEP_DISPLAY_NAME,
+	CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME,
+	CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME,
+
+	CONFIG_SNAPSHOT_SYS_ID,
+
+	TABLE_API_QUERY,
+	TABLE_API_FIELDS,
+	TABLE_API_LIMIT,
+	CONFIG_EXPORT_STEP_FUNCTION_NAME,
+	CONFIG_EXPORT_STEP_DISPLAY_NAME,
+
+	CONFIG_EXPORTER_NAME,
+	CONFIG_EXPORTER_FORMAT,
+	CONFIG_EXPORTER_ARGUMENTS,
+	CONFIG_JSON_FORMAT,
+	CONFIG_TEXT_FORMAT,
+	CONFIG_RAW_FORMAT,
+	CONFIG_SNAPSHOT_NAME,
+
+	PIPELINE_JOB_NAME,
+	PIPELINE_BUILD_NUMBER,
+	GET_SNAPSHOTS_STEP_FUNCTION_NAME,
+	GET_SNAPSHOTS_STEP_DISPLAY_NAME,
+
+	CONFIG_APPLICATION_NAME,
+	CONFIG_CHANGESET_NUMBER,
+	CONFIG_NAME_PATH,
+	CONFIG_DATA_FORMAT,
+	CONFIG_AUTO_COMMIT,
+	CONFIG_AUTO_VALIDATE,
+	CONFIG_DEPLOYABLE_NAME,
+	CONFIG_FILE_CONTENT,
+	CONFIG_COMPONENT_TYPE,
+	CONFIG_DEPLOYABLE_TYPE,
+	CONFIG_UPLOAD_ID,
+	CONFIG_BUILD_NUMBER,
+
+
 
 	COMMON_RESPONSE_CHANGE_CTRL,
 	COMMON_RESPONSE_VALUE_UNKNOWN,
@@ -45,12 +93,25 @@ public enum DevOpsConstants {
 	COMMON_RESPONSE_VALUE_FALSE,
 	COMMON_RESPONSE_SUCCESS,
 	COMMON_RESPONSE_RESULT,
+	COMMON_RESPONSE_EXPORTER_RESULT,
+	COMMON_RESPONSE_OUTPUT,
 	COMMON_RESPONSE_STATUS,
+	COMMON_RESPONSE_STATE,
+	COMMON_RESPONSE_NEW,
+	COMMON_RESPONSE_IN_PROGRESS,
+	COMMON_RESPONSE_READY,
+	COMMON_RESPONSE_INITIALIZING,
+	COMMON_RESPONSE_FAILURE,
 	COMMON_RESULT_FAILURE,
 	COMMON_RESULT_ERROR,
+	COMMON_RESPONSE_NUMBER,
+	COMMON_RESPONSE_MESSAGE,
+	COMMON_RESPONSE_EXPORT_ID,
 	COMMON_RESPONSE_DETAILS,
 	COMMON_RESPONSE_ERRORS,
+	COMMON_RESPONSE_COMPLETED,
 	CR_ATTRS,
+	COMMON_RESPONSE_OPEN,
 
 	FAILURE_REASON_CONN_REFUSED,
 	FAILURE_REASON_CONN_REFUSED_UI,
@@ -59,7 +120,8 @@ public enum DevOpsConstants {
 	FAILURE_REASON_GENERIC_UI,
 	FAILURE_REASON_PIPELINE_DETAILS_NOT_FOUND,
 	FAILURE_REASON_INVALID_CONFIGURATION_UI,
-	
+	FAILURE_REASON_CONN_ISSUE,
+
 	STEP_MAPPING_RESPONSE_ATTR,
 
 	TOOL_ID_ATTR,
@@ -89,6 +151,7 @@ public enum DevOpsConstants {
 	REST_GET_METHOD,
 	REST_POST_METHOD,
 	REST_PUT_METHOD,
+	REST_DELETE_METHOD,
 	JOB_DETAILS_ATTR,
 	JOB_STAGE_SEPARATOR,
 	STAGE_RUN_IN_PROGRESS,
@@ -106,6 +169,7 @@ public enum DevOpsConstants {
 	CALLBACK_RESULT_SUCCESS,
 	CALLBACK_RESULT_CANCELED,
 	CALLBACK_RESULT_COMM_FAILURE,
+	CALLBACK_RESULT_COMMENTS,
 
 	GIT_REMOTE_UPDATE_CMD,
 	GIT_REV_LIST_CMD,
@@ -129,12 +193,19 @@ public enum DevOpsConstants {
 	MULTI_BRANCH_PROJECT_CLASS,
 	PIPELINE_CALLBACK_URL_IDENTIFIER,
 
-	TEST_INFO_RESPONSE;
+	TEST_INFO_RESPONSE,
+
+	SERVICENOW_PIPELINE_INFO_FILE_NAME,
+	PATH_SEPARATOR,
+	JOBS_PATH,
+	PIPELINE_INFO_UPDATE_IDENTIFIER;
 
 	@Override
 	public String toString() {
 		switch (this) {
 			case MAX_LOG_LINES: return "100";
+
+			case LOGGER_NAME: return "ServiceNowDevops";
 
 			case PIPELINE_PRONOUN: return "Pipeline";
 			case FREESTYLE_PRONOUN: return "Project";
@@ -154,22 +225,66 @@ public enum DevOpsConstants {
 
 			case CHANGE_FUNCTION_NAME: return "snDevOpsChange";
 			case CHANGE_DISPLAY_NAME: return "ServiceNow DevOps - Change Control step";
-			
+
 			case ARTIFACT_REGISTER_STEP_FUNCTION_NAME: return "snDevOpsArtifact";
 			case ARTIFACT_REGISTER_STEP_DISPLAY_NAME: return "ServiceNow DevOps - Register Artifact step";
 			case ARTIFACT_NAME_ATTR: return "name";
 			case ARTIFACT_PIPELINE_NAME: return "pipelineName";
 			case ARTIFACT_PROJECT_NAME: return "projectName";
-			case ARTIFACT_TASK_EXEC_NUM: return "taskExecutionNumber"; 
-			case ARTIFACT_STAGE_NAME: return "stageName"; 
+			case ARTIFACT_TASK_EXEC_NUM: return "taskExecutionNumber";
+			case ARTIFACT_STAGE_NAME: return "stageName";
 			case ARTIFACT_BRANCH_NAME: return "branchName";
 			case ARTIFACT_ARTIFACTS_ATTR: return "artifacts";
 			case ARTIFACT_REGISTER_STATUS_ATTR: return "response";
 			case ARTIFACT_CURRENT_BUILD_INFO: return "currentBuildInfo";
-			
+
 			case ARTIFACT_PACKAGE_STEP_FUNCTION_NAME: return "snDevOpsPackage";
 			case ARTIFACT_PACKAGE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - Register Package step";
 			case ARTIFACT_PACKAGE_STEP_RESPONSE: return "responseCode";
+
+			case CONFIG_UPLOAD_STEP_FUNCTION_NAME: return "snDevOpsConfigUpload";
+			case CONFIG_UPLOAD_STEP_DISPLAY_NAME : return "ServiceNow DevOps - DevOps Configuration Upload";
+			case CONFIG_STATUS_STEP_FUNCTION_NAME: return "snDevOpsConfigSnapshot";
+			case CONFIG_STATUS_STEP_DISPLAY_NAME : return "ServiceNow DevOps - DevOps Configuration Status";
+			case CONFIG_PUBLISH_STEP_FUNCTION_NAME: return "snDevOpsConfigPublish";
+			case CONFIG_PUBLISH_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Publish";
+			case CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME: return "snDevOpsConfigRegisterChangeSet";
+			case CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Register Changeset";
+
+			case CONFIG_SNAPSHOT_SYS_ID: return "sys_id";
+
+			case TABLE_API_QUERY: return "sysparm_query";
+			case TABLE_API_FIELDS: return "sysparm_fields";
+			case TABLE_API_LIMIT: return "sysparm_limit";
+			case CONFIG_EXPORT_STEP_FUNCTION_NAME: return "snDevOpsConfigExport";
+			case CONFIG_EXPORT_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Export";
+			case CONFIG_DEPLOYABLE_NAME: return "deployableName";
+			case CONFIG_APPLICATION_NAME: return "appName";
+			case CONFIG_EXPORTER_NAME: return "exporterName";
+			case CONFIG_EXPORTER_FORMAT: return "dataFormat";
+			case CONFIG_EXPORTER_ARGUMENTS: return "args";
+			case CONFIG_JSON_FORMAT: return "json";
+			case CONFIG_TEXT_FORMAT: return "txt";
+			case CONFIG_RAW_FORMAT: return "raw";
+			case CONFIG_SNAPSHOT_NAME: return "snapshotName";
+
+			case PIPELINE_JOB_NAME: return "JOB_NAME";
+			case PIPELINE_BUILD_NUMBER: return "BUILD_NUMBER";
+
+			case GET_SNAPSHOTS_STEP_FUNCTION_NAME: return "snDevOpsConfigGetSnapshots";
+			case GET_SNAPSHOTS_STEP_DISPLAY_NAME : return "ServiceNow DevOps - Get latest and validated snapshots";
+
+			
+			case CONFIG_CHANGESET_NUMBER: return "changesetNumber";
+			case CONFIG_NAME_PATH: return "namePath";
+			case CONFIG_DATA_FORMAT: return "dataFormat";
+			case CONFIG_AUTO_COMMIT: return "autoCommit";
+			case CONFIG_AUTO_VALIDATE: return "autoValidate";
+			case CONFIG_FILE_CONTENT: return "dataStream";
+			case CONFIG_COMPONENT_TYPE: return "component";
+			case CONFIG_DEPLOYABLE_TYPE: return "deployable";
+			case CONFIG_UPLOAD_ID: return "upload_id";
+			case CONFIG_BUILD_NUMBER: return "buildNumber";
 
 			case MAP_FUNCTION_NAME: return "snDevOpsStep";
 			case MAP_DISPLAY_NAME: return "ServiceNow DevOps - Mapping step";
@@ -182,11 +297,25 @@ public enum DevOpsConstants {
 			case COMMON_RESPONSE_VALUE_FALSE: return "false";
 			case COMMON_RESPONSE_SUCCESS: return "success";
 			case COMMON_RESPONSE_RESULT: return "result";
+			case COMMON_RESPONSE_EXPORTER_RESULT: return "exporter_result";
+			case COMMON_RESPONSE_OUTPUT: return "output";
 			case COMMON_RESPONSE_STATUS: return "status";
+			case COMMON_RESPONSE_STATE: return "state";
+			case COMMON_RESPONSE_NEW: return "new";
+			case COMMON_RESPONSE_IN_PROGRESS: return "in_progress";
+			case COMMON_RESPONSE_READY: return "ready";
+			case COMMON_RESPONSE_INITIALIZING: return "initializing";
+			case COMMON_RESPONSE_FAILURE: return "failure";
 			case COMMON_RESULT_FAILURE: return "failureReason";
 			case COMMON_RESULT_ERROR: return "error";
 			case COMMON_RESPONSE_DETAILS: return "details";
+			case COMMON_RESPONSE_NUMBER: return "number";
+			case COMMON_RESPONSE_MESSAGE: return "message";
+			case COMMON_RESPONSE_EXPORT_ID: return "export_id";
 			case COMMON_RESPONSE_ERRORS: return "errors";
+			case COMMON_RESPONSE_OPEN: return "open";
+			case COMMON_RESPONSE_COMPLETED: return "completed";
+
 			case TOOL_ID_ATTR: return "toolId";
 			case ORCHESTRATION_TOOL_ID_ATTR: return "orchestrationToolId";
 			case IS_MULTI_BRANCH_ATTR: return "isMultiBranch";
@@ -198,6 +327,7 @@ public enum DevOpsConstants {
 			case FAILURE_REASON_USER_NOAUTH_UI: return "ServiceNow credentials are invalid";
 			case FAILURE_REASON_GENERIC_UI: return "An error has occurred";
 			case FAILURE_REASON_PIPELINE_DETAILS_NOT_FOUND: return "Pipeline Details not found. Check logs for more detail.";
+			case FAILURE_REASON_CONN_ISSUE: return "No Response From the Server";
 
 			case UPSTREAM_BUILD_URL_ATTR: return "upstreamTaskExecutionURL";
 			case LAST_BUILD_URL_ATTR: return "lastTaskExecutionURL";
@@ -221,6 +351,7 @@ public enum DevOpsConstants {
 			case REST_GET_METHOD: return "GET";
 			case REST_POST_METHOD: return "POST";
 			case REST_PUT_METHOD: return "PUT";
+			case REST_DELETE_METHOD: return "DELETE";
 			case JOB_DETAILS_ATTR: return "orchestrationTaskDetails";
 			case CALLBACK_URL_ATTR: return "callbackURL";
 			//case JOB_STAGE_SEPARATOR: return "_-_";
@@ -239,6 +370,7 @@ public enum DevOpsConstants {
 			case CALLBACK_RESULT_SUCCESS: return "succeeded";
 			case CALLBACK_RESULT_CANCELED: return "canceled";
 			case CALLBACK_RESULT_COMM_FAILURE: return "comm_failure";
+			case CALLBACK_RESULT_COMMENTS: return "changeComments";
 
 			case GIT_REMOTE_UPDATE_CMD: return "git remote update";
 			case GIT_REV_LIST_CMD: return "git rev-list %s...%s"; // "full" flag will also give commiter's address
@@ -262,6 +394,11 @@ public enum DevOpsConstants {
 			case SCM_BRANCH_NAME: return "branchName";
 
 			case CR_ATTRS: return "changeRequestDetails";
+
+			case PATH_SEPARATOR: return "/";
+			case JOBS_PATH: return "/jobs/";
+			case SERVICENOW_PIPELINE_INFO_FILE_NAME: return "snPipelineInfo.json";
+			case PIPELINE_INFO_UPDATE_IDENTIFIER: return "snupdate";
 
 			default: throw new IllegalArgumentException();
 		}

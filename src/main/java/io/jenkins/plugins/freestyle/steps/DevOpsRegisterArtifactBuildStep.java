@@ -2,6 +2,7 @@ package io.jenkins.plugins.freestyle.steps;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.logging.Level;
 
 import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -69,18 +70,18 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 		String _result = model.handleArtifactRegistration(run, listener, expandedPayload, envVars);
 		
 		printDebug("perform", new String[] { "message" }, new String[] { "handleArtifactRegistration responded with: "+_result },
-				model.isDebug());
+				Level.INFO);
 		
 		if (null != _result && !_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 			GenericUtils.printConsoleLog(listener, "SUCCESS: Register Artifact request was successful.");
 			printDebug("perform", new String[] { "message" }, new String[] { "SUCCESS: Register Artifact request was successful." },
-					model.isDebug());
+					Level.INFO);
 		} else {
 			String errorMsg = "FAILED: Artifact could not be registered.";
 			if(null != _result)
 				errorMsg += "Cause: "+_result;
 			printDebug("perform", new String[] { "message" }, new String[] { errorMsg },
-					model.isDebug());
+					Level.WARNING);
 			GenericUtils.printConsoleLog(listener, errorMsg);
 			if (jobProperties != null && jobProperties.isIgnoreSNErrors()) {
 				GenericUtils.printConsoleLog(listener, "IGNORED: Artifact registration error ignored.");
@@ -121,8 +122,8 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 		}
 	}
 	
-	private void printDebug(String methodName, String[] variables, String[] values, boolean debug) {
-		GenericUtils.printDebug(DevOpsPipelineMapStepExecution.class.getName(), methodName, variables, values, debug);
+	private void printDebug(String methodName, String[] variables, String[] values, Level logLevel) {
+		GenericUtils.printDebug(DevOpsPipelineMapStepExecution.class.getName(), methodName, variables, values, logLevel);
 	}
 	
 }
