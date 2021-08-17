@@ -33,7 +33,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.0.1-beta.5</version>
+    <version>1.0</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.176.4</jenkins.version>
@@ -141,15 +141,14 @@
         <email>app-devops-integrations@servicenow.com</email>
       </developer>
     </developers>
-
-
-    <url>https://github.com/ServiceNow/${project.artifactId}</url>
+	
+    <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
     <scm>
-        <connection>scm:git:git://github.com/ServiceNow/${project.artifactId}.git</connection>
-        <developerConnection>scm:git:git@github.com:ServiceNow/${project.artifactId}.git</developerConnection>
-        <url>https://github.com/ServiceNow/${project.artifactId}</url>
-      <tag>HEAD</tag>
-  </scm>
+        <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
+        <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
+        <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
+        <tag>servicenow-devops-1.0</tag>
+    </scm>
 
     <repositories>
         <repository>
