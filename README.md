@@ -21,8 +21,8 @@ The following instructions demonstrate how to download and install the ServiceNo
 
 ### Prerequisities
 
-1. Jenkins 2.138.4+ instance
-2. ServiceNow DevOps 1.20 application installed in your ServiceNow instance
+1. Jenkins 2.204.6+ instance
+2. ServiceNow DevOps 1.30 application installed in your ServiceNow instance
 
 ### Installation/Upgrade
 
@@ -31,17 +31,18 @@ Upgrade Note: It is best to uninstall the plugin first, then install the new plu
 Download the plugin zip file attached to this article by clicking "I Accept" at the bottom of the page. Extract the .hpi file and install it in Jenkins by navigating to Manage Jenkins -> Advanced -> Upload Plugin.
 
 The following plugin dependencies are required. Depending on your Jenkins configuration, they may automatically be installed/updated as needed to meet the minimum requirements of the Jenkins plugin for ServiceNow DevOps.  If not, you must manually ensure that the correct plugin versions are present:
-
-- org.jenkins-ci.plugins.credentials 2.1.18
-- org.jenkins-ci.plugins.jackson2-api 2.8.11.3
-- org.jenkins-ci.plugins.structs 1.17
-- org.jenkins-ci.plugins.workflow.workflow-api 2.34
-- org.jenkins-ci.plugins.workflow.workflow-cps 2.56
-- org.jenkins-ci.plugins.workflow.workflow-job 2.25
-- org.jenkins-ci.plugins.workflow.workflow-support 2.20
-- org.jenkins-ci.annotation-indexer 1.12
+    
+- org.jenkins-ci.plugins.credentials 2.3.11
+- org.jenkins-ci.plugins.jackson2-api 2.11.1
+- org.jenkins-ci.plugins.junit 1.37
+- org.jenkins-ci.plugins.structs 1.21
+- org.jenkins-ci.plugins.workflow.workflow-api 2.41
+- org.jenkins-ci.plugins.workflow.workflow-cps 2.88
+- org.jenkins-ci.plugins.workflow.workflow-job 2.40
+- org.jenkins-ci.plugins.workflow.workflow-step-api 2.23
+- com.evanlennickom.retry4j 0.15.0
 - com.google.code.gson.gson 2.8.5
-- org.jenkins-ci.plugins.junit 1.28
+- org.apache.commons.commons-lang 3 3.7
 
 
 ### Configuration
@@ -62,18 +63,18 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### System Requirements
 
-1. Jenkins 2.138.4+ instance
+1. Jenkins 2.204.6+ instance
 2. ServiceNow DevOps application installed in your ServiceNow instance
 
 
 
 ### Release Notes
-This release addresses the following enhancement delivered in DevOps 1.24 release:
+This release addresses the following enhancement delivered in DevOps 1.30 release:
 
-- Change request pipeline API enhancements:
-    - Set additional change request attributes when creating the change request from Jenkins and Azure DevOps pipelines
-    - Set flag from pipeline so ServiceNow DevOps will not close the change request
+- Security vulnerabilities related to Jenkins plugin dependencies
+- Notification stuck in waiting state for multibranch pipelines that has branch name with special characters (e.g. scratch/dev!@@&mybranch)
 
+**NOTE**: Starting with DevOps 1.30, the minimum base version of Jenkins server must be **2.204.6** to fix the vulnerabilities
 
 ## Support Model
 
