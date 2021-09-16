@@ -470,7 +470,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 									new String[]{"Job was canceled"}, Level.INFO);
 							String changeComments = model.getChangeComments(_result);
 							if (!GenericUtils.isEmpty(changeComments))
-								listener.getLogger().println("[ServiceNow DevOps] Cancel comments: " + changeComments);
+								listener.getLogger().println("[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
 						}
 						// Not canceled and not approved
 						else {
@@ -478,6 +478,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 							if ( _result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 								msg = _result;
 							}
+
 							printDebug("shouldStop", new String[]{"message"},
 									new String[]{msg},
 									Level.FINE);
@@ -487,7 +488,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 
 							String changeComments = model.getChangeComments(_result);
 							if (!GenericUtils.isEmpty(changeComments))
-								listener.getLogger().println("[ServiceNow DevOps] Rejection comments: " + changeComments);
+								listener.getLogger().println("[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
 						}
 					} else {
 						printDebug("shouldStop", new String[]{"message"},
@@ -495,6 +496,9 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 								Level.INFO);
 						listener.getLogger().println(
 								"[ServiceNow DevOps] Job has been approved for execution");
+						String changeComments = model.getChangeComments(_result);
+						if (!GenericUtils.isEmpty(changeComments))
+							listener.getLogger().println("[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
 					}
 				}
 

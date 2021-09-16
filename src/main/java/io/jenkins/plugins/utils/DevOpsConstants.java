@@ -147,6 +147,7 @@ public enum DevOpsConstants {
 	JOB_NAME_ATTR,
 	JOB_PARENT_STAGE_NAME,
 	JOB_PARENT_STAGE_URL,
+	JOB_PARENT_STAGE_EXECUTION_URL,
 	JOB_PARENT_STAGE_DATA,
 	REST_GET_METHOD,
 	REST_POST_METHOD,
@@ -347,6 +348,7 @@ public enum DevOpsConstants {
 			case JOB_NAME_ATTR: return "orchestrationTaskName";
 			case JOB_PARENT_STAGE_NAME: return "parentStageName";
 			case JOB_PARENT_STAGE_URL: return "parentStageURL";
+			case JOB_PARENT_STAGE_EXECUTION_URL: return "parentStageExecutionURL";
 			case JOB_PARENT_STAGE_DATA: return "parentNode";
 			case REST_GET_METHOD: return "GET";
 			case REST_POST_METHOD: return "POST";
