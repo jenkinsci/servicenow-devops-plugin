@@ -227,7 +227,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 									new String[]{"Job was canceled"}, Level.FINE);
 							this.log(listener, "[ServiceNow DevOps] Job was canceled");
 							if (!GenericUtils.isEmpty(changeComments))
-								this.log(listener, "[ServiceNow DevOps] Cancel comments: " + changeComments);
+								this.log(listener, "[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
 						}
 
 						// Not canceled and not approved
@@ -239,7 +239,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 							this.log(listener,
 									"[ServiceNow DevOps] Job was not approved for execution");
 							if (!GenericUtils.isEmpty(changeComments))
-								this.log(listener, "[ServiceNow DevOps] Rejection comments: " + changeComments);
+								this.log(listener, "[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
 						}
 						run.setResult(Result.FAILURE);
 						getContext().onFailure(new AbortException(message));
@@ -252,6 +252,8 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 								"[ServiceNow DevOps] Job has been approved for execution");
 						getContext().onSuccess(
 								"[ServiceNow DevOps] Job has been approved for execution");
+						if (!GenericUtils.isEmpty(changeComments))
+							this.log(listener, "[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
 					}
 				}
 			} else {
@@ -329,7 +331,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					listener.getLogger().println("[ServiceNow DevOps] Job was canceled");
 					String changeComments = model.getChangeComments(result);
 					if (!GenericUtils.isEmpty(changeComments))
-						listener.getLogger().println("[ServiceNow DevOps] Cancel comments: " + changeComments);
+						listener.getLogger().println("[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
 				} else if (model.isCommFailure(result) && pipelineInfo != null) {
 					message = pipelineInfo.getErrorMessage();
 					printDebug("evaluateResultForPipeline", new String[]{"message"},
@@ -349,7 +351,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 
 					String changeComments = model.getChangeComments(result);
 					if (!GenericUtils.isEmpty(changeComments))
-						listener.getLogger().println("[ServiceNow DevOps] Rejection comments: " + changeComments);
+						listener.getLogger().println("[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
 				}
 				run.setResult(Result.FAILURE);
 				getContext().onFailure(new AbortException(message));
@@ -361,6 +363,9 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 						"[ServiceNow DevOps] Job has been approved for execution");
 				getContext().onSuccess(
 						"[ServiceNow DevOps] Job has been approved for execution");
+				String changeComments = model.getChangeComments(result);
+				if (!GenericUtils.isEmpty(changeComments))
+					listener.getLogger().println("[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
 			}
 		}
 	}

@@ -715,7 +715,11 @@ public class DevOpsModel {
 				data.put(DevOpsConstants.JOB_NAME_ATTR.toString(), jobName);
 
 			addRootParams(rootNode, data, jobName, jobUrl, DevOpsConstants.REST_POST_METHOD);
-
+			if (data.get(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString()) != null) {
+				String parentStageExecutionURL = data.get(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString()).toString();
+				if (parentStageExecutionURL != null)
+					jobDetails.put(DevOpsConstants.BUILD_URL_ATTR.toString(), data.get(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString()));
+			}
 			data.put(DevOpsConstants.JOB_DETAILS_ATTR.toString(), jobDetails);
 
 			if (GenericUtils.isNotEmpty(changeRequestDetails)) {
@@ -798,9 +802,12 @@ public class DevOpsModel {
 				params.put(DevOpsConstants.JOB_PARENT_STAGE_URL.toString(),
 						replaceLast(jobUrl, "/", DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + rootStageName + "/"));
 				// avoid adding entire rootNode data to query params for GET method
-				if ((callMethod.equals(DevOpsConstants.REST_POST_METHOD) || callMethod.equals(DevOpsConstants.REST_PUT_METHOD)))
+				if ((callMethod.equals(DevOpsConstants.REST_POST_METHOD) || callMethod.equals(DevOpsConstants.REST_PUT_METHOD))) {
 					params.put(DevOpsConstants.JOB_PARENT_STAGE_DATA.toString(), getRootJSONObject(rootNode));
-
+					String parentStageExecutionURL = rootNode.getExecutionUrl();
+					if (parentStageExecutionURL != null)
+						params.put(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString(), getJenkinsUrl() + parentStageExecutionURL + "wfapi/describe");
+				}
 			}
 		}
 	}
@@ -1300,47 +1307,6 @@ public class DevOpsModel {
 				new String[]{jobId}, Level.FINE);
 		if (jobId != null)
 			DevOpsRootAction.setCallbackContent(jobId, getAbortResult());
-	}
-
-	private boolean configHasFreestyleStep(Job<?, ?> job) {
-		printDebug("configHasFreestyleStep", null, null, Level.FINE);
-		try {
-			XmlFile xmlFile = job.getConfigFile();
-			if (xmlFile.exists()) {
-				File file = xmlFile.getFile();
-				Document doc = readJobConfig(file);
-				if (doc != null) {
-					NodeList nList = doc.getElementsByTagName(
-							DevOpsConstants.FREESTYLE_STEP_CLASS.toString());
-					return nList.getLength() > 0;
-				}
-			}
-		} catch (Exception e) {
-			printDebug("configHasFreestyleStep", new String[]{"exception"},
-					new String[]{e.getMessage()}, Level.SEVERE);
-		}
-		return false;
-	}
-
-	private Document readJobConfig(File xmlFile) {
-		printDebug("readJobConfig", null, null, Level.FINE);
-		if (xmlFile != null) {
-			try {
-				if (xmlFile.canRead()) {
-					DocumentBuilderFactory dbFactory =
-							DocumentBuilderFactory.newInstance();
-					DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-					Document doc = dBuilder.parse(xmlFile);
-					doc.getDocumentElement().normalize();
-					if (doc.getDocumentElement().getNodeName() == "project")
-						return doc;
-				}
-			} catch (Exception e) {
-				printDebug("readJobConfig", new String[]{"exception"},
-						new String[]{e.getMessage()}, Level.SEVERE);
-			}
-		}
-		return null;
 	}
 
 	private void cancelItem(Queue.Item item) {
