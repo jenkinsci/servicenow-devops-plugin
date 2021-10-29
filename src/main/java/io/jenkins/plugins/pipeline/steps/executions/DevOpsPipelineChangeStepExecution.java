@@ -286,87 +286,87 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 		try {
 			run = getContext().get(Run.class);
 			listener = getContext().get(TaskListener.class);
+			if (run != null && result != null) {
+				// If there's a token, this function was called by onTriggered callback handler
+				// If there's no token, this function was called by model.handlePipeline and we
+				// should probably fail the job as something didn't go as expected
+				if (token != null) {
+					EnvVars vars = null;
+					FlowNode fn = null;
+					try {
+						fn = getContext().get(FlowNode.class);
+						vars = getContext().get(EnvVars.class);
+					} catch (IOException | InterruptedException e) {
+						printDebug("evaluateResultForPipeline", new String[]{"InterruptedException"},
+								new String[]{e.getMessage()}, Level.SEVERE);
+					}
+					Job<?, ?> job = run.getParent();
+					if (job != null) {
+
+						String jobUrl = job.getAbsoluteUrl();
+						String jobName = job.getName();
+						String jenkinsUrl = model.getJenkinsUrl();
+
+						if (jobUrl != null && jenkinsUrl != null && jobName != null) {
+							String stageName = model.getStageNameFromAction(run);
+							DevOpsPipelineNode rootNode = model.getRootNode(run, stageName);
+							String buildUrl = model.getBuildUrl(fn, vars, run, jenkinsUrl, stageName, rootNode);
+							model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl, jobName, stageName, rootNode,
+									GenericUtils.isMultiBranch(job), vars != null ? vars.get("BRANCH_NAME") : null, true);
+						}
+
+					}
+				}
+				if (!model.isApproved(result)) {
+					String message = "";
+					// Check if it was canceled by user
+					if (model.isCanceled(result)) {
+						message = "Canceled";
+						printDebug("evaluateResultForPipeline", new String[]{"message"},
+								new String[]{"Job was canceled"}, Level.FINE);
+						listener.getLogger().println("[ServiceNow DevOps] Job was canceled");
+						String changeComments = model.getChangeComments(result);
+						if (!GenericUtils.isEmpty(changeComments))
+							listener.getLogger().println("[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
+					} else if (model.isCommFailure(result) && pipelineInfo != null) {
+						message = pipelineInfo.getErrorMessage();
+						printDebug("evaluateResultForPipeline", new String[]{"message"},
+								new String[]{message}, Level.FINE);
+						listener.getLogger().println("[ServiceNow DevOps] " + message);
+					}
+					// Not canceled and not approved
+					else {
+						message = "Not approved";
+						String displayMessage = GenericUtils.isEmpty(errorMessage)? "Job was not approved for execution"
+								:errorMessage;
+						printDebug("evaluateResultForPipeline", new String[]{"message"},
+								new String[]{displayMessage},
+								Level.FINE);
+						listener.getLogger().println(
+								"[ServiceNow DevOps] " + displayMessage);
+
+						String changeComments = model.getChangeComments(result);
+						if (!GenericUtils.isEmpty(changeComments))
+							listener.getLogger().println("[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
+					}
+					run.setResult(Result.FAILURE);
+					getContext().onFailure(new AbortException(message));
+
+				} else {
+					printDebug("evaluateResultForPipeline", new String[]{"message"},
+							new String[]{"Job approved for execution"}, Level.FINE);
+					listener.getLogger().println(
+							"[ServiceNow DevOps] Job has been approved for execution");
+					getContext().onSuccess(
+							"[ServiceNow DevOps] Job has been approved for execution");
+					String changeComments = model.getChangeComments(result);
+					if (!GenericUtils.isEmpty(changeComments))
+						listener.getLogger().println("[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
+				}
+			}
 		} catch (IOException | InterruptedException e) {
 			printDebug("evaluateResultForPipeline", new String[]{"InterruptedException"},
 					new String[]{e.getMessage()}, Level.SEVERE);
-		}
-		if (run != null && result != null) {
-			// If there's a token, this function was called by onTriggered callback handler
-			// If there's no token, this function was called by model.handlePipeline and we
-			// should probably fail the job as something didn't go as expected
-			if (token != null) {
-				EnvVars vars = null;
-				FlowNode fn = null;
-				try {
-					fn = getContext().get(FlowNode.class);
-					vars = getContext().get(EnvVars.class);
-				} catch (IOException | InterruptedException e) {
-					printDebug("evaluateResultForPipeline", new String[]{"InterruptedException"},
-							new String[]{e.getMessage()}, Level.SEVERE);
-				}
-				Job<?, ?> job = run.getParent();
-				if (job != null) {
-
-					String jobUrl = job.getAbsoluteUrl();
-					String jobName = job.getName();
-					String jenkinsUrl = model.getJenkinsUrl();
-
-					if (jobUrl != null && jenkinsUrl != null && jobName != null) {
-						String stageName = model.getStageNameFromAction(run);
-						DevOpsPipelineNode rootNode = model.getRootNode(run, stageName);
-						String buildUrl = model.getBuildUrl(fn, vars, run, jenkinsUrl, stageName, rootNode);
-						model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl, jobName, stageName, rootNode,
-								GenericUtils.isMultiBranch(job), vars != null ? vars.get("BRANCH_NAME") : null, true);
-					}
-
-				}
-			}
-			if (!model.isApproved(result)) {
-				String message = "";
-				// Check if it was canceled by user
-				if (model.isCanceled(result)) {
-					message = "Canceled";
-					printDebug("evaluateResultForPipeline", new String[]{"message"},
-							new String[]{"Job was canceled"}, Level.FINE);
-					listener.getLogger().println("[ServiceNow DevOps] Job was canceled");
-					String changeComments = model.getChangeComments(result);
-					if (!GenericUtils.isEmpty(changeComments))
-						listener.getLogger().println("[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
-				} else if (model.isCommFailure(result) && pipelineInfo != null) {
-					message = pipelineInfo.getErrorMessage();
-					printDebug("evaluateResultForPipeline", new String[]{"message"},
-							new String[]{message}, Level.FINE);
-					listener.getLogger().println("[ServiceNow DevOps] " + message);
-				}
-				// Not canceled and not approved
-				else {
-					message = "Not approved";
-					String displayMessage = GenericUtils.isEmpty(errorMessage)? "Job was not approved for execution"
-							:errorMessage;
-					printDebug("evaluateResultForPipeline", new String[]{"message"},
-							new String[]{displayMessage},
-							Level.FINE);
-					listener.getLogger().println(
-							"[ServiceNow DevOps] " + displayMessage);
-
-					String changeComments = model.getChangeComments(result);
-					if (!GenericUtils.isEmpty(changeComments))
-						listener.getLogger().println("[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
-				}
-				run.setResult(Result.FAILURE);
-				getContext().onFailure(new AbortException(message));
-
-			} else {
-				printDebug("evaluateResultForPipeline", new String[]{"message"},
-						new String[]{"Job approved for execution"}, Level.FINE);
-				listener.getLogger().println(
-						"[ServiceNow DevOps] Job has been approved for execution");
-				getContext().onSuccess(
-						"[ServiceNow DevOps] Job has been approved for execution");
-				String changeComments = model.getChangeComments(result);
-				if (!GenericUtils.isEmpty(changeComments))
-					listener.getLogger().println("[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
-			}
 		}
 	}
 
@@ -375,6 +375,25 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 		if (token != null && result != null) {
 			DevOpsRootAction.deregisterPipelineWebhook(this);
 			evaluateResultForPipeline(token, result, null, null);
+		}
+	}
+
+	// called from DevOpsRootAction _displayPipelineChangeRequestInfo
+	public void displayPipelineChangeRequestInfo(String token, String info) {
+		printDebug("displayPipelineChangeRequestInfo", new String[]{"info"}, new String[]{info}, Level.FINE);
+		if (token != null && info != null) {
+			DevOpsModel model = new DevOpsModel();
+			TaskListener listener = null;
+			try {
+				listener = getContext().get(TaskListener.class);
+			} catch (IOException | InterruptedException e) {
+				e.printStackTrace();
+			}
+	
+			String changeRequestId = model.getChangeRequestInfo(info);
+			printDebug("displayPipelineChangeRequestInfo", new String[]{"changeRequestId"}, new String[]{changeRequestId}, Level.FINE);
+			if (!GenericUtils.isEmpty(changeRequestId))
+				listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
 		}
 	}
 
