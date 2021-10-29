@@ -69,10 +69,9 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 
 ### Release Notes
-This release addresses the following enhancement delivered in DevOps 1.30 release:
+Automatic Change Control enablement for Jenkins:
 
-- Security vulnerabilities related to Jenkins plugin dependencies
-- Notification stuck in waiting state for multibranch pipelines that has branch name with special characters (e.g. scratch/dev!@@&mybranch)
+- When DevOps Change Control has been enabled in a Jenkins pipeline, the corresponding step in ServiceNow will automatically have Change Control enabled.  This improvement works with the Self-service Onboarding feature to simplify and streamline the onboarding process.
 
 **NOTE**: Starting with DevOps 1.30, the minimum base version of Jenkins server must be **2.204.6** to fix the vulnerabilities
 
