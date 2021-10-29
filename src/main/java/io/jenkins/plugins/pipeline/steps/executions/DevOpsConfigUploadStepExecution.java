@@ -89,16 +89,11 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 //Reading File content.
 		String fileName = this.step.getFileName().trim();
 		String path = workspace.getRemote();
-		String dataFormat = this.step.getDataFormat().toLowerCase();
-		if(dataFormat.equalsIgnoreCase("yaml"))
-			dataFormat = "yml";
-
-		String qualifiedFileName = fileName + "." + dataFormat;
 
 		StringBuilder filePath = new StringBuilder();
 		filePath.append(path);
 		filePath.append(File.separator);
-		filePath.append(qualifiedFileName);
+		filePath.append(fileName);
 
 		File configFile = new File(filePath.toString());
 		InputStream inputStream = null;
@@ -201,19 +196,19 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 				break;
 		}
 
-		String output = "";
-		if (!(state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_COMPLETED.toString()))) {
-			try {
-				output = responseStatus.getString(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString());
-			} catch (JSONException j) {
-				return handleException("Upload Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
-			}
-
-			return handleException("Upload Failed due to : " + output);
-		}
-//Returning ChangesetId 
 		try {
-			changesetId = (responseStatus.getJSONObject(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString()))
+			String output = "";
+			if (responseStatus != null && !(state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_COMPLETED.toString()))) {
+				output = responseStatus.getString(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString());
+				return handleException("Upload Failed due to : " + output);
+			} 
+		} catch (JSONException j) {
+			return handleException("Upload Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+		}
+		//Returning ChangesetId 
+		try {
+			if(responseStatus != null)
+				changesetId = (responseStatus.getJSONObject(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString()))
 					.getString(DevOpsConstants.COMMON_RESPONSE_NUMBER.toString());
 		} catch (JSONException j) {
 			return handleException("Upload Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());

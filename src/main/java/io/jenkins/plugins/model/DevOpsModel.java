@@ -144,6 +144,21 @@ public class DevOpsModel {
 		return changeComments;
 	}
 
+	public String getChangeRequestInfo(String result) {
+		String changeRequestId = "";
+		printDebug("getChangeRequestInfo", null, null, Level.INFO);
+		try {
+			JSONObject jsonObject = JSONObject.fromObject(result);
+			if (jsonObject.containsKey(DevOpsConstants.CHANGE_REQUEST_ID.toString())) {
+				return jsonObject.getString(DevOpsConstants.CHANGE_REQUEST_ID.toString());
+			}
+		} catch (Exception e) {
+			printDebug("getChangeRequestInfo", new String[]{"exception"},
+					new String[]{e.getMessage()}, Level.INFO);
+		}
+		return changeRequestId;
+	}
+
 	public boolean isCommFailure(String result) {
 		boolean b = false;
 		printDebug("isCommFailure", new String[]{"result"}, new String[]{result}, Level.INFO);
@@ -483,6 +498,18 @@ public class DevOpsModel {
 		String queueId = String.valueOf(run.getQueueId());
 		String jobName = job.getUrl();
 		return queueId + "/" + jobName;
+	}
+
+	// get from 'changeRequestContent' map
+	public String getChangeRequestContent(String jobId) {
+		printDebug("getChangeRequestContent", new String[]{"jobId"}, new String[]{jobId}, Level.FINE);
+		return DevOpsRootAction.getChangeRequestContent(jobId);
+	}
+
+	// remove from 'changeRequestContent' map
+	public String removeChangeRequestContent(String jobId) {
+		printDebug("removeChangeRequestContent", new String[]{"jobId"}, new String[]{jobId}, Level.FINE);
+		return DevOpsRootAction.removeChangeRequestContent(jobId);
 	}
 
 	// get from 'callbackContent' map
@@ -1324,6 +1351,7 @@ public class DevOpsModel {
 
 			// First step is to check if this Job has already been evaluated and we have a response in the callbackContent hashmap
 			String jobId = getJobId(item, job);
+			printDebug("handleFreestyle", new String[]{"callback result -> jobId "}, new String[]{jobId}, Level.INFO);
 			String result = getCallbackResult(jobId);
 			if (result != null) {
 				printDebug("handleFreestyle", new String[]{"callback result"}, new String[]{result}, Level.INFO);
@@ -1332,8 +1360,17 @@ public class DevOpsModel {
 
 			// No response yet for this Job
 			else {
-				printDebug("handleFreestyle", new String[]{"callback result"},
-						new String[]{"null"}, Level.INFO);
+				printDebug("handleFreestyle", new String[]{"callback result in else case"}, new String[]{"null"}, Level.INFO);
+
+				String changeRequestContent = getChangeRequestContent(jobId);
+				printDebug("handleFreestyle", new String[]{"changeRequestContent"}, new String[]{changeRequestContent}, Level.INFO);
+				if (changeRequestContent != null) {
+					String changeRequestId = getChangeRequestInfo(changeRequestContent);
+					printDebug("handleFreestyle", new String[]{"changeRequestId"}, new String[]{changeRequestId}, Level.INFO);
+					if (!GenericUtils.isEmpty(changeRequestId))
+						return getWaitingBlockage("Job is waiting for approval on change request: " + changeRequestId);
+				}
+
 				String jobUrl = job.getAbsoluteUrl();
 				String jobName = job.getName();
 				String jenkinsUrl = getJenkinsUrl();

@@ -126,21 +126,23 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		}
 
 		String message = "";
-		if (!(state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_COMPLETED.toString()))) {
-			try {
+		try {
+			if (response != null && !(state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_COMPLETED.toString()))) {
 				message = response.getString(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString());
-			} catch (JSONException j) {
-				return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				return handleException(message);
 			}
-			return handleException(message);
+		} catch (JSONException j) {
+				return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		JSONObject output = null;
 		String outputState = "";
 
 		try {
-			output = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString());
-			outputState = output.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
+			if(response != null){
+				output = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString());
+				outputState = output.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
+			}
 		} catch (JSONException j) {
 			return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}

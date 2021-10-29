@@ -377,6 +377,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 
 					if ( jobId != null && jobUrl != null &&
 					    jobName != null && jenkinsUrl != null && buildUrl != null) {
+						
+						displayChangeRequestInfo(build, listener, build.getParent(), model);
 
 						if (token !=null) {
 							if (shouldStop(build, listener, build.getParent(), model)) {
@@ -506,6 +508,23 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 
 		return result;
+	}
+
+	private void displayChangeRequestInfo(final Run<?, ?> run, BuildListener listener, Job<?, ?> job,
+	                           DevOpsModel model) {
+		printDebug("displayChangeRequestInfo", null, null, Level.FINE);
+		if (run != null && job != null && listener != null) {
+			if (job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
+			    job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
+				String jobId = model.getJobId(run, job);
+				String _result = model.removeChangeRequestContent(jobId);
+				if (jobId != null && _result != null) {
+					String changeRequestId = model.getChangeRequestInfo(_result);
+					if (!GenericUtils.isEmpty(changeRequestId))
+						listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+				}
+			}
+		}
 	}
 
 	@Override

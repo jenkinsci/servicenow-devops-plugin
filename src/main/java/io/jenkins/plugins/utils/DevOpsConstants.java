@@ -171,6 +171,7 @@ public enum DevOpsConstants {
 	CALLBACK_RESULT_CANCELED,
 	CALLBACK_RESULT_COMM_FAILURE,
 	CALLBACK_RESULT_COMMENTS,
+	CHANGE_REQUEST_ID,
 
 	GIT_REMOTE_UPDATE_CMD,
 	GIT_REV_LIST_CMD,
@@ -373,6 +374,7 @@ public enum DevOpsConstants {
 			case CALLBACK_RESULT_CANCELED: return "canceled";
 			case CALLBACK_RESULT_COMM_FAILURE: return "comm_failure";
 			case CALLBACK_RESULT_COMMENTS: return "changeComments";
+			case CHANGE_REQUEST_ID: return "changeRequestId";
 
 			case GIT_REMOTE_UPDATE_CMD: return "git remote update";
 			case GIT_REV_LIST_CMD: return "git rev-list %s...%s"; // "full" flag will also give commiter's address

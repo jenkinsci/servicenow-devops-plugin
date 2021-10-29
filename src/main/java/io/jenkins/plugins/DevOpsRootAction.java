@@ -42,6 +42,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 	private static final HashMap<String, String> callbackContent = new HashMap<>();// jobId->callbackResponse (Dispatcher/FreestyleStep)
 	private static final HashMap<String, String> callbackToken = new HashMap<>(); // jobId->token (FreestyleStep)
     private static final HashMap<String, DevOpsPipelineChangeStepExecution> pipelineWebhooks = new HashMap<>(); // token->asyncStepExecution (PipelineChangeStep)
+    private static final HashMap<String, String> changeRequestContent = new HashMap<>(); // jobId->callbackResponse (Dispatcher/FreestyleStep)
     
     private static final HashMap<String, Boolean> trackedJobs = new HashMap<>(); // runId->True/False
 	private static final HashMap<String, DevOpsModel.DevOpsPipelineInfo> snPipelineInfo = new HashMap<>(); // runId
@@ -81,6 +82,32 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
         synchronized (pipelineWebhooks) { exec = pipelineWebhooks.remove(token); }
         if (exec != null) {
             exec.onTriggered(token, content.toString().trim());
+            return true;
+        } 
+        return false;
+    }
+
+    private boolean _displayFreestyleChangeRequestInfo(String token, StringBuffer content) {
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayFreestyleChangeRequestInfo", new String[]{"token"}, new String[]{token}, Level.INFO);
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayFreestyleChangeRequestInfo", new String[]{"content"}, new String[]{content.toString()}, Level.INFO);
+        String jobId;
+        synchronized (webhooks) { jobId = webhooks.get(token); }
+        String originalToken;
+        synchronized (jobs) { originalToken = jobs.get(jobId); }
+        if (jobId != null && originalToken.equals(token)) {
+        	synchronized (changeRequestContent) { changeRequestContent.put(jobId, content.toString().trim()); }
+            return true;
+        } 
+        return false;
+    }
+
+    private boolean _displayPipelineChangeRequestInfo(String token, StringBuffer content) {
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayPipelineChangeRequestInfo", new String[]{"token"}, new String[]{token}, Level.INFO);
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayPipelineChangeRequestInfo", new String[]{"content"}, new String[]{content.toString()}, Level.INFO);
+        DevOpsPipelineChangeStepExecution exec;
+        synchronized (pipelineWebhooks) { exec = pipelineWebhooks.get(token); }
+        if (exec != null) {
+            exec.displayPipelineChangeRequestInfo(token, content.toString().trim());
             return true;
         } 
         return false;
@@ -197,7 +224,26 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             return;
         }
 
-        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", new String[]{"message"}, new String[]{"Callack handler called with token: " + token + " / content: " + content.toString()}, Level.INFO);
+        if (token.startsWith(DevOpsConstants.FREESTYLE_CALLBACK_URL_IDENTIFIER.toString()) && content != null && content.length() > 0 && content.toString().trim().contains("changeRequestId")) {
+            boolean result = _displayFreestyleChangeRequestInfo(token, content);
+            if (result) {
+                response.setStatus(200);
+                return;
+            }
+            response.setStatus(400);
+            return;
+
+        } else if (token.startsWith(DevOpsConstants.PIPELINE_CALLBACK_URL_IDENTIFIER.toString()) && content != null && content.length() > 0 && content.toString().trim().contains("changeRequestId")) {
+            boolean result = _displayPipelineChangeRequestInfo(token, content);
+            if (result) {
+                response.setStatus(200);
+                return;
+            }
+            response.setStatus(400);
+            return;
+        }
+
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", new String[]{"message"}, new String[]{"Callback handler called with token: " + token + " / content: " + content.toString()}, Level.INFO);
 
         boolean result = false;
         if (token.startsWith(DevOpsConstants.FREESTYLE_CALLBACK_URL_IDENTIFIER.toString()) && content != null && content.length() > 0)
@@ -299,7 +345,19 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			}
 		}
 	}
-	
+
+	public static String getChangeRequestContent(String jobId) {
+        String content;
+        synchronized(changeRequestContent) { content = changeRequestContent.get(jobId); }
+		return content;
+	}
+
+    public static String removeChangeRequestContent(String jobId) {
+        String content;
+        synchronized(changeRequestContent) { content = changeRequestContent.remove(jobId); }
+		return content;
+	}
+
 	// called from dispatcher
 	public static String getCallbackContent(String jobId) {
         String content;
