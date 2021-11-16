@@ -443,9 +443,10 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				: null;
 	}
 	
-	public String getDeployableURL() {
+	public String getImpactedDeployableURL(String changesetId) {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sg_cdm_deployable", getTrimmedUrl(getInstanceUrl()))
+				? String.format("%s/api/sn_cdm/changesets/%s/impacted-deployables", getTrimmedUrl(getInstanceUrl()),
+						changesetId)
 				: null;
 	}
 
@@ -474,6 +475,25 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 			}
 		}
 		return options;
+	}
+
+	public String getValidateSnapshotURL(String snapshotId) {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/sn_cdm/snapshots/%s/validate", getTrimmedUrl(getInstanceUrl()),
+						snapshotId)
+				: null;
+	}
+
+	public String getChangesetURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/now/table/sg_cdm_changeset", getTrimmedUrl(getInstanceUrl()))
+				: null;
+	}
+
+	public String getValidAppURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/sn_cdm/application/get", getTrimmedUrl(getInstanceUrl()))
+				: null;
 	}
 
 }

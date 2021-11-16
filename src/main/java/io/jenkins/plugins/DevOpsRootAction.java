@@ -33,6 +33,9 @@ import hudson.FilePath;
 import java.io.UnsupportedEncodingException;  
 import java.net.URLDecoder;
 
+import java.util.List;
+import java.util.ArrayList;
+
 
 @Extension
 public class DevOpsRootAction extends CrumbExclusion implements RootAction {
@@ -124,7 +127,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
                 decodeURL = URLDecoder.decode(decodeURL, "UTF-8" );  
             }  
             return decodeURL;  
-        } catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {  
             GenericUtils.printDebug(DevOpsRootAction.class.getName(), "decode", new String[]{"UnsupportedEncodingException"}, new String[]{e.getMessage()}, Level.SEVERE);
 			return url;  
         }  
@@ -252,6 +255,8 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             result = _handlePipelineCallback(token, content);
         else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_UPDATE_IDENTIFIER.toString()) && content != null && content.length() > 0)
             result = _updatePipelineInfoFile(token, content);
+        else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_DELETE_IDENTIFIER.toString()))
+            result = deletePipelineInfoFiles();
 
         if (result) {
             response.setHeader("Result", "Jenkins webhook triggered successfully");
@@ -303,6 +308,32 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", new String[]{"Exception"}, new String[]{e.getMessage()}, Level.SEVERE);
 			return false;
         }
+	}
+
+    public static Boolean deletePipelineInfoFiles() {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{}, new String[]{}, Level.INFO);
+		try{
+            DevOpsModel devopsModel = new DevOpsModel();
+		    String jenkinsDirFilePath = devopsModel.getJenkinsRootDirPath() + DevOpsConstants.JOBS_PATH.toString();
+            String pipelineInfoFile = null;
+	    	GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{"jenkinsDirFilePath"}, new String[]{jenkinsDirFilePath}, Level.INFO);
+            FilePath jenkinsRootDir = new FilePath(new File(jenkinsDirFilePath));
+			if(jenkinsRootDir.exists()){
+                List<FilePath> contents = new ArrayList<FilePath> (jenkinsRootDir.list());
+				for (FilePath jobPath : contents) {
+                    pipelineInfoFile = null;
+                    pipelineInfoFile = jobPath + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+                    FilePath pipelineInfoPath = new FilePath(new File(pipelineInfoFile));
+                    if(pipelineInfoPath.exists()) {
+                        pipelineInfoPath.delete();
+                    }
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{"exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            return false;
+        } 
 	}
     
     public static Boolean getTrackedJob(String key) {

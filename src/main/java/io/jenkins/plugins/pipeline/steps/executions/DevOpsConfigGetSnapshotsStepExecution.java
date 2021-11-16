@@ -58,15 +58,120 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 		DevOpsModel model = new DevOpsModel();
 		DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 		List<CDMSnapshot> result = new ArrayList<>();
+
 		try {
-			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - ConfigStatus Step Execution starts");
+			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Config Status Step Execution starts");
 			if (validateStepInputs()) {
-				List<String> deployableNames = getDeployableNames(model, step.getApplicationName());
-				GenericUtils.printConsoleLog(listener,
-						"snDevOpsConfigGetSnapshots - Deployable Names : " + deployableNames);
+				// Checking if app is valid
+				JSONObject appDetails = null;
+				appDetails = model.checkForValidApp(this.step.getApplicationName());
+
+				if (appDetails.containsKey(DevOpsConstants.COMMON_RESULT_ERROR.toString())) {
+					GenericUtils.printConsoleLog(listener,
+							"snDevOpsConfigGetSnapshots - Failed to find application with given name");
+					return null;
+				}
+
+				// Polling for changeset to commit
+				String appName = "";
+				String changesetSysId = "";
+				if (!StringUtils.isEmpty(this.step.getChangeSetId())) {
+
+					Callable<String> callable = () -> {
+						String retryStatus = "success";
+						JSONObject changesetDetails = model.getChangesetId(this.step.getChangeSetId());
+						JSONArray details = changesetDetails
+								.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+						if (details.size() == 0) {
+							return retryStatus;
+						}
+						JSONObject changesetSysIdObj = details.getJSONObject(0);
+						String changesetState = changesetSysIdObj
+								.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
+
+						if (changesetState.equals("open") || changesetState.equals("commit_failed")
+								|| changesetState.equals("blocked") || changesetState.equals("committed")) {
+							return retryStatus;
+						} else {
+							GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - Waiting for changeset to get committed");
+							retryStatus = RETRY;
+							return retryStatus;
+						}
+					};
+					pollWithCallable(listener, callable, model);
+
+					JSONObject committedChangeset = model.getChangesetId(this.step.getChangeSetId());
+					JSONArray changesetDetail = committedChangeset
+							.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+
+					if (changesetDetail.size() == 0) {
+						GenericUtils.printConsoleLog(listener,
+								"snDevOpsConfigGetSnapshots - No changeset record found for input parameters");
+						return null;
+					}
+
+					JSONObject changesetObj = changesetDetail.getJSONObject(0);
+					String state = changesetObj.getString("state");
+					appName = changesetObj.getString("cdm_application.name");
+					changesetSysId = changesetObj.getString("sys_id");
+
+					if (!state.equalsIgnoreCase("committed")) {
+						if (state.equalsIgnoreCase("open")) {
+							GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - ERROR: Unable to return snapshots for an open changeset."
+											+ " Please ensure the changeset is committed before trying to get status of possibly created snapshots");
+							run.setResult(Result.FAILURE);
+							throw new AbortException("");
+						} else if (state.equalsIgnoreCase("blocked")) {
+							GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - ERROR: unable to return snapshots since the changeset is currently blocked."
+											+ " Please review the conflict details in DevOps Config and retry upload of your config data");
+							run.setResult(Result.FAILURE);
+							throw new AbortException("");
+						} else if (state.equalsIgnoreCase("commit_failed")) {
+							GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - ERROR: unable to return snapshots since the changeset failed to commit."
+											+ " Please review the details in DevOps Config and retry upload of your configuration data");
+							run.setResult(Result.FAILURE);
+							throw new AbortException("");
+						} else {
+							GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - Changeset provided is not yet commited - State of changeset - "
+											+ state);
+							return null;
+						}
+					}
+
+					if (!this.step.getApplicationName().equals(appName)) {
+						GenericUtils.printConsoleLog(listener,
+								"snDevOpsConfigGetSnapshots - Changeset provided is not associated with application : "
+										+ this.step.getApplicationName());
+						return null;
+					}
+				}
+
+				List<String> deployableNames = getDeployableNames(model, changesetSysId, listener);
+				if (deployableNames.size() == 0) {
+					GenericUtils.printConsoleLog(listener,
+							"snDevOpsConfigGetSnapshots - No deployables are impacted. Ignoring polling for snapshot");
+					return null;
+				}
+
+				if (!StringUtils.isEmpty(this.step.getDeployableName())) {
+					if (!deployableNames.contains(this.step.getDeployableName())) {
+						GenericUtils.printConsoleLog(listener,
+								"snDevOpsConfigGetSnapshots - Deployable provided is not impacted under given changeset. Ignoring polling for snapshot");
+						return null;
+					} else {
+						deployableNames.clear();
+						deployableNames.add(this.step.getDeployableName());
+					}
+				}
 
 				if (StringUtils.isEmpty(step.getChangeSetId())) {
-					result = processSnapshotsByPollingValidationStatus(step.getApplicationName(), deployableNames);
+					result = processSnapshotsByPollingValidationStatus(step.getApplicationName(), deployableNames,
+							listener);
 				} else {
 					result = processSnapshotsByPollingCreationAndValidationStatus(step.getApplicationName(),
 							deployableNames, step.getChangeSetId());
@@ -75,46 +180,47 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 			} else {
 				if (!jobProperties.isIgnoreSNErrors()) {
 					run.setResult(Result.FAILURE);
-					throw new AbortException("snDevOpsConfigGetSnapshots  - Missing Parameters.");
+					throw new AbortException("snDevOpsConfigGetSnapshots  - Missing parameters.");
 				} else {
-					GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Validation ofStep Inputs Failed");
+					GenericUtils.printConsoleLog(listener,
+							"snDevOpsConfigGetSnapshots - Validation of step inputs failed");
 				}
 			}
-		} catch (IOException | InterruptedException | JSONException e) {
+		} catch (IOException | InterruptedException | JSONException | IndexOutOfBoundsException e) {
 
 			if ((e instanceof AbortException) && !jobProperties.isIgnoreSNErrors()) {
 				run.setResult(Result.FAILURE);
 				throw e;
 			}
-			GenericUtils.printConsoleLog(listener,
-					"snDevOpsConfigGetSnapshots - Exception in run method" + e.getMessage());
+			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Exception in run method");
 		}
 		String resultString = null;
 		// return only validated snapshots
 		if (result.size() != 0) {
-			result = result.stream().filter(snapshot -> snapshot.getValidation().equalsIgnoreCase("passed"))
-					.collect(Collectors.toList());
 			resultString = mapper.writeValueAsString(result);
 			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots Result " + resultString);
 			return resultString;
 		} else {
 			if (!jobProperties.isIgnoreSNErrors()) {
 				run.setResult(Result.FAILURE);
-				throw new AbortException("snDevOpsConfigGetSnapshots  - Status Step Failed - No Result");
+				throw new AbortException("snDevOpsConfigGetSnapshots  - Status step failed - No result");
 			}
-			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Status Step Failed - No Result");
-			return result.toString();
+			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Status step failed - No result");
+			return null;
 		}
 	}
 
 	public List<CDMSnapshot> processSnapshotsByPollingCreationAndValidationStatus(String applicationName,
-			List<String> deployableNames, String changeSetId) throws IOException, InterruptedException, JSONException {
+			List<String> deployableNames, String changeSetId)
+			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		// poll for snapshot creation first
 		DevOpsModel model = new DevOpsModel();
 		TaskListener listener = getContext().get(TaskListener.class);
+
 		GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Polling for creation");
 		pollForSnapshotCreation(applicationName, deployableNames, changeSetId, model);
 		JSONObject snapShotStatus = model.snapShotExists(applicationName, deployableNames, changeSetId);
+
 		checkErrorInResponse(snapShotStatus,
 				"snDevOpsConfigGetSnapshots - Exception occurred while polling for snapshot creation");
 		JSONArray result = snapShotStatus.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
@@ -126,7 +232,8 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 			return snapshotListAfterpoll;
 		}
 		// poll for validation.
-        GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Polling for Validation : "+snapshotListAfterpoll.size());
+		GenericUtils.printConsoleLog(listener,
+				"snDevOpsConfigGetSnapshots - Polling for validation : " + snapshotListAfterpoll.size());
 		pollForSnapshotValidation(snapshotListAfterpoll, model);
 		// querying db again to get latest status of the snapshots.
 		List<CDMSnapshot> snapshotList = new ArrayList<>();
@@ -135,14 +242,21 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 	}
 
 	private List<CDMSnapshot> processSnapshotsByPollingValidationStatus(String applicationName,
-			List<String> deployableNames) throws IOException, InterruptedException, JSONException {
+			List<String> deployableNames, TaskListener listener)
+			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		DevOpsModel devOpsModel = new DevOpsModel();
 		List<CDMSnapshot> snapshotList = new ArrayList<>();
 		// get latest published and validated snapshot for each app, deployable
 		getSnapShotListAfterQuery(applicationName, deployableNames, devOpsModel, snapshotList, null);
+		// change
+		if (snapshotList.size() == 0) {
+			GenericUtils.printConsoleLog(listener,
+					"snDevOpsConfigGetSnapshots  - No snapshots found for input parameters");
+			return snapshotList;
+		}
 
 		// remove already validated snapshots.
-		Stream<String> validationStates = Stream.of("in_progress", "requested", "not_validated");
+		Stream<String> validationStates = Stream.of("in_progress", "requested");
 		List<CDMSnapshot> filteredSnapshots = snapshotList.stream()
 				.filter(snapshot -> validationStates.anyMatch(s -> s.contains(snapshot.getValidation())))
 				.collect(Collectors.toList());
@@ -162,7 +276,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 
 	private void getSnapShotListAfterQuery(String applicationName, List<String> deployableNames,
 			DevOpsModel devOpsModel, List<CDMSnapshot> snapshotList, String changeSetId)
-			throws IOException, InterruptedException, JSONException {
+			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		TaskListener listener = getContext().get(TaskListener.class);
 		deployableNames.forEach(deployableName -> {
 			JSONObject snapshots = devOpsModel.getSnapshotsByDeployables(applicationName, deployableName, changeSetId);
@@ -184,25 +298,26 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 	}
 
 	public void pollForSnapshotCreation(String applicationName, List<String> deployableNames, String changeSetId,
-			DevOpsModel model) throws IOException, InterruptedException, JSONException {
+			DevOpsModel model) throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		TaskListener listener = getContext().get(TaskListener.class);
 		final List<CDMSnapshot> snapshotListAfterpoll = new ArrayList<CDMSnapshot>();
 		Callable<String> callable = () -> {
 			String retryStatus = "success";
-			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Checking for Snapshot");
+			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Checking for snapshot");
 			JSONObject snapShotStatus = model.snapShotExists(applicationName, deployableNames, changeSetId);
 			checkErrorInResponse(snapShotStatus, "Exception occurred while polling for snapshot creation");
 			JSONArray result = null;
 			result = snapShotStatus.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-			
+
 			if (result == null || result.size() < 1) {
 				retryStatus = RETRY;
 				return retryStatus;
 			} else {
 				snapshotListAfterpoll.add(getSnapshotList(result).get(0));
 				if (snapshotListAfterpoll.size() < deployableNames.size()) {
-                    retryStatus = RETRY;
-                    GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Snapshots Found : " + snapshotListAfterpoll.size());
+					retryStatus = RETRY;
+					GenericUtils.printConsoleLog(listener,
+							"snDevOpsConfigGetSnapshots - Snapshots found : " + snapshotListAfterpoll.size());
 				}
 				return retryStatus;
 			}
@@ -211,10 +326,12 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 	}
 
 	private void pollForSnapshotValidation(List<CDMSnapshot> filteredSnapshots, DevOpsModel model)
-			throws IOException, InterruptedException, JSONException {
+			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		TaskListener listener = getContext().get(TaskListener.class);
 		Callable<String> callable = () -> {
 			String retryStatus = "success";
+			Thread.sleep(500);
+			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Waiting for validation to complete");
 			JSONObject snapShotStatus = model
 					.querySnapShotStatus(filteredSnapshots.stream().map(s -> s.getName()).collect(Collectors.toList()));
 			checkErrorInResponse(snapShotStatus, "Exception occurred while polling snapshot for validation");
@@ -268,21 +385,25 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 		return snapshotList;
 	}
 
-	private List<String> getDeployableNames(DevOpsModel model, String applicationName)
-			throws IOException, InterruptedException, JSONException {
-		JSONObject snapshotStatus;
+	private List<String> getDeployableNames(DevOpsModel model, String changesetId, TaskListener listener)
+			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
+		JSONObject impactedDeployables;
+
 		List<String> deployableNames = Lists.newArrayList();
-		if (StringUtils.isEmpty(this.step.getDeployableName())) {
-			snapshotStatus = model.getDeployablesForApp(applicationName);
-			checkErrorInResponse(snapshotStatus,
+		if (!StringUtils.isEmpty(changesetId)) {
+
+			impactedDeployables = model.getImpactedDeployables(changesetId);
+			checkErrorInResponse(impactedDeployables,
 					"Unable to fetch deployable names for App" + this.step.getApplicationName());
-			JSONArray result = snapshotStatus.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-			for (Object item : result) {
-				Map<String, String> map = (Map<String, String>) item;
-				for (Map.Entry<String, String> entry : map.entrySet()) {
-					deployableNames.add((String) entry.getValue());
-				}
+			JSONArray result = impactedDeployables.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+
+			for (int i = 0; i < result.size(); i++) {
+				JSONObject deployable = result.getJSONObject(i);
+				String deployableName = deployable.getString("name");
+				deployableNames.add(deployableName);
 			}
+			GenericUtils.printConsoleLog(listener,
+					"snDevOpsConfigGetSnapshots - Deployables which got impacted are : " + deployableNames);
 		} else {
 			deployableNames.add(this.step.getDeployableName());
 		}
@@ -290,7 +411,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 	}
 
 	private void checkErrorInResponse(JSONObject snapshotStatus, String errorMessage)
-			throws IOException, InterruptedException, JSONException {
+			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		Run<?, ?> run = null;
 		TaskListener listener = null;
 
@@ -310,9 +431,9 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 	private Boolean validateStepInputs() throws Exception {
 		TaskListener listener = getContext().get(TaskListener.class);
 		if (StringUtils.isEmpty(step.getApplicationName())) {
-			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Application Name is missing");
+			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Application name is missing");
 			GenericUtils.printConsoleLog(listener,
-					"snDevOpsConfigGetSnapshots - Mandatory Parameter is ApplicationName");
+					"snDevOpsConfigGetSnapshots - Application name is mandatory parameter");
 			return false;
 		}
 		if (StringUtils.isEmpty(step.getDeployableName()) && StringUtils.isEmpty(step.getChangeSetId())) {

@@ -1,5 +1,8 @@
 package io.jenkins.plugins.model;
 
+import static io.jenkins.plugins.DevOpsRunListener.DevOpsStageListener.getCurrentStageId;
+import static io.jenkins.plugins.DevOpsRunListener.DevOpsStageListener.getCurrentStageName;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -10,10 +13,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.lang3.StringUtils;
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
@@ -21,13 +20,9 @@ import org.jenkinsci.plugins.workflow.cps.nodes.StepStartNode;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.graphanalysis.FlowScanningUtils;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
 
-import com.google.common.collect.Lists;
 import hudson.EnvVars;
 import hudson.Util;
-import hudson.XmlFile;
 import hudson.model.AbstractProject;
 import hudson.model.Cause;
 import hudson.model.CauseAction;
@@ -40,11 +35,13 @@ import hudson.model.queue.ScheduleResult;
 import hudson.scm.SCM;
 import hudson.triggers.SCMTrigger;
 import io.jenkins.plugins.DevOpsRootAction;
+import io.jenkins.plugins.DevOpsRunListener;
 import io.jenkins.plugins.DevOpsRunStatusAction;
 import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineMapStep;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExecution;
+import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineMapStepExecution;
 import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
@@ -53,12 +50,6 @@ import jenkins.triggers.SCMTriggerItem;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
-import java.util.logging.Logger;
-
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileNotFoundException;
-import hudson.FilePath;
 
 public class DevOpsModel {
 
@@ -205,7 +196,7 @@ public class DevOpsModel {
 
 	// from onStarted (or anywhere that has a runId associated)
 	public DevOpsPipelineInfo checkIsTracking(Job<?, ?> job, String runId, String branchName) {
-		printDebug("checkIsTracking(run)", new String[]{"runId","branchName"}, new String[]{runId,branchName}, Level.FINE);
+		printDebug("checkIsTracking(run)", new String[]{"runId", "branchName"}, new String[]{runId, branchName}, Level.FINE);
 		if (job == null)
 			return new DevOpsPipelineInfo(false);
 		// check if global prop and supported job type
@@ -226,7 +217,7 @@ public class DevOpsModel {
 				GenericUtils.isMultiBranch(job));
 	}
 
-	public DevOpsPipelineInfo getPipelineInfo(Job<?, ?> job, String runId){
+	public DevOpsPipelineInfo getPipelineInfo(Job<?, ?> job, String runId) {
 		if (job == null)
 			return new DevOpsPipelineInfo(false);
 		// check if global prop and supported job type
@@ -238,7 +229,7 @@ public class DevOpsModel {
 
 		String jobName = job.getFullName();
 		String key = getTrackingKey(jobName, runId);
-		printDebug("getPipelineInfo", new String[]{"jobName","key"}, new String[]{jobName,key}, Level.FINE);
+		printDebug("getPipelineInfo", new String[]{"jobName", "key"}, new String[]{jobName, key}, Level.FINE);
 		return DevOpsRootAction.getSnPipelineInfo(key);
 	}
 
@@ -272,14 +263,14 @@ public class DevOpsModel {
 	}
 
 	public String getTrackingKey(String jobName, String runId) {
-		printDebug("getTrackingKey", new String[]{"runId","jobName"}, new String[]{runId,jobName}, Level.FINE);
+		printDebug("getTrackingKey", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		if (jobName == null)
 			return null;
 		return jobName + DevOpsConstants.TRACKING_KEY_SEPARATOR.toString() + runId;
 	}
 
 	public void addToPipelineInfoCache(String jobName, String runId, DevOpsPipelineInfo pipelineInfo) {
-		printDebug("addToPipelineInfoCache", new String[]{"runId","jobName"}, new String[]{runId,jobName}, Level.FINE);
+		printDebug("addToPipelineInfoCache", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		String key = getTrackingKey(jobName, runId);
 		if (key == null)
 			return;
@@ -289,7 +280,7 @@ public class DevOpsModel {
 	}
 
 	public void removeFromPipelineInfoCache(String jobName, String runId) {
-		printDebug("removeFromPipelineInfoCache", new String[]{"runId","jobName"}, new String[]{runId,jobName}, Level.FINE);
+		printDebug("removeFromPipelineInfoCache", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		String key = getTrackingKey(jobName, runId);
 		if (key == null)
 			return;
@@ -297,7 +288,7 @@ public class DevOpsModel {
 	}
 
 	public void addToTrackingCache(String jobName, String runId, DevOpsPipelineInfo pipelineInfo) {
-		printDebug("addToTrackingCache", new String[]{"runId","jobName"}, new String[]{runId,jobName}, Level.FINE);
+		printDebug("addToTrackingCache", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		String key = getTrackingKey(jobName, runId);
 		printDebug("addToTrackingCache", new String[]{"key"}, new String[]{key}, Level.FINE);
 		if (key == null)
@@ -306,7 +297,7 @@ public class DevOpsModel {
 	}
 
 	public void removeFromTrackingCache(String jobName, String runId) {
-		printDebug("removeFromTrackingCache", new String[]{"runId","jobName"}, new String[]{runId,jobName},Level.FINE);
+		printDebug("removeFromTrackingCache", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		String key = getTrackingKey(jobName, runId);
 		if (key == null)
 			return;
@@ -314,14 +305,14 @@ public class DevOpsModel {
 	}
 
 	public boolean isTrackingCache(String jobName, String runId) {
-		printDebug("isTrackingCache", new String[]{"runId","jobName"}, new String[]{runId,jobName}, Level.FINE);
+		printDebug("isTrackingCache", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		String key = getTrackingKey(jobName, runId);
 		if (key == null)
 			return false;
 		Boolean tracking = DevOpsRootAction.getTrackedJob(key);
 		if (tracking == null)
 			return false;
-		printDebug("isTrackingCache", new String[]{"tracking"},new String[]{String.valueOf(tracking.booleanValue())}, Level.FINE);
+		printDebug("isTrackingCache", new String[]{"tracking"}, new String[]{String.valueOf(tracking.booleanValue())}, Level.FINE);
 		return tracking.booleanValue();
 	}
 
@@ -329,8 +320,8 @@ public class DevOpsModel {
 		printDebug("checkPipelineInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
 		if (jobName == null)
 			return null;
-		if(isMultiBranch)
-			jobName = jobName.split(DevOpsConstants.PATH_SEPARATOR.toString()+branchName)[0];
+		if (isMultiBranch)
+			jobName = jobName.split(DevOpsConstants.PATH_SEPARATOR.toString() + branchName)[0];
 		return DevOpsRootAction.checkInfoInFile(jobName, branchName, isMultiBranch);
 	}
 
@@ -338,18 +329,18 @@ public class DevOpsModel {
 		printDebug("updatePipelineInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
 		if (jobName == null)
 			return false;
-		if(isMultiBranch)
-			jobName = jobName.split(DevOpsConstants.PATH_SEPARATOR.toString()+branchName)[0];
+		if (isMultiBranch)
+			jobName = jobName.split(DevOpsConstants.PATH_SEPARATOR.toString() + branchName)[0];
 		return DevOpsRootAction.updateInfoInFile(jobName, infoAPIResponse, branchName, isMultiBranch);
 	}
 
 	/*
-    *Checking /{JENKINS_HOME}/snPipelineInfo.json file each time before making a call to /sn-devops/pipelineInfo api 
-	*if api response available in file -> retrieve the response and use it, else -> make call to /sn-devops/pipelineInfo
-	*api response for multibranch pipeline uses ONLY jobName as the key
-    */
+	 *Checking /{JENKINS_HOME}/snPipelineInfo.json file each time before making a call to /sn-devops/pipelineInfo api
+	 *if api response available in file -> retrieve the response and use it, else -> make call to /sn-devops/pipelineInfo
+	 *api response for multibranch pipeline uses ONLY jobName as the key
+	 */
 	public DevOpsPipelineInfo isTrackingEndpoint(String jobUrl, String jobName, String pronoun, String branchName, boolean isMultiBranch) {
-		printDebug("isTrackingEndpoint", new String[]{"jobUrl","jobName","pronoun","branchName","isMultiBranch"}, new String[]{jobUrl,jobName,pronoun,branchName,String.valueOf(isMultiBranch)}, Level.FINE);
+		printDebug("isTrackingEndpoint", new String[]{"jobUrl", "jobName", "pronoun", "branchName", "isMultiBranch"}, new String[]{jobUrl, jobName, pronoun, branchName, String.valueOf(isMultiBranch)}, Level.FINE);
 		String result = null;
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		JSONObject infoAPIResponse = checkPipelineInfoInFile(jobName, branchName, isMultiBranch);
@@ -365,13 +356,13 @@ public class DevOpsModel {
 			infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 					devopsConfig.getTrackingUrl(), params, null,
 					devopsConfig.getUser(), devopsConfig.getPwd(), null);
-			if (GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()))  {
+			if (GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) {
 				updatePipelineInfoInFile(jobName, infoAPIResponse, branchName, isMultiBranch);
 			}
 		}
 		result = GenericUtils.parseResponseResult(infoAPIResponse,
-						DevOpsConstants.TRACKING_RESPONSE_ATTR.toString());
-		printDebug("isTrackingEndpoint", new String[]{DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()},new String[]{result}, Level.FINE);	
+				DevOpsConstants.TRACKING_RESPONSE_ATTR.toString());
+		printDebug("isTrackingEndpoint", new String[]{DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()}, new String[]{result}, Level.FINE);
 		if (result != null) {
 			if (result.equalsIgnoreCase("true")) {
 				DevOpsPipelineInfo pipelineInfo = new DevOpsPipelineInfo(true);
@@ -380,19 +371,17 @@ public class DevOpsModel {
 					pipelineInfo.setTestInfo(resultObj.getJSONObject(DevOpsConstants.TEST_INFO_RESPONSE.toString()));
 				}
 				return pipelineInfo;
-			}
-			else if (result.equalsIgnoreCase("false")) {
+			} else if (result.equalsIgnoreCase("false")) {
 				return new DevOpsPipelineInfo(false);
-			}
-			else if (result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
+			} else if (result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 				if (result.contains(DevOpsConstants.FAILURE_REASON_CONN_REFUSED.toString()))
 					return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_CONN_REFUSED_UI.toString());
 				else if (result.contains(DevOpsConstants.FAILURE_REASON_USER_NOAUTH.toString()))
 					return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_USER_NOAUTH_UI.toString());
-				else if (pronoun != null && 
-						 result.contains(DevOpsConstants.FAILURE_REASON_PIPELINE_DETAILS_NOT_FOUND.toString()) && 
-						 (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) || pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())))
-					return new DevOpsPipelineInfo(false);	
+				else if (pronoun != null &&
+						result.contains(DevOpsConstants.FAILURE_REASON_PIPELINE_DETAILS_NOT_FOUND.toString()) &&
+						(pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) || pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())))
+					return new DevOpsPipelineInfo(false);
 			}
 		}
 		return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_GENERIC_UI.toString());
@@ -451,7 +440,9 @@ public class DevOpsModel {
 			return errorMessage;
 		}
 
-		public String toString() { return "track: " + this.track + ", unreacheable: " + this.unreacheable; }
+		public String toString() {
+			return "track: " + this.track + ", unreacheable: " + this.unreacheable;
+		}
 	}
 
 	// When parallel pipelines are triggered and Job run #1 is waiting for approval,
@@ -542,18 +533,18 @@ public class DevOpsModel {
 		String token = null;
 		if (pronoun != null) {
 			if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-			    pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()))
+					pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()))
 				token = DevOpsConstants.FREESTYLE_CALLBACK_URL_IDENTIFIER.toString() +
-				        DevOpsConstants.CALLBACK_TOKEN_SEPARATOR.toString() +
-				        java.util.UUID.randomUUID().toString();
+						DevOpsConstants.CALLBACK_TOKEN_SEPARATOR.toString() +
+						java.util.UUID.randomUUID().toString();
 			else if (pronoun
-					         .equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
-			         pronoun.equalsIgnoreCase(
-					         DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
-							         .toString()))
+					.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+					pronoun.equalsIgnoreCase(
+							DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
+									.toString()))
 				token = DevOpsConstants.PIPELINE_CALLBACK_URL_IDENTIFIER.toString() +
-				        DevOpsConstants.CALLBACK_TOKEN_SEPARATOR.toString() +
-				        java.util.UUID.randomUUID().toString();
+						DevOpsConstants.CALLBACK_TOKEN_SEPARATOR.toString() +
+						java.util.UUID.randomUUID().toString();
 		}
 		return token;
 	}
@@ -619,12 +610,12 @@ public class DevOpsModel {
 		if (index == -1)
 			return string;
 		return string.substring(0, index) + replacement +
-		       string.substring(index + substring.length());
+				string.substring(index + substring.length());
 	}
 
 	public String sendBuildAndToken(String token, String jenkinsUrl, String buildUrl,
 	                                String jobUrl, String jobName, String stageName,
-	                                DevOpsPipelineNode rootNode, Boolean isMultiBranch, String branchName, Boolean isChangeClose) {
+	                                DevOpsPipelineNode stageNode, Boolean isMultiBranch, String branchName, Boolean isChangeClose) {
 		printDebug("sendBuildAndToken", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
@@ -643,21 +634,21 @@ public class DevOpsModel {
 					Boolean.toString(isMultiBranch));
 			data.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
 
-			if (stageName != null && !stageName.isEmpty()) {
+			if (stageNode != null) {
 				data.put(DevOpsConstants.JOB_NAME_ATTR.toString(),
 						jobName + DevOpsConstants.JOB_STAGE_SEPARATOR.toString() +
-						stageName);
+								stageName);
 				data.put(DevOpsConstants.JOB_URL_ATTR.toString(), replaceLast(jobUrl, "/",
-						DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageName +
-						"/"));//jobUrl+DevOpsConstants.JOB_STAGE_SEPARATOR.toString()+stageName);
+						DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageNode.getName() +
+								"/"));//jobUrl+DevOpsConstants.JOB_STAGE_SEPARATOR.toString()+stageName);
 			} else
 				data.put(DevOpsConstants.JOB_NAME_ATTR.toString(), jobName);
 
-			if (isChangeClose && null != rootNode)
+			if (isChangeClose && null != stageNode)
 				data.put(DevOpsConstants.PARENT_BUILD_URL_ATTR.toString(),
-						jenkinsUrl+rootNode.getExecutionUrl() + "wfapi/describe");
+						jenkinsUrl + stageNode.getExecutionUrl() + "wfapi/describe");
 
-			addRootParams(rootNode, data, jobName, jobUrl, DevOpsConstants.REST_PUT_METHOD);
+			addStageNodeParams(stageNode, data, jobName, jobUrl, DevOpsConstants.REST_PUT_METHOD);
 
 			result = GenericUtils.parseResponseResult(
 					CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
@@ -672,7 +663,7 @@ public class DevOpsModel {
 	}
 
 	public String sendIsUnderChgControl(String jobUrl, String jobName,
-	                                    String stageName, DevOpsPipelineNode rootNode, Boolean isMultiBranch,
+	                                    String stageName, DevOpsPipelineNode stageNode, Boolean isMultiBranch,
 	                                    String branchName) {
 		printDebug("sendIsUnderChgControl", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
@@ -687,16 +678,16 @@ public class DevOpsModel {
 				Boolean.toString(isMultiBranch));
 		params.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
 
-		if (stageName != null && !stageName.isEmpty()) {
+		if (stageNode != null) {
 
 			params.put(DevOpsConstants.JOB_NAME_ATTR.toString(),
-					jobName + DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageName);
+					jobName + DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageNode.getName());
 			params.put(DevOpsConstants.JOB_URL_ATTR.toString(), replaceLast(jobUrl, "/",
-					DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageName + "/"));
+					DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageNode.getName() + "/"));
 		} else
 			params.put(DevOpsConstants.JOB_NAME_ATTR.toString(), jobName);
 
-		addRootParams(rootNode, params, jobName, jobUrl, DevOpsConstants.REST_GET_METHOD);
+		addStageNodeParams(stageNode, params, jobName, jobUrl, DevOpsConstants.REST_GET_METHOD);
 
 		try {
 			result = GenericUtils
@@ -712,10 +703,10 @@ public class DevOpsModel {
 	}
 
 	public String sendJobAndCallbackUrl(String token, String jobUrl, String jobName,
-	                                    String stageName, DevOpsPipelineNode rootNode, String jenkinsUrl,
+	                                    String stageName, DevOpsPipelineNode stageNode, String jenkinsUrl,
 	                                    String endpointUrl, String user, String pwd,
 	                                    String tool, JSONObject jobDetails,
-	                                    Boolean isMultiBranch, String branchName, String changeRequestDetails) {
+	                                    Boolean isMultiBranch, String branchName, String changeRequestDetails, PipelineChangeResponse changeResponse) {
 		printDebug("sendJobAndCallbackUrl", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
@@ -731,17 +722,20 @@ public class DevOpsModel {
 					Boolean.toString(isMultiBranch));
 			data.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
 
+			if (stageNode != null && null != stageNode.getPipelineExecutionUrl())
+				data.put(DevOpsConstants.PIPLINE_EXECUTION_URL.toString(), stageNode.getPipelineExecutionUrl());
+
 			if (stageName != null && !stageName.isEmpty()) {
 				data.put(DevOpsConstants.JOB_NAME_ATTR.toString(),
 						jobName + DevOpsConstants.JOB_STAGE_SEPARATOR.toString() +
-						stageName);
+								stageName);
 				data.put(DevOpsConstants.JOB_URL_ATTR.toString(), replaceLast(jobUrl, "/",
 						DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageName +
-						"/"));
+								"/"));
 			} else
 				data.put(DevOpsConstants.JOB_NAME_ATTR.toString(), jobName);
 
-			addRootParams(rootNode, data, jobName, jobUrl, DevOpsConstants.REST_POST_METHOD);
+			addStageNodeParams(stageNode, data, jobName, jobUrl, DevOpsConstants.REST_POST_METHOD);
 			if (data.get(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString()) != null) {
 				String parentStageExecutionURL = data.get(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString()).toString();
 				if (parentStageExecutionURL != null)
@@ -754,11 +748,17 @@ public class DevOpsModel {
 				data.put(DevOpsConstants.CR_ATTRS.toString(), crAttrJSON);
 			}
 
+			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(), endpointUrl, params,
+					data.toString(), user, pwd, null);
 			result = GenericUtils
-					.parseResponseResult(
-							CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(), endpointUrl, params,
-									data.toString(), user, pwd, null),
-							DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
+					.parseResponseResult(response, DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
+			
+			if(changeResponse != null) { // fill in message details if present
+				String message = GenericUtils.parseResponseResult(response, DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
+				if(!GenericUtils.isEmpty(message)) {
+					changeResponse.setMessage(message);
+				}
+			}
 		} catch(JSONException e){
 			printDebug("sendJobAndCallbackUrl", new String[]{"JSONException"},
 					new String[]{e.getMessage()}, Level.SEVERE);
@@ -781,7 +781,7 @@ public class DevOpsModel {
 		return jobProperty;
 	}
 
-	public String sendUpdateMapping(String jobUrl, String jobName, String stageName, DevOpsPipelineNode rootNode,
+	public String sendUpdateMapping(String jobUrl, String jobName, String stageName, DevOpsPipelineNode stageNode,
 	                                String stepSysId, Boolean isMultiBranch, String branchName) {
 		printDebug("sendUpdateMapping", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
@@ -806,7 +806,7 @@ public class DevOpsModel {
 		if (!GenericUtils.isEmpty(stepSysId))
 			data.put(DevOpsConstants.STEP_SYSID_ATTR.toString(), stepSysId);
 
-		addRootParams(rootNode, data, jobName, jobUrl, DevOpsConstants.REST_POST_METHOD);
+		addStageNodeParams(stageNode, data, jobName, jobUrl, DevOpsConstants.REST_POST_METHOD);
 
 		try {
 			result = GenericUtils.parseResponseResult(
@@ -820,18 +820,18 @@ public class DevOpsModel {
 		return result;
 	}
 
-	private void addRootParams(DevOpsPipelineNode rootNode, JSONObject params, String jobName, String jobUrl, DevOpsConstants callMethod) {
-		if (rootNode != null) {
-			String rootStageName = rootNode.getName();
-			if (rootStageName != null && !rootStageName.isEmpty()) {
+	private void addStageNodeParams(DevOpsPipelineNode stageNode, JSONObject params, String jobName, String jobUrl, DevOpsConstants callMethod) {
+		if (stageNode != null) {
+			String stageName = stageNode.getName();
+			if (stageName != null && !stageName.isEmpty()) {
 				params.put(DevOpsConstants.JOB_PARENT_STAGE_NAME.toString(),
-						jobName + DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + rootStageName);
+						jobName + DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageName);
 				params.put(DevOpsConstants.JOB_PARENT_STAGE_URL.toString(),
-						replaceLast(jobUrl, "/", DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + rootStageName + "/"));
-				// avoid adding entire rootNode data to query params for GET method
+						replaceLast(jobUrl, "/", DevOpsConstants.JOB_STAGE_SEPARATOR.toString() + stageName + "/"));
+				// avoid adding entire currentStageNode data to query params for GET method
 				if ((callMethod.equals(DevOpsConstants.REST_POST_METHOD) || callMethod.equals(DevOpsConstants.REST_PUT_METHOD))) {
-					params.put(DevOpsConstants.JOB_PARENT_STAGE_DATA.toString(), getRootJSONObject(rootNode));
-					String parentStageExecutionURL = rootNode.getExecutionUrl();
+					params.put(DevOpsConstants.JOB_PARENT_STAGE_DATA.toString(), getStageNodeJSONObject(stageNode));
+					String parentStageExecutionURL = stageNode.getExecutionUrl();
 					if (parentStageExecutionURL != null)
 						params.put(DevOpsConstants.JOB_PARENT_STAGE_EXECUTION_URL.toString(), getJenkinsUrl() + parentStageExecutionURL + "wfapi/describe");
 				}
@@ -839,14 +839,14 @@ public class DevOpsModel {
 		}
 	}
 
-	private JSONObject getRootJSONObject(DevOpsPipelineNode rootNode) {
-		JSONObject rootJSONObj = new JSONObject();
-		rootJSONObj.put("id",rootNode.getId());
-		rootJSONObj.put("name", rootNode.getName());
-		rootJSONObj.put("parentId",rootNode.getParentId());
-		rootJSONObj.put("upstreamStageName",rootNode.getUpstreamStageName());
-		rootJSONObj.put("upstreamTaskExecutionURL",rootNode.getUpstreamTaskExecURL());
-		return rootJSONObj;
+	private JSONObject getStageNodeJSONObject(DevOpsPipelineNode stageNode) {
+		JSONObject stageNodeJSONObj = new JSONObject();
+		stageNodeJSONObj.put("id", stageNode.getId());
+		stageNodeJSONObj.put("name", stageNode.getName());
+		stageNodeJSONObj.put("parentId", stageNode.getParentId());
+		stageNodeJSONObj.put("upstreamStageName", stageNode.getUpstreamStageName());
+		stageNodeJSONObj.put("upstreamTaskExecutionURL", stageNode.getUpstreamTaskExecURL());
+		return stageNodeJSONObj;
 	}
 
 
@@ -863,7 +863,7 @@ public class DevOpsModel {
 	public String registerFreestyleAndNotify(Queue.Item item, Job<?, ?> job, String token,
 	                                         String jobId, String jobUrl, String jobName,
 	                                         String jenkinsUrl) {
-		printDebug("registerFreestyleAndNotify", null, null,Level.FINE);
+		printDebug("registerFreestyleAndNotify", null, null, Level.FINE);
 		String result = null;
 		try {
 			JSONObject jobDetails = getJobDetailsForFreestyle(item, job, jenkinsUrl);
@@ -885,7 +885,7 @@ public class DevOpsModel {
 					jobUrl, jobName, null, null,
 					jenkinsUrl, devopsConfig.getChangeControlUrl(), devopsConfig.getUser(),
 					devopsConfig.getPwd(), devopsConfig.getToolId(),
-					jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails());
+					jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null);
 			/* result: null (if call failed), "unknown", "true", "false" */
 			if (result != null) {
 				if (result.equalsIgnoreCase(
@@ -912,41 +912,25 @@ public class DevOpsModel {
 	}
 
 	public JSONObject getJobDetailsForPipeline(Run<?, ?> run, Job<?, ?> controlledJob,
-	                                           String jenkinsUrl)
+	                                           String jenkinsUrl, DevOpsPipelineNode devOpsPipelineNode)
 			throws InterruptedException {
 		printDebug("getJobDetailsForPipeline", null, null, Level.FINE);
 		JSONObject json = new JSONObject();
 		if (run != null) {
-			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
-			if (action != null) {
-				DevOpsRunStatusModel statusModel = action.getModel();
-				if (statusModel != null) {
-					DevOpsRunStatusStageModel stageModel = statusModel.getStageModel();
-					if (stageModel != null) {
-
-						String upstreamTaskExecutionURL =null;
-						if (GenericUtils.isEmpty(stageModel.getParentStageName())) {
-
-							upstreamTaskExecutionURL= stageModel.getUpstreamTaskExecutionUrl();
-						} else {
-							DevOpsPipelineNode rootNode = getRootNode(run, stageModel.getName());
-							upstreamTaskExecutionURL= rootNode.getUpstreamTaskExecURL();
-						}
-
-						if (upstreamTaskExecutionURL != null &&
-						    !upstreamTaskExecutionURL.isEmpty()) {
-							json.put(DevOpsConstants.MESSAGE_ATTR.toString(),
-									"Started by " + upstreamTaskExecutionURL);
-							json.put(DevOpsConstants.TRIGGER_TYPE_ATTR.toString(),
-									"upstream");
-							json.put(DevOpsConstants.UPSTREAM_BUILD_URL_ATTR.toString(),
-									upstreamTaskExecutionURL);
-						} else {
-							List<Cause> causes = run.getCauses();
-							json = _getJobDetails(causes, controlledJob, jenkinsUrl);
-						}
-					}
+			if (devOpsPipelineNode != null) {
+				String upstreamTaskExecutionURL = devOpsPipelineNode.getUpstreamTaskExecURL();
+				if (StringUtils.isEmpty(upstreamTaskExecutionURL)) {
+					json.put(DevOpsConstants.MESSAGE_ATTR.toString(),
+							"Started by " + upstreamTaskExecutionURL);
+					json.put(DevOpsConstants.TRIGGER_TYPE_ATTR.toString(),
+							"upstream");
+					json.put(DevOpsConstants.UPSTREAM_BUILD_URL_ATTR.toString(),
+							upstreamTaskExecutionURL);
+				} else {
+					List<Cause> causes = run.getCauses();
+					json = _getJobDetails(causes, controlledJob, jenkinsUrl);
 				}
+
 			} else {
 				List<Cause> causes = run.getCauses();
 				json = _getJobDetails(causes, controlledJob, jenkinsUrl);
@@ -984,7 +968,7 @@ public class DevOpsModel {
 				json.put(DevOpsConstants.TRIGGER_TYPE_ATTR.toString(), "upstream");
 
 				String upstreamBuildUrl = jenkinsUrl + upstreamCause.getUpstreamUrl() +
-				                          upstreamCause.getUpstreamBuild() + "/";
+						upstreamCause.getUpstreamBuild() + "/";
 				Matcher m = urlPatt.matcher(upstreamBuildUrl);
 				if (m.matches())
 					json.put(DevOpsConstants.UPSTREAM_BUILD_URL_ATTR.toString(),
@@ -1050,20 +1034,19 @@ public class DevOpsModel {
 
 	public String registerPipelineAndNotify(Run<?, ?> run, Job<?, ?> controlledJob,
 	                                        String token, String jobUrl, String jobName,
-	                                        String stageName, String jenkinsUrl,
-	                                        DevOpsPipelineChangeStepExecution stepExecution) {
+	                                        String stageId, String jenkinsUrl,
+	                                        DevOpsPipelineChangeStepExecution stepExecution, PipelineChangeResponse changeResponse) {
 		printDebug("registerPipelineAndNotify", null, null, Level.FINE);
 		String result = null;
 		try {
+			DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
 			JSONObject jobDetails =
-					getJobDetailsForPipeline(run, controlledJob, jenkinsUrl);
+					getJobDetailsForPipeline(run, controlledJob, jenkinsUrl, stageNode);
 
 			StepContext ctx = stepExecution.getContext();
 
 			EnvVars vars = null;
-			FlowNode fn = null;
 			try {
-				fn = ctx.get(FlowNode.class);
 				vars = ctx.get(EnvVars.class);
 			} catch (IOException | InterruptedException e) {
 				printDebug("registerPipelineAndNotify", new String[]{"IOException"},
@@ -1071,18 +1054,17 @@ public class DevOpsModel {
 			}
 
 			String changeRequestDetails = stepExecution.getStep().getChangeRequestDetails();
-			if(GenericUtils.isNotEmpty(changeRequestDetails) && vars!=null)
-					changeRequestDetails = vars.expand(changeRequestDetails);
+			if (GenericUtils.isNotEmpty(changeRequestDetails) && vars != null)
+				changeRequestDetails = vars.expand(changeRequestDetails);
 
-			DevOpsPipelineNode rootNode = getRootNode(run, stageName);
 
-			String buildUrl = getBuildUrl(fn, vars, run, jenkinsUrl, stageName, rootNode);
-			jobDetails.put(DevOpsConstants.BUILD_URL_ATTR.toString(),buildUrl);
+			String buildUrl = DevOpsPipelineGraph.getStageExecutionUrl(stageNode.getPipelineExecutionUrl(), stageNode.getId());
+			jobDetails.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
 			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 			result = sendJobAndCallbackUrl(token,
 					jobUrl,
 					jobName,
-					stageName, rootNode,
+					stageNode.getName(), stageNode,
 					jenkinsUrl,
 					devopsConfig.getChangeControlUrl(),
 					devopsConfig.getUser(),
@@ -1090,7 +1072,7 @@ public class DevOpsModel {
 					devopsConfig.getToolId(),
 					jobDetails, GenericUtils.isMultiBranch(controlledJob),
 					vars != null ? vars.get("BRANCH_NAME") : null,
-					changeRequestDetails);
+					changeRequestDetails,  changeResponse);
 			// only register webhook if able to post to SN endpoint
 			if (null != result && !result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 				if (result.equalsIgnoreCase(
@@ -1100,90 +1082,16 @@ public class DevOpsModel {
 				}
 			} else {
 				String cause = "";
-				if(null != result)
-					cause = "Cause: "+result;
+				if (null != result)
+					cause = "Cause: " + result;
 				printDebug("registerPipelineAndNotify", new String[]{"message"},
-						new String[]{"Register change control failed. Response from sendJobAndCallbackUrl(): "+cause}, Level.FINE);
+						new String[]{"Register change control failed. Response from sendJobAndCallbackUrl(): " + cause}, Level.FINE);
 			}
 		} catch (InterruptedException e) {
 			printDebug("registerPipelineAndNotify", new String[]{"exception"},
 					new String[]{e.getMessage()}, Level.SEVERE);
 		}
 		return result;
-	}
-
-
-	public String getBuildUrl(FlowNode fn, EnvVars vars, Run<?, ?> run, String jenkinsUrl,
-							  String stageName, DevOpsPipelineNode rootNode) {
-		String buildUrl = "";
-		if (fn != null && vars != null && run != null && jenkinsUrl != null) {
-			if (stageName != null && !stageName.isEmpty()) {
-				DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
-				if (action != null) {
-					DevOpsRunStatusModel statusModel = action.getModel();
-					if (statusModel != null) {
-						DevOpsRunStatusStageModel stageModel =
-								statusModel.getStageModel();
-						if (stageModel != null)
-							buildUrl = stageModel.getUrl();
-					}
-				} else {
-					buildUrl = getBuildUrlForStage(fn, vars, run, jenkinsUrl, stageName);
-				}
-			} else {
-				buildUrl = jenkinsUrl + run.getUrl();
-			}
-		}
-		return buildUrl;
-	}
-
-	public String getBuildUrlForStage(FlowNode fn, EnvVars vars, Run<?, ?> run,
-									  String jenkinsUrl, String stageName) {
-		String buildUrl = "";
-		// get all enclosing BlockNodes
-		// search for labelAction and step name == stage
-		// if compare stage names, if they match get the node ID
-		// build the url
-		if (fn != null && vars != null && run != null && jenkinsUrl != null) {
-			// Deprecated: use FlowNode.iterateEnclosingBlocks() (not seem available in this version)
-			Iterator<FlowNode> it = FlowScanningUtils.fetchEnclosingBlocks(fn);
-			while (it.hasNext()) {
-				FlowNode _fn = it.next();
-				if (_fn instanceof StepStartNode) {
-					boolean isStage =
-							((StepStartNode) _fn).getStepName().equalsIgnoreCase("stage");
-					String stepId = _fn.getId();
-					LabelAction lAction = _fn.getAction(LabelAction.class);
-					if (lAction != null && stepId != null && !stepId.isEmpty()) {
-						String _stageName = lAction.getDisplayName();
-						if (isStage && _stageName.equalsIgnoreCase(stageName)) {
-							buildUrl = jenkinsUrl + run.getUrl() + "execution/node/" +
-									stepId + "/wfapi/describe";
-							break;
-						}
-					}
-				}
-			}
-		}
-		return buildUrl;
-	}
-
-	public String getStageNameFromAction(Run<?, ?> run) {
-		printDebug("getStageNameFromAction", null, null, Level.FINE);
-		String stageName = null;
-		if (run != null) {
-			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
-			if (action != null) {
-				DevOpsRunStatusModel statusModel = action.getModel();
-				if (statusModel != null) {
-					DevOpsRunStatusStageModel stageModel = statusModel.getStageModel();
-					if (stageModel != null) {
-						stageName = stageModel.getName();
-					}
-				}
-			}
-		}
-		return stageName;
 	}
 
 	public enum PipelineChangeAction {
@@ -1194,6 +1102,7 @@ public class DevOpsModel {
 	public static class PipelineChangeResponse {
 		PipelineChangeAction action;
 		String errorMessage;
+		String message;
 
 		public String getErrorMessage() {
 			return errorMessage;
@@ -1211,6 +1120,14 @@ public class DevOpsModel {
 		public void setAction(PipelineChangeAction action) {
 			this.action = action;
 		}
+		
+		public String getMessage() {
+			return message;
+		}
+
+		public void setMessage(String message) {
+			this.message = message;
+		}
 	}
 
 	// Called from DevOpsPipelineChangeStepExecution.start()
@@ -1225,10 +1142,11 @@ public class DevOpsModel {
 			String jobUrl = controlledJob.getAbsoluteUrl();
 			String jobName = controlledJob.getName();
 			String jenkinsUrl = getJenkinsUrl();
+			DevOpsPipelineGraph graph = run.getAction(DevOpsRunStatusAction.class).getPipelineGraph();
 
 			if (jobUrl != null && jenkinsUrl != null && jobName != null) {
-				String stageName = getStageNameFromAction(run);
-				DevOpsPipelineNode rootNode = getRootNode(run, stageName);
+				String stageId = getCurrentStageId(stepExecution.getContext(), graph);
+				DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
 
 				StepContext ctx = stepExecution.getContext();
 				EnvVars vars = null;
@@ -1240,7 +1158,7 @@ public class DevOpsModel {
 				}
 
 				// If Job is under change control, register and notify SN with callback URL
-				String _result = sendIsUnderChgControl(jobUrl, jobName, stageName, rootNode,
+				String _result = sendIsUnderChgControl(jobUrl, jobName, stageId, stageNode,
 						GenericUtils.isMultiBranch(controlledJob), vars != null ? vars.get(
 								"BRANCH_NAME") : null);
 				if (_result != null) {
@@ -1258,8 +1176,8 @@ public class DevOpsModel {
 
 						// Register the Job callback hook, then notify SN
 						_result = registerPipelineAndNotify(run, controlledJob, token,
-								jobUrl, jobName, stageName, jenkinsUrl,
-								stepExecution);
+								jobUrl, jobName, stageNode.getId(), jenkinsUrl,
+								stepExecution, changeResponse);
 						if (_result != null) {
 							if (_result.equalsIgnoreCase(
 									DevOpsConstants.COMMON_RESPONSE_VALUE_TRUE
@@ -1375,7 +1293,7 @@ public class DevOpsModel {
 				String jobName = job.getName();
 				String jenkinsUrl = getJenkinsUrl();
 				if (jobUrl != null && jenkinsUrl != null && jobName != null &&
-					jobId != null) {
+						jobId != null) {
 					String token = getToken(jobId);
 					// Job already registered
 					if (token != null) {
@@ -1435,7 +1353,7 @@ public class DevOpsModel {
 															_result}, Level.WARNING);
 											if (GenericUtils.isNotEmpty(_result) && _result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 												setAbortResultForFreestyle(jobId, _result);
-											}else {
+											} else {
 												setAbortResultForFreestyle(jobId);
 											}
 										}
@@ -1484,9 +1402,13 @@ public class DevOpsModel {
 	// Called from DevOpsPipelineMapStepExecution.run()
 	public boolean handleStepMapping(Run<?, ?> run,
 	                                 Job<?, ?> controlledJob,
-	                                 DevOpsPipelineMapStep devOpsPipelineMapStep, EnvVars vars) {
+	                                 DevOpsPipelineMapStepExecution devOpsPipelineMapStepExecution, EnvVars vars) {
 
 		boolean result = false;
+		if (devOpsPipelineMapStepExecution == null)
+			return result;
+
+		DevOpsPipelineMapStep devOpsPipelineMapStep = devOpsPipelineMapStepExecution.getStep();
 		if (devOpsPipelineMapStep == null)
 			return result;
 
@@ -1499,20 +1421,22 @@ public class DevOpsModel {
 			String jobUrl = controlledJob.getAbsoluteUrl();
 			String jobName = controlledJob.getName();
 			String jenkinsUrl = getJenkinsUrl();
+			DevOpsPipelineGraph graph = run.getAction(DevOpsRunStatusAction.class).getPipelineGraph();
 
 			if (jobUrl != null && jenkinsUrl != null && jobName != null) {
-				String stageName = getStageNameFromAction(run);
-				DevOpsPipelineNode rootNode = getRootNode(run, stageName);
 
-				// return true if step is already associated to it's root
-				if (isStepAssociated(run, stageName)) {
-					this.associateStepToNode(run, stageName);
-					printDebug("handleStepMapping", new String[] { "message" },
-							new String[] { "Step has been associated already" }, Level.FINE);
+				String stageId = getCurrentStageId(devOpsPipelineMapStepExecution.getContext(), graph);
+				DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
+
+				// return true if step is already associated
+				if (isStepAssociated(run, stageNode.getId())) {
+					this.associateStepToNode(run, stageNode.getId());
+					printDebug("handleStepMapping", new String[]{"message"},
+							new String[]{"Step has been associated already"}, Level.FINE);
 					return true;
 				}
 
-				String _result = sendUpdateMapping(jobUrl, jobName, stageName, rootNode,
+				String _result = sendUpdateMapping(jobUrl, jobName, stageNode.getName(), stageNode,
 						stepSysId,
 						GenericUtils.isMultiBranch(controlledJob),
 						vars != null ? vars.get("BRANCH_NAME") : null);
@@ -1520,47 +1444,52 @@ public class DevOpsModel {
 					// associated successfully
 					if (_result.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_VALUE_TRUE.toString())) {
 						result = true;
-						this.associateStepToNode(run, stageName);
-						printDebug("handleStepMapping", new String[] { "message" },
-								new String[] { "Step associated successfully" }, Level.FINE);
+						this.associateStepToNode(run, stageNode.getName());
+						printDebug("handleStepMapping", new String[]{"message"},
+								new String[]{"Step associated successfully"}, Level.FINE);
 					}
 					// could not associate for some reason
 					else
-						printDebug("handleStepMapping", new String[] { "message" },
-								new String[] { "Step could not be associated - invalid" }, Level.WARNING);
+						printDebug("handleStepMapping", new String[]{"message"},
+								new String[]{"Step could not be associated - invalid"}, Level.WARNING);
 				} else {
 					String cause = "";
 					if (null != _result)
 						cause = "Cause: " + _result;
-					printDebug("handleStepMapping", new String[] { "message" }, new String[] {
-							"Something when wrong when calling SN to associate the step. Reason: " + cause }, Level.WARNING);
+					printDebug("handleStepMapping", new String[]{"message"}, new String[]{
+							"Something when wrong when calling SN to associate the step. Reason: " + cause}, Level.WARNING);
 				}
 			}
 		}
 		return result;
 	}
 
-	public DevOpsPipelineNode getRootNode(Run<?, ?> run, String stageName) {
-		printDebug("getRootNode", null, null, Level.FINE);
+	public DevOpsPipelineNode getStageNodeByName(Run<?, ?> run, String stageName) {
+		printDebug("getStageNodeByName", null, null, Level.FINE);
 		if (run != null) {
 			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
 			if (action != null) {
-				DevOpsPipelineNode nodeByName = action.getPipelineGraph().getNodeByName(stageName);
-				if (null != nodeByName) {
-					DevOpsPipelineNode rootNodeRef = nodeByName.getRootNodeRef();
-					if (null != rootNodeRef)
-						return rootNodeRef;
-					return nodeByName;
-				}
+				return action.getPipelineGraph().getNodeByName(stageName);
 			}
 		}
 		return null;
 	}
 
-	private boolean isStepAssociated(Run<?, ?> run, String stageName) {
+	public DevOpsPipelineNode getStageNodeById(Run<?, ?> run, String stageId) {
+		printDebug("getStageNodeByName", null, null, Level.FINE);
+		if (run != null) {
+			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
+			if (action != null) {
+				return action.getPipelineGraph().getNodeById(stageId);
+			}
+		}
+		return null;
+	}
+
+	private boolean isStepAssociated(Run<?, ?> run, String stageId) {
 		DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
 		if (action != null) {
-			return action.getPipelineGraph().isStepAssociated(stageName);
+			return action.getPipelineGraph().isStepAssociated(stageId);
 		}
 		return false;
 	}
@@ -1575,48 +1504,36 @@ public class DevOpsModel {
 
 	}
 
-	public boolean isChangeStepInProgress(Run<?, ?> run) {
-		DevOpsPipelineNode currentNode = getCurrentNode(run);
+	public boolean isChangeStepInProgress(Run<?, ?> run, String stageId) {
+		DevOpsPipelineNode currentNode = getStageNodeById(run, stageId);
 		if (null != currentNode)
 			return currentNode.isChangeCtrlInProgress();
 		return false;
 	}
 
-	public void markChangeStepToProgress(Run<?, ?> run) {
-		DevOpsPipelineNode currentNode = getCurrentNode(run);
+	public void markChangeStepToProgress(Run<?, ?> run, String stageId) {
+		DevOpsPipelineNode currentNode = getStageNodeById(run, stageId);
 		if (null != currentNode)
 			currentNode.setChangeCtrlInProgress(true);
 	}
 
-	public DevOpsPipelineNode getCurrentNode(Run<?, ?> run) {
-		DevOpsPipelineNode currentNode = null;
+	public String handleArtifactRegistration(StepContext stepContext, Run<?, ?> run, TaskListener listener, String artifactPayload, EnvVars vars) {
+
+		String result = null;
+		printDebug("handleArtifactRegistration", new String[]{"artifactPayload --"},
+				new String[]{artifactPayload}, Level.FINE);
+		String buildNumber = null, stageName = null, branchName = null, jobUrl = null, jobName = null;
 		if (run != null) {
 			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
 			if (action != null) {
-				DevOpsRunStatusModel statusModel = action.getModel();
-				if (statusModel != null) {
-					DevOpsRunStatusStageModel stageModel = statusModel.getStageModel();
-					if (stageModel != null) {
-						currentNode = action.getPipelineGraph().getNodeByName(stageModel.getName());
-					}
-				}
+				stageName = getCurrentStageName(stepContext, action.getPipelineGraph());
 			}
 		}
-		return currentNode;
-	}
-
-	public String handleArtifactRegistration(Run<?, ?> run, TaskListener listener, String artifactPayload, EnvVars vars) {
-
-		String result = null;
-		printDebug("handleArtifactRegistration", new String[] { "artifactPayload --" },
-				new String[] { artifactPayload }, Level.FINE);
-		String buildNumber = null, stageName = null, branchName = null, jobUrl = null, jobName = null;
 
 		// TODO - this is being repeated in other method too, see if we can generalise it by an object
 		if (vars != null) {
 			jobName = vars.get("JOB_NAME");
 			buildNumber = vars.get("BUILD_NUMBER");
-			stageName = vars.get("STAGE_NAME");
 
 			if (GenericUtils.isNotEmpty(vars.get("GIT_BRANCH")))
 				branchName = vars.get("GIT_BRANCH");
@@ -1627,16 +1544,6 @@ public class DevOpsModel {
 			return result;
 		}
 
-		if(GenericUtils.isEmpty(stageName))
-			stageName = getStageNameFromAction(run);
-
-		if (GenericUtils.isNotEmpty(stageName)){
-			DevOpsPipelineNode rootNode = getRootNode(run, stageName);
-			if (rootNode!=null && GenericUtils.isNotEmpty(rootNode.getName()) && !rootNode.getName().equals(stageName)){
-				stageName = rootNode.getName();
-			}
-		}
-
 		result = registerArtifact(listener, artifactPayload, jobName, jobUrl, buildNumber, stageName, branchName,
 				GenericUtils.isFreeStyleProject(run));
 
@@ -1645,7 +1552,7 @@ public class DevOpsModel {
 	}
 
 	public String registerArtifact(TaskListener listener, String artifactsPayload, String jobName, String jobUrl,
-			String buildNumber, String stageName, String branchName, boolean isFreeStyle) {
+	                               String buildNumber, String stageName, String branchName, boolean isFreeStyle) {
 
 		printDebug("registerArtifact", null, null, Level.FINE);
 		JSONObject queryParams = new JSONObject();
@@ -1666,15 +1573,15 @@ public class DevOpsModel {
 				payload.put(DevOpsConstants.ARTIFACT_ARTIFACTS_ATTR.toString(), artifactsJSONArray); // artifacts
 			}
 			// replace stageName from given payload
-			if(artifactsPayloadJSON.containsKey(DevOpsConstants.ARTIFACT_STAGE_NAME.toString()))
+			if (artifactsPayloadJSON.containsKey(DevOpsConstants.ARTIFACT_STAGE_NAME.toString()))
 				stageName = artifactsPayloadJSON.getString(DevOpsConstants.ARTIFACT_STAGE_NAME.toString());
 
 			// replace branchName from given payload
-			if(artifactsPayloadJSON.containsKey(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString()))
+			if (artifactsPayloadJSON.containsKey(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString()))
 				branchName = artifactsPayloadJSON.getString(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString());
 
 			//replace buildNumber/taskExecNum from given payload
-			if(artifactsPayloadJSON.containsKey(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString()))
+			if (artifactsPayloadJSON.containsKey(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString()))
 				buildNumber = artifactsPayloadJSON.getString(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString());
 
 			if (isFreeStyle)
@@ -1682,54 +1589,57 @@ public class DevOpsModel {
 			else
 				payload.put(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString(), jobName); // pipelineName
 
-			if(null != buildNumber)
+			if (null != buildNumber)
 				payload.put(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString(), buildNumber); // buildNumber
 
 			if (null != stageName)
 				payload.put(DevOpsConstants.ARTIFACT_STAGE_NAME.toString(), stageName); // stageName
 
-			if(null != branchName)
+			if (null != branchName)
 				payload.put(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString(), branchName); // branchName
 
-			printDebug("registerArtifact", new String[] { "message" },
-					new String[] { "Payload: " + payload.toString() }, Level.FINE);
-			GenericUtils.printConsoleLog(listener, "Register artifact payload: "+payload.toString());
+			printDebug("registerArtifact", new String[]{"message"},
+					new String[]{"Payload: " + payload.toString()}, Level.FINE);
+			GenericUtils.printConsoleLog(listener, "Register artifact payload: " + payload.toString());
 
 			// make a POST call
 			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getArtifactRegistrationUrl(), queryParams, payload.toString(),
 					devopsConfig.getUser(), devopsConfig.getPwd(), null);
 
-			if(null != response) {
+			if (null != response) {
 				// log the response for user
 				GenericUtils.printConsoleLog(listener, "Register artifact on URL " + devopsConfig.getArtifactRegistrationUrl()
-				+ " responded with : " + response.toString());
+						+ " responded with : " + response.toString());
 				// validate response
 				result = GenericUtils.parseResponseResult(response,
 						DevOpsConstants.ARTIFACT_REGISTER_STATUS_ATTR.toString());
 			}
 
 		} catch (Exception e) {
-			printDebug("registerArtifact", new String[] { "exception" }, new String[] { e.getMessage() }, Level.SEVERE);
-			GenericUtils.printConsoleLog(listener, "Register artifact request could not be sent due to the exception: "+e.getMessage());
+			printDebug("registerArtifact", new String[]{"exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+			GenericUtils.printConsoleLog(listener, "Register artifact request could not be sent due to the exception: " + e.getMessage());
 		}
 
 		return result;
 	}
 
-	public String handleArtifactCreatePackage(Run<?, ?> run, TaskListener listener, String packageName, String payload, EnvVars vars) {
+	public String handleArtifactCreatePackage(StepContext stepContext, Run<?, ?> run, TaskListener listener, String packageName, String payload, EnvVars vars) {
 
 		String result = null;
-		printDebug("handleArtifactCreatePackage", new String[] { "packageName --" }, new String[] { packageName }, Level.FINE);
+		printDebug("handleArtifactCreatePackage", new String[]{"packageName --"}, new String[]{packageName}, Level.FINE);
 
 		if (run != null) {
 			String buildNumber = null, stageName = null, branchName = null, jobUrl = null, jobName = null;
+
+			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
+			if (action != null)
+				stageName = DevOpsRunListener.DevOpsStageListener.getCurrentStageName(stepContext, action.getPipelineGraph());
 
 			// TODO - this is being repeated in other method too, see if we can generalise it by an object
 			if (vars != null) {
 				jobName = vars.get("JOB_NAME");
 				buildNumber = vars.get("BUILD_NUMBER");
-				stageName = vars.get("STAGE_NAME");
 
 				if (GenericUtils.isNotEmpty(vars.get("GIT_BRANCH")))
 					branchName = vars.get("GIT_BRANCH");
@@ -1738,16 +1648,6 @@ public class DevOpsModel {
 				jobUrl = vars.get("JOB_URL");
 			} else {
 				return result;
-			}
-
-			if(GenericUtils.isEmpty(stageName))
-				stageName = getStageNameFromAction(run);
-
-			if (GenericUtils.isNotEmpty(stageName)){
-				DevOpsPipelineNode rootNode = getRootNode(run, stageName);
-				if (rootNode!=null && GenericUtils.isNotEmpty(rootNode.getName()) && !rootNode.getName().equals(stageName)){
-					stageName = rootNode.getName();
-				}
 			}
 
 			result = createArtifactPackage(listener, packageName, payload, jobName, jobUrl, buildNumber, stageName, branchName,
@@ -1759,7 +1659,7 @@ public class DevOpsModel {
 	}
 
 	public String createArtifactPackage(TaskListener listener, String artifactName, String artifactsPayload, String jobName, String jobUrl,
-			String buildNumber, String stageName, String branchName, boolean isFreeStyle) {
+	                                    String buildNumber, String stageName, String branchName, boolean isFreeStyle) {
 
 		printDebug("createArtifactPackage", null, null, Level.FINE);
 		JSONObject queryParams = new JSONObject();
@@ -1786,7 +1686,7 @@ public class DevOpsModel {
 					JSONObject artifactJSON = (JSONObject) artifactObj;
 					if (artifactJSON.containsKey(DevOpsConstants.ARTIFACT_CURRENT_BUILD_INFO.toString())
 							&& artifactJSON.getString(DevOpsConstants.ARTIFACT_CURRENT_BUILD_INFO.toString())
-									.equals(DevOpsConstants.COMMON_RESPONSE_VALUE_TRUE.toString())) {
+							.equals(DevOpsConstants.COMMON_RESPONSE_VALUE_TRUE.toString())) {
 						// 1. remove the currentBuildInfo param
 						artifactJSON.remove(DevOpsConstants.ARTIFACT_CURRENT_BUILD_INFO.toString());
 						// 2. add build details
@@ -1814,18 +1714,18 @@ public class DevOpsModel {
 			else
 				payload.put(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString(), jobName); // pipelineName
 
-			if(null != buildNumber)
+			if (null != buildNumber)
 				payload.put(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString(), buildNumber); // buildNumber
 
-			if(null != stageName)
+			if (null != stageName)
 				payload.put(DevOpsConstants.ARTIFACT_STAGE_NAME.toString(), stageName); // stageName
 
-			if(null != branchName)
+			if (null != branchName)
 				payload.put(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString(), branchName); // branchName
 
-			printDebug("createArtifactPackage", new String[] { "message" },
-					new String[] { "Payload: " + payload.toString() }, Level.FINE);
-			GenericUtils.printConsoleLog(listener, "Create Artifact package payload: "+payload.toString());
+			printDebug("createArtifactPackage", new String[]{"message"},
+					new String[]{"Payload: " + payload.toString()}, Level.FINE);
+			GenericUtils.printConsoleLog(listener, "Create Artifact package payload: " + payload.toString());
 
 			// make a POST call
 			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
@@ -1842,8 +1742,8 @@ public class DevOpsModel {
 			}
 
 		} catch (Exception e) {
-			printDebug("createArtifactPackage", new String[] { "exception" }, new String[] { e.getMessage() }, Level.SEVERE);
-			GenericUtils.printConsoleLog(listener, "Create Artifact package request could not be sent due to the exception: "+e.getMessage());
+			printDebug("createArtifactPackage", new String[]{"exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+			GenericUtils.printConsoleLog(listener, "Create Artifact package request could not be sent due to the exception: " + e.getMessage());
 		}
 
 		return result;
@@ -1851,23 +1751,23 @@ public class DevOpsModel {
 
 	public JSONObject addBuildDetails(JSONObject artifactJSON, String jobName, String buildNumber, String stageName, String branchName) {
 
-		if(null == artifactJSON.get(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString()))
+		if (null == artifactJSON.get(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString()))
 			artifactJSON.put(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString(), jobName); // pipelineName
 
-		if(null == artifactJSON.get(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString()))
+		if (null == artifactJSON.get(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString()))
 			artifactJSON.put(DevOpsConstants.ARTIFACT_TASK_EXEC_NUM.toString(), buildNumber); // buildNumber
 
-		if(null == artifactJSON.get(DevOpsConstants.ARTIFACT_STAGE_NAME.toString()) && null!=stageName)
+		if (null == artifactJSON.get(DevOpsConstants.ARTIFACT_STAGE_NAME.toString()) && null != stageName)
 			artifactJSON.put(DevOpsConstants.ARTIFACT_STAGE_NAME.toString(), stageName); // stageName
 
-		if(null == artifactJSON.get(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString()))
+		if (null == artifactJSON.get(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString()))
 			artifactJSON.put(DevOpsConstants.ARTIFACT_BRANCH_NAME.toString(), branchName); // branchName
 
 		return artifactJSON;
 	}
 
 	public String createChangeset(String applicationName, TaskListener listener) {
-		
+
 		JSONObject queryParams = new JSONObject();
 
 		JSONObject filePayloadJSON = new JSONObject();
@@ -1881,7 +1781,7 @@ public class DevOpsModel {
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 				devopsConfig.getCDMChangeSetCreationURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
-		
+
 		try {
 			if (!response.isEmpty()) {
 				if (response.containsKey(DevOpsConstants.COMMON_RESPONSE_RESULT.toString())) {
@@ -1891,21 +1791,20 @@ public class DevOpsModel {
 				} else if (response.containsKey(DevOpsConstants.COMMON_RESULT_ERROR.toString())) {
 					JSONObject error = response.getJSONObject(DevOpsConstants.COMMON_RESULT_ERROR.toString());
 					String errorMessage = error.getString(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
-					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " : " +errorMessage);
+					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " : " + errorMessage);
 					return null;
 				}
-			}
-			else
+			} else
 				return null;
-		} catch(JSONException j) {
-			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Upload Step Failed : Failed To Fetch Response From Server : "+j.getMessage());
+		} catch (JSONException j) {
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Upload Step Failed : Failed To Fetch Response From Server : " + j.getMessage());
 			return null;
 		}
 
 		return number;
 	}
 
-	public JSONObject uploadData(String applicationName, String changesetNumber,String dataFormat, String path, String autoCommit, String autoValidate, String fileContent, String target, String deployableName) {
+	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path, String autoCommit, String autoValidate, String fileContent, String target, String deployableName) {
 		JSONObject queryParams = new JSONObject();
 
 		queryParams.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
@@ -1914,22 +1813,22 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.CONFIG_DATA_FORMAT.toString(), dataFormat);
 		queryParams.put(DevOpsConstants.CONFIG_AUTO_COMMIT.toString(), autoCommit);
 		queryParams.put(DevOpsConstants.CONFIG_AUTO_VALIDATE.toString(), autoValidate);
-		queryParams.put(DevOpsConstants.CONFIG_DEPLOYABLE_NAME.toString(),deployableName);
-		
+		queryParams.put(DevOpsConstants.CONFIG_DEPLOYABLE_NAME.toString(), deployableName);
+
 
 		JSONObject filePayloadJSON = new JSONObject();
 
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
 		filePayloadJSON.put(DevOpsConstants.CONFIG_FILE_CONTENT.toString(), fileContent);
-		
+
 		JSONObject response = null;
 
-		if(target.equalsIgnoreCase(DevOpsConstants.CONFIG_COMPONENT_TYPE.toString()))
+		if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_COMPONENT_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
 					devopsConfig.getCDMUploadToComponentURL(), queryParams, fileContent, devopsConfig.getUser(),
 					devopsConfig.getPwd(), "text/plain");
-		else if(target.equalsIgnoreCase(DevOpsConstants.CONFIG_DEPLOYABLE_TYPE.toString()))
+		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_DEPLOYABLE_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
 					devopsConfig.getCDMUploadToDeployableURL(), queryParams, fileContent, devopsConfig.getUser(),
 					devopsConfig.getPwd(), "text/plain");
@@ -1946,9 +1845,9 @@ public class DevOpsModel {
 
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-		String deleteURL = devopsConfig.getUploadStatusURL()+uploadId;
+		String deleteURL = devopsConfig.getUploadStatusURL() + uploadId;
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				deleteURL, queryParams, filePayloadJSON.toString(), devopsConfig.getUser(), 
+				deleteURL, queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
 
 		return response;
@@ -1956,25 +1855,25 @@ public class DevOpsModel {
 	}
 
 	public JSONObject getSnapshotStatus(String applicationName, String deployableName) {
-		
+
 		JSONObject queryParams = new JSONObject();
 
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-		String query = "deployable_id.name="+deployableName+"^application_id.name="+applicationName+"^published=true"+"^ORDERBYDESCpublished_on";
+		String query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^published=true" + "^ORDERBYDESCpublished_on";
 
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "number,validation_results,status");
 		queryParams.put("sysparm_limit", "1");
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(), 
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
 
 		return response;
 	}
 
 	public JSONObject insertExportRequest(String applicationName, String deployableName, String exporterName, String exporterFormat, JSONObject exporterArgs, String snapshotName) {
-		
+
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
@@ -1993,16 +1892,16 @@ public class DevOpsModel {
 
 		return response;
 	}
-				
-	public JSONObject getDeployablesForApp(String applicationName) {
+
+	public JSONObject getImpactedDeployables(String changesetId) {
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-		String query = "cdm_app.name="+applicationName;
-		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "name");
+
+		JSONObject filePayloadJSON = new JSONObject();
+
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getDeployableURL(), queryParams, null, devopsConfig.getUser(),
+				devopsConfig.getImpactedDeployableURL(changesetId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
 
 		return response;
@@ -2010,25 +1909,25 @@ public class DevOpsModel {
 
 	public JSONObject fetchExportStatus(String exportId) {
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();	
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-		String exportStatusURL = devopsConfig.getExportConfigStatusURL(exportId);	
+		String exportStatusURL = devopsConfig.getExportConfigStatusURL(exportId);
 
-		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),	
-				exportStatusURL, null, null, devopsConfig.getUser(), 	
-				devopsConfig.getPwd(), null);	
+		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+				exportStatusURL, null, null, devopsConfig.getUser(),
+				devopsConfig.getPwd(), null);
 
 		return response;
 	}
 
 	public JSONObject fetchExportData(String exportId) {
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();	
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-		String exportDataURL = devopsConfig.getExportConfigDataURL(exportId);	
+		String exportDataURL = devopsConfig.getExportConfigDataURL(exportId);
 
-		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),	
-				exportDataURL, null, null, devopsConfig.getUser(), 	
+		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+				exportDataURL, null, null, devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
 		return response;
 	}
@@ -2037,10 +1936,10 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		String query = null;
-		if(StringUtils.isEmpty(changeSetId))
-		    query = "deployable_id.name="+deployableName+"^application_id.name="+applicationName+"^validation=passed^ORDERBYDESClast_validated";
+		if (StringUtils.isEmpty(changeSetId))
+			query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^validation=passed^ORDERBYDESClast_validated";
 		else
-			query = "deployable_id.name="+deployableName+"^application_id.name="+applicationName+"^changeset_id.number="+changeSetId;
+			query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^changeset_id.number=" + changeSetId;
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
 		queryParams.put("sysparm_limit", "1");
@@ -2051,14 +1950,14 @@ public class DevOpsModel {
 
 		return response;
 	}
-	
+
 	public JSONObject snapShotExists(String applicationName, List<String> deployableNames, String changeSetId) {
 
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-		String deployableNamesCommaSeparated = String.join(",",deployableNames);
+		String deployableNamesCommaSeparated = String.join(",", deployableNames);
 
-		String query = "deployable_id.nameIN"+deployableNamesCommaSeparated+"^application_id.name="+applicationName+"^changeset_id.number="+changeSetId;
+		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^application_id.name=" + applicationName + "^changeset_id.number=" + changeSetId;
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
 
@@ -2072,11 +1971,15 @@ public class DevOpsModel {
 	public JSONObject querySnapShotStatus(List<String> snapshotNames) {
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-		String validationStates = "in_progress,requested,not_validated";
-		String snapShotNamesCommaSeparated = String.join(",",snapshotNames);
-		String query = "nameIN"+snapShotNamesCommaSeparated+"^validationIN"+validationStates;
+
+		String validationStates = "in_progress,requested";
+		String snapShotNamesCommaSeparated = String.join(",", snapshotNames);
+
+		String query = "nameIN" + snapShotNamesCommaSeparated + "^validationIN" + validationStates;
+
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "name,validation");
+
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
@@ -2088,15 +1991,18 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-
-		String query = "deployable_id.name="+deployableName+"^application_id.name="+applicationName+"^name="+snapshotName;
+		String query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName;
+		if (GenericUtils.isEmpty(snapshotName))
+			query = query + "^ORDERBYDESCsys_created_on";
+		else
+			query = query + "^name=" + snapshotName;
 
 		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
 		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), DevOpsConstants.CONFIG_SNAPSHOT_SYS_ID.toString());
 		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), "1");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(), 
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
 
 		return response;
@@ -2112,10 +2018,10 @@ public class DevOpsModel {
 		JSONObject response = new JSONObject();
 		try {
 			response = CommUtils.callSafe(DevOpsConstants.REST_POST_METHOD.toString(),
-				devopsConfig.getPublishSnapshotURL(snapshotId), queryParams,  filePayloadJSON.toString(), devopsConfig.getUser(), 
-				devopsConfig.getPwd(), null);
-		} catch(Exception e) {
-			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME+" - Publish Failed due to Connection Issue");
+					devopsConfig.getPublishSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
+					devopsConfig.getPwd(), null);
+		} catch (Exception e) {
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Publish Failed due to Connection Issue");
 			response.put("failureCause", "Failed due to Exception");
 			return response;
 		}
@@ -2136,56 +2042,108 @@ public class DevOpsModel {
 
 		filePayloadJSON.put("changeSetId", changesetId);
 
-		int retryCount=0;
+		int retryCount = 0;
 		JSONObject response = null;
 		JSONObject responseBody = new JSONObject();
 		String statusMessage = "";
 
-		while(retryCount <= 3) {
+		while (retryCount <= 3) {
 			retryCount++;
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-				devopsConfig.getChangesetRegisterURL(), queryParams,  filePayloadJSON.toString(), devopsConfig.getUser(), 
-				devopsConfig.getPwd(), null);
+					devopsConfig.getChangesetRegisterURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
+					devopsConfig.getPwd(), null);
 
-			if(response == null) {
+			if (response == null) {
 				try {
 					Thread.sleep(5000);
 				} catch (InterruptedException e) {
-					GenericUtils.printConsoleLog(listener,DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString()+" - "+e.getMessage());
+					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - " + e.getMessage());
 				}
 				continue;
 			}
 
 			JSONObject status = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-			statusMessage  = status.getString(DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
+			statusMessage = status.getString(DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
 
-			if(!(statusMessage.equalsIgnoreCase("Could not find matching task execution for given pipeline name and build number"))) {//Todo 
-				if(statusMessage.equalsIgnoreCase("Success")) {
-					responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(),"Success");
-					responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(),"Successfully Registered");
+			if (!(statusMessage.equalsIgnoreCase("Could not find matching task execution for given pipeline name and build number"))) {//Todo
+				if (statusMessage.equalsIgnoreCase("Success")) {
+					responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(), "Success");
+					responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(), "Successfully Registered");
 					return responseBody;
-				}
-				else {
-					responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(),"Failure");
-					responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(),statusMessage);
+				} else {
+					responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(), "Failure");
+					responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(), statusMessage);
 					return responseBody;
 				}
 			}
-				
+
 			try {
 				Thread.sleep(5000);
 			} catch (InterruptedException e) {
-				GenericUtils.printConsoleLog(listener,DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString()+" - "+e.getMessage());
+				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - " + e.getMessage());
 			}
 		}
 
-		if(response != null) {
-			responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(),"Failure");
-			responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(),statusMessage);
+		if (response != null) {
+			responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(), "Failure");
+			responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(), statusMessage);
 			return responseBody;
 		}
-		responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(),"Failure");
-		responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(),"Failed to Register Changeset");
+		responseBody.put(DevOpsConstants.COMMON_RESPONSE_STATUS.toString(), "Failure");
+		responseBody.put(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString(), "Failed to Register Changeset");
 		return responseBody;
+	}
+
+	public JSONObject validateSnapshot(String snapshotId, TaskListener listener) {
+
+		JSONObject queryParams = new JSONObject();
+		JSONObject filePayloadJSON = new JSONObject();
+
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+
+		JSONObject response = new JSONObject();
+		try {
+			response = CommUtils.callSafe(DevOpsConstants.REST_POST_METHOD.toString(),
+					devopsConfig.getValidateSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
+					devopsConfig.getPwd(), null);
+		} catch (Exception e) {
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_VALIDATE_STEP_FUNCTION_NAME + " - Validation of snapshot failed " + e.getMessage());
+			response.put(DevOpsConstants.COMMON_RESULT_FAILURE.toString(), "Validate failed due to exception " + e.getMessage());
+			return response;
+		}
+		return response;
+	}
+
+	public JSONObject getChangesetId(String changesetId) {
+		JSONObject queryParams = new JSONObject();
+
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		String query = "number=" + changesetId;
+
+		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,state,cdm_application.name");
+		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), "1");
+
+		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+				devopsConfig.getChangesetURL(), queryParams, null, devopsConfig.getUser(),
+				devopsConfig.getPwd(), null);
+
+		return response;
+	}
+
+	public JSONObject checkForValidApp(String applicationName) {
+
+		JSONObject queryParams = new JSONObject();
+		JSONObject filePayloadJSON = new JSONObject();
+
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+
+		queryParams.put("name",applicationName);
+
+		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+				devopsConfig.getValidAppURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(), 
+				devopsConfig.getPwd(), null);
+
+		return response;
 	}
 }
