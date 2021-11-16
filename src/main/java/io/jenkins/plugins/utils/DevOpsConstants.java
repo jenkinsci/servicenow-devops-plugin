@@ -50,6 +50,8 @@ public enum DevOpsConstants {
 	CONFIG_PUBLISH_STEP_DISPLAY_NAME,
 	CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME,
 	CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME,
+	CONFIG_VALIDATE_STEP_FUNCTION_NAME,
+	CONFIG_VALIDATE_STEP_DISPLAY_NAME,
 
 	CONFIG_SNAPSHOT_SYS_ID,
 
@@ -171,6 +173,7 @@ public enum DevOpsConstants {
 	CALLBACK_RESULT_CANCELED,
 	CALLBACK_RESULT_COMM_FAILURE,
 	CALLBACK_RESULT_COMMENTS,
+	CHANGE_REQUEST_ID,
 
 	GIT_REMOTE_UPDATE_CMD,
 	GIT_REV_LIST_CMD,
@@ -193,13 +196,15 @@ public enum DevOpsConstants {
 	FREESTYLE_CALLBACK_URL_IDENTIFIER,
 	MULTI_BRANCH_PROJECT_CLASS,
 	PIPELINE_CALLBACK_URL_IDENTIFIER,
+	PIPLINE_EXECUTION_URL,
 
 	TEST_INFO_RESPONSE,
 
 	SERVICENOW_PIPELINE_INFO_FILE_NAME,
 	PATH_SEPARATOR,
 	JOBS_PATH,
-	PIPELINE_INFO_UPDATE_IDENTIFIER;
+	PIPELINE_INFO_UPDATE_IDENTIFIER,
+	PIPELINE_INFO_DELETE_IDENTIFIER;
 
 	@Override
 	public String toString() {
@@ -251,6 +256,8 @@ public enum DevOpsConstants {
 			case CONFIG_PUBLISH_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Publish";
 			case CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME: return "snDevOpsConfigRegisterChangeSet";
 			case CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Register Changeset";
+			case CONFIG_VALIDATE_STEP_FUNCTION_NAME: return "snDevOpsConfigValidate";
+			case CONFIG_VALIDATE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Validate";
 
 			case CONFIG_SNAPSHOT_SYS_ID: return "sys_id";
 
@@ -271,6 +278,7 @@ public enum DevOpsConstants {
 
 			case PIPELINE_JOB_NAME: return "JOB_NAME";
 			case PIPELINE_BUILD_NUMBER: return "BUILD_NUMBER";
+			case PIPLINE_EXECUTION_URL: return "pipelineExecutionUrl";
 
 			case GET_SNAPSHOTS_STEP_FUNCTION_NAME: return "snDevOpsConfigGetSnapshots";
 			case GET_SNAPSHOTS_STEP_DISPLAY_NAME : return "ServiceNow DevOps - Get latest and validated snapshots";
@@ -373,6 +381,7 @@ public enum DevOpsConstants {
 			case CALLBACK_RESULT_CANCELED: return "canceled";
 			case CALLBACK_RESULT_COMM_FAILURE: return "comm_failure";
 			case CALLBACK_RESULT_COMMENTS: return "changeComments";
+			case CHANGE_REQUEST_ID: return "changeRequestId";
 
 			case GIT_REMOTE_UPDATE_CMD: return "git remote update";
 			case GIT_REV_LIST_CMD: return "git rev-list %s...%s"; // "full" flag will also give commiter's address
@@ -401,6 +410,7 @@ public enum DevOpsConstants {
 			case JOBS_PATH: return "/jobs/";
 			case SERVICENOW_PIPELINE_INFO_FILE_NAME: return "snPipelineInfo.json";
 			case PIPELINE_INFO_UPDATE_IDENTIFIER: return "snupdate";
+			case PIPELINE_INFO_DELETE_IDENTIFIER: return "sndelete";
 
 			default: throw new IllegalArgumentException();
 		}

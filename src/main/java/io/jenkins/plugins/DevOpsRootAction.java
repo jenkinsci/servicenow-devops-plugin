@@ -33,6 +33,9 @@ import hudson.FilePath;
 import java.io.UnsupportedEncodingException;  
 import java.net.URLDecoder;
 
+import java.util.List;
+import java.util.ArrayList;
+
 
 @Extension
 public class DevOpsRootAction extends CrumbExclusion implements RootAction {
@@ -42,6 +45,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 	private static final HashMap<String, String> callbackContent = new HashMap<>();// jobId->callbackResponse (Dispatcher/FreestyleStep)
 	private static final HashMap<String, String> callbackToken = new HashMap<>(); // jobId->token (FreestyleStep)
     private static final HashMap<String, DevOpsPipelineChangeStepExecution> pipelineWebhooks = new HashMap<>(); // token->asyncStepExecution (PipelineChangeStep)
+    private static final HashMap<String, String> changeRequestContent = new HashMap<>(); // jobId->callbackResponse (Dispatcher/FreestyleStep)
     
     private static final HashMap<String, Boolean> trackedJobs = new HashMap<>(); // runId->True/False
 	private static final HashMap<String, DevOpsModel.DevOpsPipelineInfo> snPipelineInfo = new HashMap<>(); // runId
@@ -86,6 +90,32 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
         return false;
     }
 
+    private boolean _displayFreestyleChangeRequestInfo(String token, StringBuffer content) {
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayFreestyleChangeRequestInfo", new String[]{"token"}, new String[]{token}, Level.INFO);
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayFreestyleChangeRequestInfo", new String[]{"content"}, new String[]{content.toString()}, Level.INFO);
+        String jobId;
+        synchronized (webhooks) { jobId = webhooks.get(token); }
+        String originalToken;
+        synchronized (jobs) { originalToken = jobs.get(jobId); }
+        if (jobId != null && originalToken.equals(token)) {
+        	synchronized (changeRequestContent) { changeRequestContent.put(jobId, content.toString().trim()); }
+            return true;
+        } 
+        return false;
+    }
+
+    private boolean _displayPipelineChangeRequestInfo(String token, StringBuffer content) {
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayPipelineChangeRequestInfo", new String[]{"token"}, new String[]{token}, Level.INFO);
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayPipelineChangeRequestInfo", new String[]{"content"}, new String[]{content.toString()}, Level.INFO);
+        DevOpsPipelineChangeStepExecution exec;
+        synchronized (pipelineWebhooks) { exec = pipelineWebhooks.get(token); }
+        if (exec != null) {
+            exec.displayPipelineChangeRequestInfo(token, content.toString().trim());
+            return true;
+        } 
+        return false;
+    }
+
     public static String decode(String url)  
     {  
          try {  
@@ -97,7 +127,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
                 decodeURL = URLDecoder.decode(decodeURL, "UTF-8" );  
             }  
             return decodeURL;  
-        } catch (UnsupportedEncodingException e) {
+        } catch (UnsupportedEncodingException e) {  
             GenericUtils.printDebug(DevOpsRootAction.class.getName(), "decode", new String[]{"UnsupportedEncodingException"}, new String[]{e.getMessage()}, Level.SEVERE);
 			return url;  
         }  
@@ -197,7 +227,26 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             return;
         }
 
-        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", new String[]{"message"}, new String[]{"Callack handler called with token: " + token + " / content: " + content.toString()}, Level.INFO);
+        if (token.startsWith(DevOpsConstants.FREESTYLE_CALLBACK_URL_IDENTIFIER.toString()) && content != null && content.length() > 0 && content.toString().trim().contains("changeRequestId")) {
+            boolean result = _displayFreestyleChangeRequestInfo(token, content);
+            if (result) {
+                response.setStatus(200);
+                return;
+            }
+            response.setStatus(400);
+            return;
+
+        } else if (token.startsWith(DevOpsConstants.PIPELINE_CALLBACK_URL_IDENTIFIER.toString()) && content != null && content.length() > 0 && content.toString().trim().contains("changeRequestId")) {
+            boolean result = _displayPipelineChangeRequestInfo(token, content);
+            if (result) {
+                response.setStatus(200);
+                return;
+            }
+            response.setStatus(400);
+            return;
+        }
+
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", new String[]{"message"}, new String[]{"Callback handler called with token: " + token + " / content: " + content.toString()}, Level.INFO);
 
         boolean result = false;
         if (token.startsWith(DevOpsConstants.FREESTYLE_CALLBACK_URL_IDENTIFIER.toString()) && content != null && content.length() > 0)
@@ -206,6 +255,8 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             result = _handlePipelineCallback(token, content);
         else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_UPDATE_IDENTIFIER.toString()) && content != null && content.length() > 0)
             result = _updatePipelineInfoFile(token, content);
+        else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_DELETE_IDENTIFIER.toString()))
+            result = deletePipelineInfoFiles();
 
         if (result) {
             response.setHeader("Result", "Jenkins webhook triggered successfully");
@@ -258,6 +309,32 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			return false;
         }
 	}
+
+    public static Boolean deletePipelineInfoFiles() {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{}, new String[]{}, Level.INFO);
+		try{
+            DevOpsModel devopsModel = new DevOpsModel();
+		    String jenkinsDirFilePath = devopsModel.getJenkinsRootDirPath() + DevOpsConstants.JOBS_PATH.toString();
+            String pipelineInfoFile = null;
+	    	GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{"jenkinsDirFilePath"}, new String[]{jenkinsDirFilePath}, Level.INFO);
+            FilePath jenkinsRootDir = new FilePath(new File(jenkinsDirFilePath));
+			if(jenkinsRootDir.exists()){
+                List<FilePath> contents = new ArrayList<FilePath> (jenkinsRootDir.list());
+				for (FilePath jobPath : contents) {
+                    pipelineInfoFile = null;
+                    pipelineInfoFile = jobPath + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+                    FilePath pipelineInfoPath = new FilePath(new File(pipelineInfoFile));
+                    if(pipelineInfoPath.exists()) {
+                        pipelineInfoPath.delete();
+                    }
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{"exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            return false;
+        } 
+	}
     
     public static Boolean getTrackedJob(String key) {
         Boolean tracking;
@@ -299,7 +376,19 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			}
 		}
 	}
-	
+
+	public static String getChangeRequestContent(String jobId) {
+        String content;
+        synchronized(changeRequestContent) { content = changeRequestContent.get(jobId); }
+		return content;
+	}
+
+    public static String removeChangeRequestContent(String jobId) {
+        String content;
+        synchronized(changeRequestContent) { content = changeRequestContent.remove(jobId); }
+		return content;
+	}
+
 	// called from dispatcher
 	public static String getCallbackContent(String jobId) {
         String content;

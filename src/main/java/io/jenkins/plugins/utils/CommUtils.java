@@ -159,8 +159,11 @@ public final class CommUtils {
         if(method.equals(DevOpsConstants.REST_POST_METHOD.toString()) || method.equals(DevOpsConstants.REST_PUT_METHOD.toString())){
         	conn.setDoOutput(true);
         	OutputStream os = conn.getOutputStream();
-        	os.write(data.getBytes(charSet));
-        	os.close();
+        	try{
+        	    os.write(data.getBytes(charSet));
+            } finally{
+        	    os.close();
+            }
         }
         jsonResult = _readResponse(conn);
         return jsonResult;
@@ -194,15 +197,19 @@ public final class CommUtils {
         printDebug("_readResponse", null, null, Level.FINE);
         JSONObject jsonResult = null;
         InputStream in = null;
-        // for some SUCCESS cases, the response code is 201 from app-devops. 
-		if (conn.getResponseCode() > 299)  // we may use the condition "conn.getResponseCode != 200" in regular cases.
-			in = conn.getErrorStream();
-        else 
-	        in = new BufferedInputStream(conn.getInputStream());
-		
-        String result = org.apache.commons.io.IOUtils.toString(in, charSet);
-        in.close();
-        conn.disconnect();
+        String result = null;
+        try{
+            // for some SUCCESS cases, the response code is 201 from app-devops. 
+            if (conn.getResponseCode() > 299)  // we may use the condition "conn.getResponseCode != 200" in regular cases.
+                in = conn.getErrorStream();
+            else 
+                in = new BufferedInputStream(conn.getInputStream());
+                result = org.apache.commons.io.IOUtils.toString(in, charSet);
+        } finally {
+            if(in != null)
+                in.close();
+            conn.disconnect();
+        }
         if (result != null && !result.isEmpty()) 
             jsonResult = JSONObject.fromObject(result);
         if (jsonResult != null)
