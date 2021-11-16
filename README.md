@@ -69,9 +69,16 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 
 ### Release Notes
-Automatic Change Control enablement for Jenkins:
+Feature Enhancements:
 
-- When DevOps Change Control has been enabled in a Jenkins pipeline, the corresponding step in ServiceNow will automatically have Change Control enabled.  This improvement works with the Self-service Onboarding feature to simplify and streamline the onboarding process.
+- Support for parallel stages: ServiceNow DevOps will now track stages that run in parallel/nested in Jenkins pipelines. The parallel stages will be rendered accurately in the Pipeline User Interface, and automated Change Requests will only get created once parallel stages preceding it are complete.
+
+Defects Addressed:
+
+- Multibranch pipelines with BitBucket configuration has task execution value as empty.
+- Pipeline executions are created even though Track is NOT enabled for multibranch pipeline and nested pipeline.
+- After recreating Jenkins tool, inbound events are created even though pipelines are not discovered or tracked.
+
 
 **NOTE**: Starting with DevOps 1.30, the minimum base version of Jenkins server must be **2.204.6** to fix the vulnerabilities
 
