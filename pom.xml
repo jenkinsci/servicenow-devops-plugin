@@ -33,7 +33,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.31</version>
+    <version>1.32-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.204.6</jenkins.version>

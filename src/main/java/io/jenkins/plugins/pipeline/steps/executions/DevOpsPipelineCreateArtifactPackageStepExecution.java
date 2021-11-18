@@ -41,7 +41,7 @@ public class DevOpsPipelineCreateArtifactPackageStepExecution extends Synchronou
 			artifactPackageStep.setArtifactsPayload(this.step.getArtifactsPayload());
 			artifactPackageStep.setName(this.step.getName());
 			
-			artifactPackageStep.perform(run, workspace, launcher, listener, envVars);
+			artifactPackageStep.perform(getContext(),run, workspace, launcher, listener, envVars);
 		}
 		return Boolean.valueOf(true);
 	}

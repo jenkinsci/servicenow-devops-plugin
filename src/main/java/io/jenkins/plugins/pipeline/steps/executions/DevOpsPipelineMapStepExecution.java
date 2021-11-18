@@ -2,6 +2,8 @@ package io.jenkins.plugins.pipeline.steps.executions;
 
 import java.util.logging.Level;
 
+import org.jenkinsci.plugins.workflow.cps.CpsStepContext;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 
@@ -11,8 +13,10 @@ import hudson.model.Job;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.DevOpsRunListener;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
+import io.jenkins.plugins.model.DevOpsPipelineGraph;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineMapStep;
 import io.jenkins.plugins.utils.GenericUtils;
 
@@ -55,7 +59,7 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 				printDebug("run", new String[]{"Exception"},
 						new String[]{e.getMessage()}, Level.SEVERE);
 			}
-			boolean _result = model.handleStepMapping(run, run.getParent(), this.step, vars);
+			boolean _result = model.handleStepMapping(run, run.getParent(), this, vars);
 
 			printDebug("run", new String[]{"_result"},
 					new String[]{String.valueOf(_result)}, Level.FINE);
@@ -82,6 +86,10 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 			}
 		}
 		return result;
+	}
+
+	public DevOpsPipelineMapStep getStep() {
+		return step;
 	}
 
 	private void printDebug(String methodName, String[] variables, String[] values,

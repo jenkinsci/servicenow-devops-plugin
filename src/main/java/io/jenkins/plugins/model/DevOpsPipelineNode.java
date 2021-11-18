@@ -6,39 +6,32 @@ import java.util.logging.Level;
 import org.jenkinsci.plugins.workflow.actions.WorkspaceAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 
-import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 
 /**
- * Node signifies the each stage / step hierarchy 
+ * Node signifies the each stage / step hierarchy
  * and holds all the information related to that stage / step
- * 
- * The information that can be fetched/understood from each Node:
- *     a. rootNode (an active node with no parents' data attached)
- *     b. previousNode (a previously completed rootNode)
- *      		This helps understand stage to stage relationship 
- *      		(like stage1 -- stage2 -- stageN ) to  map actual sequence 
- *      		of stages within the pipeline.
- * 
  */
 public class DevOpsPipelineNode {
-	
-	
+
 	private boolean active;
 	private String id;
 	private String name;
+	private String shortName;
 	private String parentId;
+	private String parentName;
+	private String parentExecutionUrl;
 	private boolean stepAssociated;
 	private String executionUrl;
+	private String pipelineExecutionUrl;
 	private String upstreamTaskExecutionURL;
 	private String upstreamStageName;
 	private FlowNode flowNode;
 	private DevOpsRunStatusTestModel testModel;
 	private boolean changeCtrlInProgress;
-	private DevOpsPipelineNode rootNodeRef;
-	private DevOpsPipelineNode previousRootNode;
 	private String stageExecutionStatus;
 	private long startTime;
+	private WorkspaceAction wsAction;
 
 	public long getStartTime() {
 		return startTime;
@@ -56,16 +49,15 @@ public class DevOpsPipelineNode {
 		this.wsAction = wsAction;
 	}
 
-	private WorkspaceAction wsAction;
-	
-	public DevOpsPipelineNode(FlowNode flowNode, String upstreamExecUrl, String upstreamStageName, String stageExecutionStatus) {
+	public DevOpsPipelineNode(String parentId, String shortName,String name, FlowNode flowNode, String pipelineExecutionUrl, String stageExecutionStatus) {
 		super();
 		this.active = true;
-		this.name = flowNode.getDisplayName();
+		this.name = name;
+		this.shortName = shortName;
 		this.id = flowNode.getId();
+		this.parentId = parentId;
 		this.flowNode = flowNode;
-		this.upstreamTaskExecutionURL = upstreamExecUrl;
-		this.upstreamStageName = upstreamStageName;
+		this.pipelineExecutionUrl = pipelineExecutionUrl;
 		this.setExecutionUrl();
 		this.stageExecutionStatus = stageExecutionStatus;
 	}
@@ -73,7 +65,7 @@ public class DevOpsPipelineNode {
 	public String getId() {
 		return id;
 	}
-	
+
 	public boolean isActive() {
 		return active;
 	}
@@ -85,29 +77,37 @@ public class DevOpsPipelineNode {
 	public void setId(String id) {
 		this.id = id;
 	}
+
 	public String getName() {
 		return name;
 	}
+
 	public void setName(String name) {
 		this.name = name;
 	}
+
+	public String getShortName() {
+		return this.shortName;
+	}
+
+	public void setShortName(final String shortName) {
+		this.shortName = shortName;
+	}
+
 	public String getParentId() {
 		return parentId;
 	}
+
 	public void setParentId(String parentId) {
 		this.parentId = parentId;
 	}
-	
+
 	public boolean isStepAssociated() {
-		if (null != getRootNodeRef())
-			return rootNodeRef.isStepAssociated();
-		return stepAssociated; // this node is a root
+		return stepAssociated;
 	}
 
 	public void setStepAssociated(boolean stepAssociated) {
-		if(null != getRootNodeRef())
-			getRootNodeRef().setStepAssociated(stepAssociated);
-		this.stepAssociated = stepAssociated; // this node is a root
+		this.stepAssociated = stepAssociated;
 	}
 
 	public String getExecutionUrl() {
@@ -120,14 +120,15 @@ public class DevOpsPipelineNode {
 				this.executionUrl = this.getFlowNode().getUrl();
 			} catch (IOException e) {
 				GenericUtils.printDebug(DevOpsPipelineNode.class.getName(), "setExecutionURL",
-						new String[] { "message" }, new String[] { "Skipping declarative stage" }, Level.FINE);
+						new String[]{"message"}, new String[]{"Skipping declarative stage"}, Level.FINE);
 			}
 		}
 	}
-	
+
 	public FlowNode getFlowNode() {
 		return flowNode;
 	}
+
 	public void setFlowNode(FlowNode flowNode) {
 		this.flowNode = flowNode;
 	}
@@ -139,97 +140,56 @@ public class DevOpsPipelineNode {
 	public DevOpsRunStatusTestModel getTestModel() {
 		return this.testModel;
 	}
-	
+
 	public String getUpstreamTaskExecURL() {
-		if (null != getRootNodeRef())
-			return getRootNodeRef().getUpstreamTaskExecURL();
-		// this rootNode
-		if(null != getPreviousRootNode()) {
-			DevOpsPipelineNode previousRootNode = getPreviousRootNode();
-			if( previousRootNode.isStepAssociated() || 
-					DevOpsConstants.STAGE_RUN_FAILURE.toString().equals(previousRootNode.getStageExecStatus()) ) {
-				return this.upstreamTaskExecutionURL;
-			} else {
-				return previousRootNode.getUpstreamTaskExecURL();
-			}
-		}
 		return this.upstreamTaskExecutionURL;
 	}
-	
+
 	public void setUpstreamTaskExecURL(String upstreamTaskExecURL) {
 		this.upstreamTaskExecutionURL = upstreamTaskExecURL;
 	}
 
 	public String getUpstreamStageName() {
-		if (null != getRootNodeRef())
-			return getRootNodeRef().getUpstreamStageName();
-		// this rootNode
-		if(null!=getPreviousRootNode()) {
-			DevOpsPipelineNode previousRootNode = getPreviousRootNode();
-			if( previousRootNode.isStepAssociated() || 
-						DevOpsConstants.STAGE_RUN_FAILURE.toString().equals(previousRootNode.getStageExecStatus()) ) {
-					return this.upstreamStageName;			
-			} else {
-				return previousRootNode.getUpstreamStageName();
-			}
-		}
 		return this.upstreamStageName;
 	}
-	
+
 	public void setUpstreamStageName(String upstreamStageName) {
 		this.upstreamStageName = upstreamStageName;
 	}
 
 	public boolean isChangeCtrlInProgress() {
-		DevOpsPipelineNode rootNodeRef = getRootNodeRef();
-		if(null != rootNodeRef)
-			return rootNodeRef.isChangeCtrlInProgress();
-		else
-			return changeCtrlInProgress;
+		return changeCtrlInProgress;
 	}
 
 	public void setChangeCtrlInProgress(boolean isChangeStepInProgress) {
-		DevOpsPipelineNode rootNodeRef = getRootNodeRef();
-		if(null != rootNodeRef)
-			rootNodeRef.setChangeCtrlInProgress(isChangeStepInProgress);
-		else
-			this.changeCtrlInProgress = isChangeStepInProgress;
-	}
-
-	public DevOpsPipelineNode getRootNodeRef() {
-		return rootNodeRef;
-	}
-
-	public void setRootNodeRef(DevOpsPipelineNode rootNodeRef) {
-		this.rootNodeRef = rootNodeRef;
-	}
-	
-	public void setPreviousRootNode(DevOpsPipelineNode previousRootNode) {
-		this.previousRootNode = previousRootNode;
-	}
-	
-	public DevOpsPipelineNode getPreviousRootNode() {
-		return previousRootNode;
-	}
-	
-	public boolean isRootNode() {
-		return (null == getRootNodeRef()) ? true:false;
-	}
-
-	public String getStageExecStatus() {
-		DevOpsPipelineNode rootNodeRef = getRootNodeRef();
-		if(null != rootNodeRef)
-			return rootNodeRef.getStageExecStatus();
-		else
-			return stageExecutionStatus;
+		this.changeCtrlInProgress = isChangeStepInProgress;
 	}
 
 	public void setStageExecStatus(String status) {
-		DevOpsPipelineNode rootNodeRef = getRootNodeRef();
-		if(null != rootNodeRef)
-			rootNodeRef.setStageExecStatus(status);
-		else
-			this.stageExecutionStatus = status;
+		this.stageExecutionStatus = status;
 	}
-	
+
+	public String getPipelineExecutionUrl() {
+		return pipelineExecutionUrl;
+	}
+
+	public void setPipelineExecutionUrl(String pipelineExecutionUrl) {
+		this.pipelineExecutionUrl = pipelineExecutionUrl;
+	}
+
+	public String getParentName() {
+		return parentName;
+	}
+
+	public void setParentName(String parentName) {
+		this.parentName = parentName;
+	}
+
+	public String getParentExecutionUrl() {
+		return parentExecutionUrl;
+	}
+
+	public void setParentExecutionUrl(String parentExecutionUrl) {
+		this.parentExecutionUrl = parentExecutionUrl;
+	}
 }
