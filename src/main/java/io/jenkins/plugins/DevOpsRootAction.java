@@ -31,7 +31,8 @@ import java.io.FileNotFoundException;
 import hudson.FilePath;
 
 import java.io.UnsupportedEncodingException;  
-import java.net.URLDecoder;
+import java.util.List;
+import java.util.ArrayList;
 
 
 @Extension
@@ -113,33 +114,14 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
         return false;
     }
 
-    public static String decode(String url)  
-    {  
-         try {  
-            String prevURL = "";  
-            String decodeURL = url;  
-            while(!prevURL.equals(decodeURL))  
-            {  
-                prevURL = decodeURL;  
-                decodeURL = URLDecoder.decode(decodeURL, "UTF-8" );  
-            }  
-            return decodeURL;  
-        } catch (UnsupportedEncodingException e) {
-            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "decode", new String[]{"UnsupportedEncodingException"}, new String[]{e.getMessage()}, Level.SEVERE);
-			return url;  
-        }  
-    }
-
-    //This method return /{JENKINS_HOME}/jobs/{jobName}/snPipelineInfo.json 
-    //This method return /{JENKINS_HOME}/jobs/{folderName}/jobs/{jobName}/snPipelineInfo.json
+    //This method returns /{JENKINS_HOME}/jobs/{jobName}/snPipelineInfo.json 
+    //This method returns /{JENKINS_HOME}/jobs/{folderName}/jobs/{jobName}/snPipelineInfo.json
 	public static String getRootDirFilePath(String jobName) {
         DevOpsModel devopsModel = new DevOpsModel();
 		String jenkinsDirFilePath = devopsModel.getJenkinsRootDirPath();
-        jobName = decode(jobName);
         if(jobName.contains(DevOpsConstants.PATH_SEPARATOR.toString()))
             jobName = jobName.replace(DevOpsConstants.PATH_SEPARATOR.toString(), DevOpsConstants.JOBS_PATH.toString());
 		String finalPath = jenkinsDirFilePath + DevOpsConstants.JOBS_PATH.toString() + jobName + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
-		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "getRootDirFilePath", new String[]{"jobName"}, new String[]{finalPath}, Level.INFO);
 		return finalPath;
 	}
     
@@ -148,16 +130,15 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
     *returns 200 is success else 410
     *file path will be {JENKINS_HOME}/snPipelineInfo.json
     *Request data format:
-    *{track:true, "testInfo": {"stages": {"Build": "/Users/StepBuild","Deploy": "/Users/Deploy"}}, "pipeline": "/Users/TestSummary")
+    *{jobName: pipelineName, track:true, "testInfo": {"stages": {"Build": "/Users/StepBuild","Deploy": "/Users/Deploy"}}, "pipeline": "/Users/TestSummary")
     *Note: This api doesn't make new entries in the file
     *for multibranch pipeline using ONLY jobName as the key
     */
     private boolean _updatePipelineInfoFile(String token, StringBuffer content) {
-        String jobName = token.split(DevOpsConstants.CALLBACK_TOKEN_SEPARATOR.toString(), 2)[1];
-        jobName = decode(jobName);
-        if (jobName != null) {
+        if (content != null) {
             JSONObject apiResponse = JSONObject.fromObject(content.toString());
             if (apiResponse != null) {
+                String jobName = apiResponse.get(DevOpsConstants.JOBNAME_ATTR.toString()).toString();
 			    String rootDirFilePath = getRootDirFilePath(jobName);
                 if(updateResponseInFile(jobName, apiResponse, rootDirFilePath)){
                     return true;
@@ -175,12 +156,9 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 				String fileContents = pipelineInfoFile.readToString();
 				JSONObject pipelineInfo = JSONObject.fromObject(fileContents);
 			    if (pipelineInfo != null) {
-                    if (pipelineInfo.containsKey(jobName)) {
-                        JSONObject updatedResponse = getUpdatedResponse(apiResponse, pipelineInfo.getJSONObject(jobName));
-                        pipelineInfo.put(jobName, updatedResponse);
-                        pipelineInfoFile.write(pipelineInfo.toString(), "UTF-8");
-                        return true;
-                    }
+                    JSONObject updatedResponse = getUpdatedResponse(apiResponse, pipelineInfo);
+                    pipelineInfoFile.write(updatedResponse.toString(), "UTF-8");
+                    return true;
 			    }
             }
             return false;
@@ -252,6 +230,8 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             result = _handlePipelineCallback(token, content);
         else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_UPDATE_IDENTIFIER.toString()) && content != null && content.length() > 0)
             result = _updatePipelineInfoFile(token, content);
+        else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_DELETE_IDENTIFIER.toString()))
+            result = deletePipelineInfoFiles();
 
         if (result) {
             response.setHeader("Result", "Jenkins webhook triggered successfully");
@@ -262,49 +242,83 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
     }
 
 
-    public static JSONObject checkInfoInFile(String jobName, String branchName, boolean isMultiBranch) {
+    public static JSONObject checkInfoInFile(String jobName, String path) {
 		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.INFO);
 		try{
-            String rootDirFilePath = getRootDirFilePath(jobName);
-            FilePath pipelineInfoFile = new FilePath(new File(rootDirFilePath));
-			if(!pipelineInfoFile.exists()){
+            FilePath pipelineInfoFile = new FilePath(new File(path));
+			if(!pipelineInfoFile.exists())
 				return null;
-			}
 			String fileContents = pipelineInfoFile.readToString();
 			JSONObject pipelineInfo = JSONObject.fromObject(fileContents);
 			if (pipelineInfo != null) {
-				if (pipelineInfo.containsKey(jobName)) {
-					JSONObject response = pipelineInfo.getJSONObject(jobName);
-					if (GenericUtils.checkIfAttributeExist(response, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()))
-						return response;
-				}
+				if (GenericUtils.checkIfAttributeExist(pipelineInfo, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()))
+					return pipelineInfo;
 			}
 			return null;
         } catch (Exception e) {
             GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkInfoInFile", new String[]{"Exception"}, new String[]{e.getMessage()}, Level.SEVERE);
 			return null;
         }
-	}
+	} 
 
-	public static Boolean updateInfoInFile(String jobName, JSONObject infoAPIResponse, String branchName, boolean isMultiBranch) {
-		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.INFO);
+	public static Boolean updateInfoInFile(String jobName, JSONObject infoAPIResponse, String path) {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", new String[]{"jobName", "path"}, new String[]{jobName, path}, Level.INFO);
 		try{
-            String rootDirFilePath = getRootDirFilePath(jobName);
-            FilePath pipelineInfoFile = new FilePath(new File(rootDirFilePath));
-			JSONObject pipelineInfo = new JSONObject();
-			if(pipelineInfoFile.exists()){
-				String fileContents = pipelineInfoFile.readToString();
-				pipelineInfo = JSONObject.fromObject(fileContents);
-			}
-			pipelineInfo.put(jobName, infoAPIResponse);
-			pipelineInfoFile.write(pipelineInfo.toString(), "UTF-8");
-			return true;
+            FilePath pipelineInfoFile = new FilePath(new File(path));
+            pipelineInfoFile.write(infoAPIResponse.toString(), "UTF-8");
+            return true;
         } catch (Exception e) {
             GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", new String[]{"Exception"}, new String[]{e.getMessage()}, Level.SEVERE);
 			return false;
         }
 	}
+
     
+    public static Boolean deletePipelineInfoFiles() {
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{}, new String[]{}, Level.INFO);
+        try{
+            DevOpsModel devopsModel = new DevOpsModel();
+            String jenkinsDirFilePath = devopsModel.getJenkinsRootDirPath() + DevOpsConstants.JOBS_PATH.toString();
+            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{"jenkinsDirFilePath"}, new String[]{jenkinsDirFilePath}, Level.INFO);
+            FilePath jenkinsRootDir = new FilePath(new File(jenkinsDirFilePath));
+            if(jenkinsRootDir.exists()){
+                checkAndDeletePipelineInfoFiles(jenkinsRootDir);
+            }
+            return true;
+        } catch (Exception e) {
+            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{"exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            return false;
+        } 
+    }
+
+    public static void checkAndDeletePipelineInfoFiles(FilePath jenkinsRootDir) {
+        GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkAndDeletePipelineInfoFiles", new String[]{}, new String[]{}, Level.INFO);
+        try{
+            String pipelineInfoFile = null;
+            String folderPipelineInfoFile = null;
+            List<FilePath> contents = new ArrayList<FilePath> (jenkinsRootDir.list());
+            for (FilePath jobPath : contents) {
+                pipelineInfoFile = null;
+                pipelineInfoFile = jobPath + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+                FilePath pipelineInfoPath = new FilePath(new File(pipelineInfoFile));
+                if(pipelineInfoPath.exists()) {
+                    pipelineInfoPath.delete();
+                } else {
+                    folderPipelineInfoFile = null;
+                    folderPipelineInfoFile = jobPath + DevOpsConstants.JOBS_PATH.toString();
+                    FilePath folderPipelineDir = new FilePath(new File(folderPipelineInfoFile));
+                    if(folderPipelineDir.exists()){
+                        checkAndDeletePipelineInfoFiles(folderPipelineDir);
+                    }
+                }
+            }
+            return;
+        } catch (Exception e) {
+            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkAndDeletePipelineInfoFiles", new String[]{"exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            return;
+        } 
+    }
+
     public static Boolean getTrackedJob(String key) {
         Boolean tracking;
         synchronized(trackedJobs) { tracking = trackedJobs.get(key); }

@@ -13,7 +13,6 @@ import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineRegisterArtifactStep;
 
 /**
- * 
  *
  */
 public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStepExecution<Boolean> {
@@ -23,14 +22,14 @@ public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStep
 	private DevOpsPipelineRegisterArtifactStep step;
 
 	public DevOpsPipelineRegisterArtifactStepExecution(StepContext context,
-			DevOpsPipelineRegisterArtifactStep step) {
+	                                                   DevOpsPipelineRegisterArtifactStep step) {
 		super(context);
 		this.step = step;
 	}
 
 	@Override
 	protected Boolean run() throws Exception {
-		
+
 		Run<?, ?> run = getContext().get(Run.class);
 		TaskListener listener = getContext().get(TaskListener.class);
 		FilePath workspace = getContext().get(FilePath.class);
@@ -40,10 +39,10 @@ public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStep
 		if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
 			DevOpsRegisterArtifactBuildStep registerArtifactBuildStep = new DevOpsRegisterArtifactBuildStep();
 			registerArtifactBuildStep.setArtifactsPayload(this.step.getArtifactsPayload());
-			
-			registerArtifactBuildStep.perform(run, workspace, launcher, listener, envVars);
+
+			registerArtifactBuildStep.perform(getContext(), run, workspace, launcher, listener, envVars);
 		}
-		
+
 		return Boolean.valueOf(true);
 	}
 

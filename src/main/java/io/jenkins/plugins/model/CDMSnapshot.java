@@ -1,6 +1,7 @@
 package io.jenkins.plugins.model;
 
-import java.util.Date;
+import net.sf.json.JSONObject;
+
 
 public class CDMSnapshot {
 	private String sys_id;
@@ -8,6 +9,15 @@ public class CDMSnapshot {
 	private String description;
 	private String validation;
 	private Boolean published;
+	private JSONObject validationResults;
+
+	public JSONObject getValidationResults() {
+		return validationResults;
+	}
+
+	public void setValidationResults(JSONObject validationResults) {
+		this.validationResults = validationResults;
+	}
 
 	public String getSys_created_on() {
 		return sys_created_on;

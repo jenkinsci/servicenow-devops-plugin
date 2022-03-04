@@ -16,27 +16,29 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import io.jenkins.plugins.pipeline.steps.executions.DevOpsConfigRegisterChangeSetStepExecution;
+import io.jenkins.plugins.pipeline.steps.executions.DevOpsConfigRegisterPipelineStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
 
-public class DevOpsConfigRegisterChangeSetStep extends Step implements Serializable{
+public class DevOpsConfigRegisterPipelineStep extends Step implements Serializable{
 
     private static final long serialVersionUID = 1L;
     private boolean m_enabled;
     private boolean m_ignoreErrors;
 
-    private String changesetId;
+    private String changesetNumber;
+    private String snapshotName;
+    private boolean markFailed;
+    private boolean showResults;
 
     @DataBoundConstructor
-    public DevOpsConfigRegisterChangeSetStep(String changesetId) {
+    public DevOpsConfigRegisterPipelineStep() {
         m_enabled = true;
         m_ignoreErrors = false;
-        this.changesetId = changesetId;
     }
 
     @Override
     public StepExecution start(StepContext context) throws Exception {
-        return new DevOpsConfigRegisterChangeSetStepExecution(context, this);
+        return new DevOpsConfigRegisterPipelineStepExecution(context, this);
     }
 
     public boolean isEnabled() {
@@ -57,12 +59,46 @@ public class DevOpsConfigRegisterChangeSetStep extends Step implements Serializa
         this.m_ignoreErrors = ignore;
     }
 
-    public void setChangesetId(String changesetId) {
-        this.changesetId = changesetId;
+    @DataBoundSetter
+    public void setChangesetNumber(String changesetNumber) {
+        if(changesetNumber == null || changesetNumber.isEmpty())
+            this.changesetNumber = null;
+        else
+            this.changesetNumber = changesetNumber;
     }
 
-    public String getChangesetId() {
-        return changesetId;
+    public String getChangesetNumber() {
+        return changesetNumber;
+    }
+
+    @DataBoundSetter
+    public void setSnapshotName(String snapshotName) {
+        if(snapshotName == null || snapshotName.isEmpty())
+            this.snapshotName = null;
+        else
+            this.snapshotName = snapshotName;
+    }
+
+    public String getSnapshotName() {
+        return snapshotName;
+    }
+
+    @DataBoundSetter
+    public void setMarkFailed(boolean markFailed) {
+        this.markFailed = markFailed;
+    }
+ 
+    public boolean getMarkFailed() {
+        return markFailed;
+    }
+
+    @DataBoundSetter
+    public void setShowResults(boolean showResults) {
+        this.showResults = showResults;
+    }
+ 
+    public boolean getShowResults() {
+        return showResults;
     }
 
     @Extension
@@ -70,12 +106,12 @@ public class DevOpsConfigRegisterChangeSetStep extends Step implements Serializa
 
 		@Override
 		public String getFunctionName() {
-			return DevOpsConstants.CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME.toString();
+			return DevOpsConstants.CONFIG_REGISTER_PIPELINE_STEP_FUNCTION_NAME.toString();
 		}
 
 		@Override
 		public String getDisplayName() {
-			return DevOpsConstants.CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME.toString();
+			return DevOpsConstants.CONFIG_REGISTER_PIPELINE_STEP_DISPLAY_NAME.toString();
 		}
 
 		@Override

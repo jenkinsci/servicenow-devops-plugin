@@ -12,12 +12,15 @@ public class DevOpsRunStatusStageModel {
     private String result;
     private String upstreamTaskExecutionURL;
     private String upstreamStageName;
+    private String parentExecutionUrl;
+    private String pipelineExecutionUrl;
+    private List<String> waitForChildExecutions;
     private List<String> log;
     private long timestamp;
     private String parentStageName;
     private String stageStatusFromTag;
 /*
-API (wfapi) for individual stage execution example (build #6, stageId #6)
+API (wfapi) for individual stage execution example (build #6, stageId #6)e
  */
 
     public DevOpsRunStatusStageModel() {
@@ -28,6 +31,9 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
         this.result = "";
         this.upstreamTaskExecutionURL = "";
         this.upstreamStageName = "";
+        this.parentExecutionUrl = "";
+        this.waitForChildExecutions = new ArrayList<String>();
+        this.pipelineExecutionUrl = "";
         this.duration = 0;
         this.timestamp = 0;
         this.parentStageName="";
@@ -109,5 +115,29 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 
     public void setStageStatusFromTag(String stageStatusFromTag) {
         this.stageStatusFromTag = stageStatusFromTag;
+    }
+
+    public String getParentExecutionUrl() {
+        return parentExecutionUrl;
+    }
+
+    public void setParentExecutionUrl(String parentExecutionUrl) {
+        this.parentExecutionUrl = parentExecutionUrl;
+    }
+
+    public String getPipelineExecutionUrl() {
+        return pipelineExecutionUrl;
+    }
+
+    public void setPipelineExecutionUrl(String pipelineExecutionUrl) {
+        this.pipelineExecutionUrl = pipelineExecutionUrl;
+    }
+
+    public List<String> getWaitForChildExecutions() {
+        return waitForChildExecutions;
+    }
+
+    public void setWaitForChildExecutions(List<String> waitForChildExecutions) {
+        this.waitForChildExecutions = waitForChildExecutions;
     }
 }

@@ -27,6 +27,8 @@ public class DevOpsConfigPublishStep extends Step implements Serializable{
     private String applicationName;
     private String deployableName;
     private String snapshotName;
+    private boolean markFailed;
+    private boolean showResults;
 
     @DataBoundConstructor
     public DevOpsConfigPublishStep(String applicationName, String deployableName, String snapshotName) {
@@ -58,6 +60,24 @@ public class DevOpsConfigPublishStep extends Step implements Serializable{
     @DataBoundSetter
     public void setIgnoreErrors(boolean ignore) {
         this.m_ignoreErrors = ignore;
+    }
+
+    @DataBoundSetter
+    public void setMarkFailed(boolean markFailed) {
+        this.markFailed = markFailed;
+    }
+ 
+    public boolean getMarkFailed() {
+        return markFailed;
+    }
+
+    @DataBoundSetter
+    public void setShowResults(boolean showResults) {
+        this.showResults = showResults;
+    }
+ 
+    public boolean getShowResults() {
+        return showResults;
     }
 
     public void setSnapshotName(String snapshotName) {

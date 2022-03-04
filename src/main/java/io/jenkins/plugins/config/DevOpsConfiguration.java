@@ -400,21 +400,9 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				: null;
 	}
 
-	public String getCDMChangeSetCommitURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/cdm/changeset/commit", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getDeleteChangesetURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/cdm/changeset/number/", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
 	public String getSnapshotStatusURL() {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sg_cdm_snapshot", getTrimmedUrl(getInstanceUrl()))
+				? String.format("%s/api/now/table/sn_cdm_snapshot", getTrimmedUrl(getInstanceUrl()))
 				: null;
 	}
 
@@ -443,13 +431,14 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				: null;
 	}
 	
-	public String getDeployableURL() {
+	public String getImpactedDeployableURL(String changesetId) {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sg_cdm_deployable", getTrimmedUrl(getInstanceUrl()))
+				? String.format("%s/api/sn_cdm/changesets/%s/impacted-deployables", getTrimmedUrl(getInstanceUrl()),
+						changesetId)
 				: null;
 	}
 
-	public String getChangesetRegisterURL() {
+	public String getPipelineRegisterURL() {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
 				? String.format("%s/api/sn_devops/%s/devops/config/updatePipeline", getTrimmedUrl(getInstanceUrl()),
 						getApiVersion())
@@ -476,4 +465,28 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		return options;
 	}
 
+	public String getValidateSnapshotURL(String snapshotId) {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/sn_cdm/snapshots/%s/validate", getTrimmedUrl(getInstanceUrl()),
+						snapshotId)
+				: null;
+	}
+
+	public String getChangesetURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/now/table/sn_cdm_changeset", getTrimmedUrl(getInstanceUrl()))
+				: null;
+	}
+
+	public String getValidAppURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/now/table/sn_cdm_application", getTrimmedUrl(getInstanceUrl()))
+				: null;
+	}
+
+	public String getPolicyValidationURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/now/table/sn_cdm_policy_validation_result", getTrimmedUrl(getInstanceUrl()))
+				: null;
+	}
 }
