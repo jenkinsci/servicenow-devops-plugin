@@ -26,15 +26,19 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
     private boolean m_ignoreErrors;
     private String applicationName;
     private String deployableName;
-    private String changeSetId;
+    private String changesetNumber;
+    private boolean markFailed;
+    private boolean showResults;
+    private String outputFormat;
+    private boolean isValidated;
 
     @DataBoundConstructor
-    public DevOpsConfigGetSnapshotsStep(String applicationName, String deployableName, String changeSetId) {
+    public DevOpsConfigGetSnapshotsStep(String applicationName, String deployableName, String changesetNumber) {
         m_enabled = true;
         m_ignoreErrors = false;
         this.applicationName = applicationName;
         this.deployableName = deployableName;
-        this.changeSetId = changeSetId;
+        this.changesetNumber = changesetNumber;
     }
 
     @Override
@@ -61,6 +65,45 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
     }
 
     @DataBoundSetter
+    public void setMarkFailed(boolean markFailed) {
+        this.markFailed = markFailed;
+    }
+ 
+    public boolean getMarkFailed() {
+        return markFailed;
+    }
+
+    @DataBoundSetter
+    public void setShowResults(boolean showResults) {
+        this.showResults = showResults;
+    }
+ 
+    public boolean getShowResults() {
+        return showResults;
+    }
+      
+    @DataBoundSetter
+    public void setOutputFormat(String outputFormat) {
+        if(outputFormat == null || outputFormat.isEmpty())
+            this.outputFormat = null;
+        else
+            this.outputFormat = outputFormat;
+    }
+
+    public String getOutputFormat() {
+        return outputFormat;
+    }
+
+    @DataBoundSetter
+    public void setIsValidated(boolean isValidated) {
+          this.isValidated = isValidated;
+    }
+
+    public boolean getIsValidated() {
+        return isValidated;
+    }
+
+    @DataBoundSetter
     public void setApplicationName(String applicationName) {
         this.applicationName = applicationName;
     }
@@ -77,12 +120,12 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
         return deployableName;
     }
 
-	public String getChangeSetId() {
-		return changeSetId;
+	public String getChangesetNumber() {
+		return changesetNumber;
 	}
 
-	public void setChangeSetId(String changeSetId) {
-		this.changeSetId = changeSetId;
+	public void setChangesetNumber(String changesetNumber) {
+		this.changesetNumber = changesetNumber;
 	}
 
     @Extension
@@ -104,5 +147,4 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
 		}
 
 	}
-    
 }

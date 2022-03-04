@@ -407,8 +407,8 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 
 		} catch (Exception e) {
-			printDebug("handlePipeline", new String[]{"getTestFiles"}, new String[]{e.getMessage()},
-					Level.SEVERE);
+			LOGGER.log(Level.WARNING, "DevOpsRunStatusAction.getTestFiles()- Error getting test " +
+					"files - " + e.getMessage());
 		}
 	}
 

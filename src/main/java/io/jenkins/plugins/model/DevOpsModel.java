@@ -191,7 +191,7 @@ public class DevOpsModel {
 		String jobName = job.getFullName();
 		// check on endpoint
 		printDebug("checkIsTracking(item)", new String[]{"tracking"}, new String[]{"true"}, Level.FINE);
-		return isTrackingEndpoint(jobUrl, jobName, job.getPronoun(), null, false);
+		return isTrackingEndpoint(job, jobUrl, jobName, job.getPronoun(), null, false);
 	}
 
 	// from onStarted (or anywhere that has a runId associated)
@@ -213,7 +213,7 @@ public class DevOpsModel {
 		if (isTrackingCache(jobName, runId))
 			return new DevOpsPipelineInfo(true);
 		// check on endpoint
-		return isTrackingEndpoint(jobUrl, jobName, job.getPronoun(), branchName,
+		return isTrackingEndpoint(job, jobUrl, jobName, job.getPronoun(), branchName,
 				GenericUtils.isMultiBranch(job));
 	}
 
@@ -316,22 +316,20 @@ public class DevOpsModel {
 		return tracking.booleanValue();
 	}
 
-	public JSONObject checkPipelineInfoInFile(String jobName, String branchName, boolean isMultiBranch) {
+	public JSONObject checkPipelineInfoInFile(String jobName, String path) {
 		printDebug("checkPipelineInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
 		if (jobName == null)
 			return null;
-		if (isMultiBranch)
-			jobName = jobName.split(DevOpsConstants.PATH_SEPARATOR.toString() + branchName)[0];
-		return DevOpsRootAction.checkInfoInFile(jobName, branchName, isMultiBranch);
+		printDebug("checkPipelineInfoInFile", new String[]{"path"}, new String[]{path}, Level.FINE);
+		return DevOpsRootAction.checkInfoInFile(jobName, path);
 	}
 
-	public Boolean updatePipelineInfoInFile(String jobName, JSONObject infoAPIResponse, String branchName, boolean isMultiBranch) {
+	public Boolean updatePipelineInfoInFile(String jobName, JSONObject infoAPIResponse, String path) {
 		printDebug("updatePipelineInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
 		if (jobName == null)
 			return false;
-		if (isMultiBranch)
-			jobName = jobName.split(DevOpsConstants.PATH_SEPARATOR.toString() + branchName)[0];
-		return DevOpsRootAction.updateInfoInFile(jobName, infoAPIResponse, branchName, isMultiBranch);
+		printDebug("checkPipelineInfoInFile", new String[]{"path"}, new String[]{path}, Level.FINE);
+		return DevOpsRootAction.updateInfoInFile(jobName, infoAPIResponse, path);
 	}
 
 	/*
@@ -339,11 +337,15 @@ public class DevOpsModel {
 	 *if api response available in file -> retrieve the response and use it, else -> make call to /sn-devops/pipelineInfo
 	 *api response for multibranch pipeline uses ONLY jobName as the key
 	 */
-	public DevOpsPipelineInfo isTrackingEndpoint(String jobUrl, String jobName, String pronoun, String branchName, boolean isMultiBranch) {
+	public DevOpsPipelineInfo isTrackingEndpoint(Job<?, ?> job, String jobUrl, String jobName, String pronoun, String branchName, boolean isMultiBranch) {
 		printDebug("isTrackingEndpoint", new String[]{"jobUrl", "jobName", "pronoun", "branchName", "isMultiBranch"}, new String[]{jobUrl, jobName, pronoun, branchName, String.valueOf(isMultiBranch)}, Level.FINE);
 		String result = null;
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-		JSONObject infoAPIResponse = checkPipelineInfoInFile(jobName, branchName, isMultiBranch);
+		String jobDir = job.getRootDir().getAbsolutePath();
+		if (isMultiBranch)
+			jobDir = jobDir.split(DevOpsConstants.MULTIBRANCH_PATH_SEPARATOR.toString())[0];
+		String infoFilePath = jobDir + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+		JSONObject infoAPIResponse = checkPipelineInfoInFile(jobName, infoFilePath);
 		if (!(GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) || devopsConfig.isTrackCheck()) {
 			JSONObject params = new JSONObject();
 			params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
@@ -357,7 +359,7 @@ public class DevOpsModel {
 					devopsConfig.getTrackingUrl(), params, null,
 					devopsConfig.getUser(), devopsConfig.getPwd(), null);
 			if (GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) {
-				updatePipelineInfoInFile(jobName, infoAPIResponse, branchName, isMultiBranch);
+				updatePipelineInfoInFile(jobName, infoAPIResponse, infoFilePath);
 			}
 		}
 		result = GenericUtils.parseResponseResult(infoAPIResponse,
@@ -1766,7 +1768,7 @@ public class DevOpsModel {
 		return artifactJSON;
 	}
 
-	public String createChangeset(String applicationName, TaskListener listener) {
+	public JSONObject createChangeset(String applicationName, TaskListener listener) {
 
 		JSONObject queryParams = new JSONObject();
 
@@ -1777,34 +1779,14 @@ public class DevOpsModel {
 
 		queryParams.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
 
-		String number = "";
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 				devopsConfig.getCDMChangeSetCreationURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
 				devopsConfig.getPwd(), null);
 
-		try {
-			if (!response.isEmpty()) {
-				if (response.containsKey(DevOpsConstants.COMMON_RESPONSE_RESULT.toString())) {
-					JSONObject result = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-					if (result.containsKey(DevOpsConstants.COMMON_RESPONSE_NUMBER.toString()))
-						number = result.getString(DevOpsConstants.COMMON_RESPONSE_NUMBER.toString());
-				} else if (response.containsKey(DevOpsConstants.COMMON_RESULT_ERROR.toString())) {
-					JSONObject error = response.getJSONObject(DevOpsConstants.COMMON_RESULT_ERROR.toString());
-					String errorMessage = error.getString(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
-					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " : " + errorMessage);
-					return null;
-				}
-			} else
-				return null;
-		} catch (JSONException j) {
-			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Upload Step Failed : Failed To Fetch Response From Server : " + j.getMessage());
-			return null;
-		}
-
-		return number;
+		return response;
 	}
 
-	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path, String autoCommit, String autoValidate, String fileContent, String target, String deployableName) {
+	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path, boolean autoCommit, boolean autoValidate, String fileContent, String target, String deployableName) {
 		JSONObject queryParams = new JSONObject();
 
 		queryParams.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
@@ -1852,24 +1834,6 @@ public class DevOpsModel {
 
 		return response;
 
-	}
-
-	public JSONObject getSnapshotStatus(String applicationName, String deployableName) {
-
-		JSONObject queryParams = new JSONObject();
-
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-
-		String query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^published=true" + "^ORDERBYDESCpublished_on";
-
-		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "number,validation_results,status");
-		queryParams.put("sysparm_limit", "1");
-		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
-
-		return response;
 	}
 
 	public JSONObject insertExportRequest(String applicationName, String deployableName, String exporterName, String exporterFormat, JSONObject exporterArgs, String snapshotName) {
@@ -1932,14 +1896,19 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changeSetId) {
+	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changesetNumber, boolean isValidated) {
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		String query = null;
-		if (StringUtils.isEmpty(changeSetId))
-			query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^validation=passed^ORDERBYDESClast_validated";
+		if (StringUtils.isEmpty(changesetNumber)) {
+			if(!isValidated)
+				query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName +"^ORDERBYDESCsys_created_on";
+			else
+				query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName +"^ORDERBYDESClast_validated";
+		}	
 		else
-			query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^changeset_id.number=" + changeSetId;
+			query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^changeset_id.number=" + changesetNumber;
+			
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
 		queryParams.put("sysparm_limit", "1");
@@ -1951,13 +1920,13 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject snapShotExists(String applicationName, List<String> deployableNames, String changeSetId) {
+	public JSONObject snapShotExists(String applicationName, List<String> deployableNames, String changesetNumber) {
 
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		String deployableNamesCommaSeparated = String.join(",", deployableNames);
 
-		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^application_id.name=" + applicationName + "^changeset_id.number=" + changeSetId;
+		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^application_id.name=" + applicationName + "^changeset_id.number=" + changesetNumber;
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
 
@@ -2028,7 +1997,7 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, String changesetId, TaskListener listener) {
+	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, String changesetNumber, String snapshotName, TaskListener listener) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -2040,7 +2009,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.CONFIG_BUILD_NUMBER.toString(), buildNumber);
 		queryParams.put("type", type);
 
-		filePayloadJSON.put("changeSetId", changesetId);
+		filePayloadJSON.put("changeSetId", changesetNumber);
+		filePayloadJSON.put("snapshotName", snapshotName);
 
 		int retryCount = 0;
 		JSONObject response = null;
@@ -2050,7 +2020,7 @@ public class DevOpsModel {
 		while (retryCount <= 3) {
 			retryCount++;
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getChangesetRegisterURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
+					devopsConfig.getPipelineRegisterURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
 					devopsConfig.getPwd(), null);
 
 			if (response == null) {
@@ -2138,12 +2108,46 @@ public class DevOpsModel {
 
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-		queryParams.put("name",applicationName);
+		String query = "name=" +applicationName; 
+
+		queryParams.put("sysparm_query", query);
+		queryParams.put("sysparm_fields", "name");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getValidAppURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(), 
 				devopsConfig.getPwd(), null);
 
+		return response;
+	}
+
+	public JSONObject getValidationResults(String snapshotSysId, String policy, String format) {
+
+		JSONObject queryParams = new JSONObject();
+	
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		String baseQuery = "snapshot.sys_id="+snapshotSysId+"^is_latest=true";
+		String query = "";
+
+		if(policy.isEmpty()) {
+			queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), baseQuery);
+			queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "snapshot.application_id.name,policy.name,snapshot.name,impacted_node.name,node_path,policy_execution.output");
+		}
+		else {
+			if(format.equalsIgnoreCase("xml")) {
+				query = baseQuery+"^policy.name="+policy+"^type=failure";
+				queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+				queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "impacted_node.name,node_path");
+			}
+			else {
+				query = baseQuery+"^policy.name="+policy;
+				queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+				queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "description,impacted_node.name,node_path,type,policy_execution.decision");
+			}
+		}
+		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+				devopsConfig.getPolicyValidationURL(), queryParams, null, devopsConfig.getUser(), 
+				devopsConfig.getPwd(), null);
+	
 		return response;
 	}
 }

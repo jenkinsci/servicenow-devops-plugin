@@ -75,10 +75,7 @@ public class DevOpsConfigValidateStep extends Step implements Serializable{
 
     @DataBoundSetter
     public void setMarkFailed(boolean markFailed) {
-         if(!markFailed)
-             this.markFailed = false;
-         else
-             this.markFailed = markFailed;
+        this.markFailed = markFailed;
     }
  
     public boolean getMarkFailed() {
@@ -87,10 +84,7 @@ public class DevOpsConfigValidateStep extends Step implements Serializable{
 
     @DataBoundSetter
     public void setShowResults(boolean showResults) {
-         if(!showResults)
-             this.showResults = false;
-         else
-             this.showResults = showResults;
+        this.showResults = showResults;
     }
  
     public boolean getShowResults() {

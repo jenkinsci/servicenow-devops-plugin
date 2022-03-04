@@ -64,6 +64,10 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		if (null == request)
 			return handleException("Failed To Create Export Request");
 
+		if (this.step.getShowResults())
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
+					+ " - Response from export request api : " + request);
+
 		String errorMessage = "";
 		if (request.containsKey(DevOpsConstants.COMMON_RESULT_ERROR.toString())) {
 			try {
@@ -125,6 +129,10 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 				break;
 		}
 
+		if (this.step.getShowResults())
+				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
+						+ " - Response from export status api : " + exportStatus);
+
 		String message = "";
 		try {
 			if (response != null && !(state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_COMPLETED.toString()))) {
@@ -132,7 +140,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 				return handleException(message);
 			}
 		} catch (JSONException j) {
-				return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		JSONObject output = null;
@@ -140,7 +148,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 
 		try {
 			if(response != null){
-				output = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_OUTPUT.toString());
+				output = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_EXPORTER_RESULT.toString());
 				outputState = output.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
 			}
 		} catch (JSONException j) {
@@ -167,6 +175,10 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		} catch (Exception e) {
 			return handleException(e.getMessage());
 		}
+
+		if (this.step.getShowResults())
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
+					+ " - Response from export data api : " + exportResponse);
 
 		try {
 			JSONObject body = exportResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
@@ -225,13 +237,13 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		DevOpsModel model = new DevOpsModel();
 		DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 
-		if (jobProperties.isIgnoreSNErrors()) {
-			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - "
-					+ exceptionMessage + " - Ignoring SN Errors");
-			return Boolean.valueOf(false);
+		if (!jobProperties.isIgnoreSNErrors() || this.step.getMarkFailed()) {
+			run.setResult(Result.FAILURE);
+			throw new AbortException(
+					DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - " + exceptionMessage);
 		}
-		run.setResult(Result.FAILURE);
-		throw new AbortException(
-				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - " + exceptionMessage);
+		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - "
+				+ exceptionMessage + " - Ignoring SN Errors");
+		return false;
 	}
 }

@@ -24,7 +24,7 @@ import io.jenkins.plugins.utils.DevOpsConstants;
 public class DevOpsConfigExportStep extends Step implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-    private boolean m_enabled;
+	private boolean m_enabled;
 	private boolean m_ignoreErrors;
 	private String applicationName;
 	private String deployableName;
@@ -33,12 +33,15 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 	private JSONObject exporterArgs;
 	private String fileName;
 	private String snapshotName;
+	private boolean markFailed;
+	private boolean showResults;
 
 	@DataBoundConstructor
-	public DevOpsConfigExportStep(String applicationName, String deployableName, String exporterName, String exporterFormat, String fileName) {
-		m_enabled  =true;
+	public DevOpsConfigExportStep(String applicationName, String deployableName, String exporterName,
+			String exporterFormat, String fileName) {
+		m_enabled = true;
 		m_ignoreErrors = false;
-		
+
 		this.applicationName = applicationName;
 		this.deployableName = deployableName;
 		this.exporterName = exporterName;
@@ -47,38 +50,38 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 	}
 
 	@Override
-    public StepExecution start(StepContext context) throws Exception {
-        return new DevOpsConfigExportStepExecution(context, this);
+	public StepExecution start(StepContext context) throws Exception {
+		return new DevOpsConfigExportStepExecution(context, this);
 	}
 
 	public boolean isEnabled() {
-        return m_enabled;
-    }
+		return m_enabled;
+	}
 
-    @DataBoundSetter
-    public void setEnabled(boolean enabled) {
-        this.m_enabled = enabled;
-    }
+	@DataBoundSetter
+	public void setEnabled(boolean enabled) {
+		this.m_enabled = enabled;
+	}
 
-    public boolean isIgnoreErrors() {
-        return m_ignoreErrors;
-    }
+	public boolean isIgnoreErrors() {
+		return m_ignoreErrors;
+	}
 
-    @DataBoundSetter
-    public void setIgnoreErrors(boolean ignore) {
-        this.m_ignoreErrors = ignore;
-    }
-	
+	@DataBoundSetter
+	public void setIgnoreErrors(boolean ignore) {
+		this.m_ignoreErrors = ignore;
+	}
+
 	@DataBoundSetter
 	public void setExporterArgs(String exporterArgs) {
-		if(exporterArgs == null || exporterArgs.isEmpty())
+		if (exporterArgs == null || exporterArgs.isEmpty())
 			this.exporterArgs = null;
 		else {
 			try {
 				JSONObject arguments = null;
 				arguments = JSONObject.fromObject(exporterArgs);
 				this.exporterArgs = arguments;
-			} catch(Exception e) {
+			} catch (Exception e) {
 				Logger.getLogger(e.getMessage());
 			}
 		}
@@ -90,14 +93,32 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 
 	@DataBoundSetter
 	public void setSnapshotName(String snapshotName) {
-		if(snapshotName == null || snapshotName.isEmpty())
+		if (snapshotName == null || snapshotName.isEmpty())
 			this.snapshotName = null;
-		else 
+		else
 			this.snapshotName = snapshotName;
 	}
 
 	public String getSnapshotName() {
 		return snapshotName;
+	}
+
+	@DataBoundSetter
+	public void setMarkFailed(boolean markFailed) {
+		this.markFailed = markFailed;
+	}
+
+	public boolean getMarkFailed() {
+		return markFailed;
+	}
+
+	@DataBoundSetter
+	public void setShowResults(boolean showResults) {
+		this.showResults = showResults;
+	}
+
+	public boolean getShowResults() {
+		return showResults;
 	}
 
 	@DataBoundSetter

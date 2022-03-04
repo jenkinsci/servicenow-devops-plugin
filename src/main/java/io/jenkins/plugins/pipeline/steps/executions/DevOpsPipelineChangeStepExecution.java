@@ -400,7 +400,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			try {
 				listener = getContext().get(TaskListener.class);
 			} catch (IOException | InterruptedException e) {
-				printDebug("displayPipelineChangeRequestInfo", new String[]{"InterruptedException"},
+				printDebug("displayPipelineChangeRequestInfo", new String[]{"IOException"},
 					new String[]{e.getMessage()}, Level.SEVERE);
 			}
 

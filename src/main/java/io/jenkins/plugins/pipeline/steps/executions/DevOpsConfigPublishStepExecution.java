@@ -31,161 +31,96 @@ public class DevOpsConfigPublishStepExecution extends SynchronousStepExecution<B
 	@Override
 	protected Boolean run() throws Exception {
 
-		Run<?, ?> run = getContext().get(Run.class);
 		TaskListener listener = getContext().get(TaskListener.class);
 
 		DevOpsModel model = new DevOpsModel();
-		DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 
 		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME.toString()
 				+ " - Config Publish Step Exceution starts");
 
 		if (GenericUtils.isEmpty(this.step.getApplicationName()) || GenericUtils.isEmpty(this.step.getDeployableName())
-				|| GenericUtils.isEmpty(this.step.getSnapshotName())) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-						+ " - Parameters Cannot Be Empty : Publish Step Failed - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-					+ " - Parameters Cannot Be Empty : Publish Step Failed");
-		}
+				|| GenericUtils.isEmpty(this.step.getSnapshotName()))
+			return handleException("Parameters cannot be empty : Publish step failed");
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Fetching Snapshot To Publish");
+				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Fetching snapshot to publish");
 
 		JSONObject response = null;
 		try {
 			response = model.fetchSnapshotRecord(this.step.getApplicationName().trim(),
 					this.step.getDeployableName().trim(), this.step.getSnapshotName().trim());
 		} catch (Exception e) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener,
-						DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Exception occured while Publish - "
-								+ e.getMessage() + " : Publish Step Failed - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-					+ " - Exception occured while Publish - " + e.getMessage() + " : Publish Step Failed");
+			return handleException("Exception occured while publish - " + e.getMessage() + " : Publish step failed");
 		}
 
-		if (response == null) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-						+ " - No Snapshot for given inputs : Publish Step Failed - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-					+ " - No Snapshot for given inputs : Publish Step Failed");
-		}
+		if (response == null)
+			return handleException("Unable to find snapshot with given inputs : Publish step failed");
 
 		JSONArray result = null;
 		try {
 			result = response.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
 		} catch (JSONException j) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener,
-						DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " -  Publish Step Failed :"
-								+ DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString() + " - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " -  Publish Step Failed :"
-					+ DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Publish step failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
-		if (result.isEmpty()) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-						+ " - No Snapshot for given inputs : Publish Step Failed - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-					+ " - No Snapshot for given inputs : Publish Step Failed");
-		}
+		if (result.isEmpty())
+			return handleException("Unable to find snapshot with given inputs : Publish step failed");
 
 		String snapshotId = "";
 		try {
 			JSONObject responseBody = result.getJSONObject(0);
 			snapshotId = responseBody.getString(DevOpsConstants.CONFIG_SNAPSHOT_SYS_ID.toString());
 		} catch (JSONException j) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener,
-						DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " -  Publish Step Failed :"
-								+ DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString() + " - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " -  Publish Step Failed :"
-					+ DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Publish step failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Sending Snapshot for Publishing");
+				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Sending snapshot for publishing");
 
 		JSONObject publishResponse = null;
 		try {
 			publishResponse = model.publishSnapshot(snapshotId, listener);
 		} catch (Exception e) {
-			if (jobProperties.isIgnoreSNErrors()) {
-				GenericUtils.printConsoleLog(listener,
-						DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Exception occured while Publish - "
-								+ e.getMessage() + " : Publish Step Failed - Ignoring SN Errors");
-				return Boolean.valueOf(false);
-			}
-			run.setResult(Result.FAILURE);
-			throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-					+ " - Exception occured while Publish - " + e.getMessage() + " : Publish Step Failed");
+			return handleException("Exception occured while publish - " + e.getMessage() + " : Publish step failed");
 		}
 
 		String message = "";
 		if (publishResponse != null) {
-
-			if (publishResponse.containsKey("failureCause")) {
-				if (jobProperties.isIgnoreSNErrors()) {
-					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-							+ " - Publish Step Failed : Failed To Fetch Response From Server");
-					return Boolean.valueOf(false);
-				}
-
-				run.setResult(Result.FAILURE);
-				throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Publishing Failed");
-			}
+			if (this.step.getShowResults())
+				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
+						+ " - Response from snapshot publish api is : " + publishResponse);
+			if (publishResponse.containsKey("failureCause"))
+				return handleException("Publishing of snapshot failed");
 
 			if (publishResponse.containsKey(DevOpsConstants.COMMON_RESULT_ERROR.toString())) {
 				try {
 					JSONObject error = publishResponse.getJSONObject((DevOpsConstants.COMMON_RESULT_ERROR.toString()));
 					message = error.getString(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
 				} catch (JSONException j) {
-					if (jobProperties.isIgnoreSNErrors()) {
-						GenericUtils.printConsoleLog(listener,
-								DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " -  Publish Step Failed :"
-										+ DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString()
-										+ " - Ignoring SN Errors");
-						return Boolean.valueOf(false);
-					}
-					run.setResult(Result.FAILURE);
-					throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-							+ " -  Publish Step Failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+					return handleException(
+							"Publish step failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 				}
-
-				if (jobProperties.isIgnoreSNErrors()) {
-					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-							+ " - Publish Step Failed - Ignoring SN Errors : " + message);
-					return Boolean.valueOf(false);
-				}
-				run.setResult(Result.FAILURE);
-				throw new AbortException(DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME
-						+ " - Publish Step Failed - Ignoring SN Errors : " + message);
+				return handleException("Publish step failed - " + message);
 			}
 		}
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Snapshot Published");
-
+				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Snapshot published");
 		return Boolean.valueOf(true);
+	}
+
+	private boolean handleException(String exceptionMessage) throws Exception {
+		Run<?, ?> run = getContext().get(Run.class);
+		TaskListener listener = getContext().get(TaskListener.class);
+		DevOpsModel model = new DevOpsModel();
+		DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
+
+		if (!jobProperties.isIgnoreSNErrors() || this.step.getMarkFailed()) {
+			run.setResult(Result.FAILURE);
+			throw new AbortException(
+					DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME.toString() + " - " + exceptionMessage);
+		}
+		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME.toString() + " - "
+				+ exceptionMessage + " - Ignoring SN Errors");
+		return false;
 	}
 }

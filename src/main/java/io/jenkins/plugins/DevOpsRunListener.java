@@ -94,7 +94,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 
 						//associate step to flowNode
 						DevOpsModel devopsModel = new DevOpsModel();
-						devopsModel.associateStepToNode(run,stageId);
+						devopsModel.associateStepToNode(run, stageId);
 
 						DevOpsRunStatusModel model =
 								action.createRunStatus(flowNode, run, vars, null,
@@ -201,8 +201,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 				LabelAction label = startNode.getAction(LabelAction.class);
 				if (label != null)
 					nodeName = label.getDisplayName();
-					else
-						nodeName = startNode.getDisplayName();
+				else
+					nodeName = startNode.getDisplayName();
 			}
 			return nodeName;
 		}
@@ -212,13 +212,15 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 				FlowNode flowNode = null;
 				try {
 					flowNode = ((CpsStepContext) stepContext).get(FlowNode.class);
-					for (FlowNode fn : flowNode.getEnclosingBlocks()) {
-						if (isStageStart(fn))
-							return fn;
+					if (flowNode != null) {
+						for (FlowNode fn : flowNode.getEnclosingBlocks()) {
+							if (isStageStart(fn))
+								return fn;
+						}
 					}
 				} catch (Exception e) {
-					GenericUtils.printDebug(DevOpsRunListener.class.getName(), "getCurrentStageFlowNode", new String[]{"ExecutionException"},
-							new String[]{e.getMessage()}, Level.SEVERE);
+					_printDebug("getCurrentStageFlowNode", new String[]{"Exception"}, new String[]{e.getMessage()},
+						Level.SEVERE);
 				}
 			}
 			return null;
@@ -231,7 +233,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 
 		public static String getCurrentStageName(StepContext stepContext, DevOpsPipelineGraph graph) {
 			FlowNode fn = getCurrentStageFlowNode(stepContext, graph);
-			return graph.getNodeById(fn.getId()).getName();
+			return (fn == null) ? "" : graph.getNodeById(fn.getId()).getName();
 		}
 
 		public static FlowNode getParentStageFlowNode(FlowNode flowNode) {
@@ -407,13 +409,13 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 	}
 
 	private boolean shouldStopDueToLocalError(final Run<?, ?> run, BuildListener listener, Job<?, ?> job,
-	                                          DevOpsModel model){
+	                                          DevOpsModel model) {
 
 		printDebug("shouldStopDueToLocalError", null, null, Level.FINE);
 		boolean result = false;
 		if (run != null && job != null && listener != null) {
 			if (job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-				job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
+					job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
 				String jobId = model.getJobId(run, job);
 				String _result = model.removeCallbackResult(jobId);
 				// Valid result available
@@ -441,7 +443,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		boolean result = false;
 		if (run != null && job != null && listener != null) {
 			if (job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
-				job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
+					job.getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
 				String jobId = model.getJobId(run, job);
 				String _result = model.removeCallbackResult(jobId);
 				// Valid result available

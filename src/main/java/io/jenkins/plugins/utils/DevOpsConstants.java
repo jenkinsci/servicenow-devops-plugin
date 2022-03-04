@@ -48,8 +48,8 @@ public enum DevOpsConstants {
 	CONFIG_STATUS_STEP_DISPLAY_NAME,
 	CONFIG_PUBLISH_STEP_FUNCTION_NAME,
 	CONFIG_PUBLISH_STEP_DISPLAY_NAME,
-	CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME,
-	CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME,
+	CONFIG_REGISTER_PIPELINE_STEP_FUNCTION_NAME,
+	CONFIG_REGISTER_PIPELINE_STEP_DISPLAY_NAME,
 	CONFIG_VALIDATE_STEP_FUNCTION_NAME,
 	CONFIG_VALIDATE_STEP_DISPLAY_NAME,
 
@@ -201,8 +201,10 @@ public enum DevOpsConstants {
 	TEST_INFO_RESPONSE,
 
 	SERVICENOW_PIPELINE_INFO_FILE_NAME,
-	PATH_SEPARATOR,
 	JOBS_PATH,
+	JOBNAME_ATTR,
+	PATH_SEPARATOR,
+	MULTIBRANCH_PATH_SEPARATOR,
 	PIPELINE_INFO_UPDATE_IDENTIFIER,
 	PIPELINE_INFO_DELETE_IDENTIFIER;
 
@@ -254,8 +256,8 @@ public enum DevOpsConstants {
 			case CONFIG_STATUS_STEP_DISPLAY_NAME : return "ServiceNow DevOps - DevOps Configuration Status";
 			case CONFIG_PUBLISH_STEP_FUNCTION_NAME: return "snDevOpsConfigPublish";
 			case CONFIG_PUBLISH_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Publish";
-			case CONFIG_REGISTER_CHANGESET_STEP_FUNCTION_NAME: return "snDevOpsConfigRegisterChangeSet";
-			case CONFIG_REGISTER_CHANGESET_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Register Changeset";
+			case CONFIG_REGISTER_PIPELINE_STEP_FUNCTION_NAME: return "snDevOpsConfigRegisterPipeline";
+			case CONFIG_REGISTER_PIPELINE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Register Pipeline";
 			case CONFIG_VALIDATE_STEP_FUNCTION_NAME: return "snDevOpsConfigValidate";
 			case CONFIG_VALIDATE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Validate";
 
@@ -408,6 +410,8 @@ public enum DevOpsConstants {
 
 			case PATH_SEPARATOR: return "/";
 			case JOBS_PATH: return "/jobs/";
+			case MULTIBRANCH_PATH_SEPARATOR: return "/branches/";
+			case JOBNAME_ATTR: return "jobName";
 			case SERVICENOW_PIPELINE_INFO_FILE_NAME: return "snPipelineInfo.json";
 			case PIPELINE_INFO_UPDATE_IDENTIFIER: return "snupdate";
 			case PIPELINE_INFO_DELETE_IDENTIFIER: return "sndelete";
