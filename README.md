@@ -63,24 +63,19 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### System Requirements
 
-1. Jenkins 2.204.6+ instance
+1. Jenkins 2.277.1+ instance
 2. ServiceNow DevOps application installed in your ServiceNow instance
 
 
 
 ### Release Notes
-Feature Enhancements:
-
-- Support for parallel stages: ServiceNow DevOps will now track stages that run in parallel/nested in Jenkins pipelines. The parallel stages will be rendered accurately in the Pipeline User Interface, and automated Change Requests will only get created once parallel stages preceding it are complete.
-
 Defects Addressed:
 
-- Multibranch pipelines with BitBucket configuration has task execution value as empty.
-- Pipeline executions are created even though Track is NOT enabled for multibranch pipeline and nested pipeline.
-- After recreating Jenkins tool, inbound events are created even though pipelines are not discovered or tracked.
+- Artifact registration fails for free style job after upgrade to 1.32
+- [Security Bug] Third Party Library Vulnerability in Enterprise DevOps Extensions
 
 
-**NOTE**: Starting with DevOps 1.30, the minimum base version of Jenkins server must be **2.204.6** to fix the vulnerabilities
+**NOTE**: The ServiceNow DevOps plugin now requires 2.277.1 as a minimum version
 
 ## Support Model
 
