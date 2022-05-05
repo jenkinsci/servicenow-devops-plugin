@@ -46,10 +46,10 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		FilePath workspace = getContext().get(FilePath.class);
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Config Export Step Exceution starts");
+				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Config export step execution starts");
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Sending Export Request");
+				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Sending export request");
 
 		JSONObject request = null;
 		try {
@@ -62,7 +62,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 
 		String exportId = "";
 		if (null == request)
-			return handleException("Failed To Create Export Request");
+			return handleException("Failed to create export request");
 
 		if (this.step.getShowResults())
 			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
@@ -74,7 +74,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 				JSONObject error = request.getJSONObject(DevOpsConstants.COMMON_RESULT_ERROR.toString());
 				errorMessage = error.getString(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
 			} catch (JSONException j) {
-				return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 			}
 			return handleException(errorMessage);
 		}
@@ -83,11 +83,11 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 			JSONObject result = request.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
 			exportId = result.getString(DevOpsConstants.COMMON_RESPONSE_EXPORT_ID.toString());
 		} catch (JSONException j) {
-			return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Polling for Export status");
+				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Polling for export status");
 
 		JSONObject response = null;
 		JSONObject exportStatus = null;
@@ -106,7 +106,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 				response = exportStatus.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
 				state = response.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
 			} catch (JSONException j) {
-				return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 			}
 
 			if (state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_NEW.toString())
@@ -115,14 +115,14 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 					|| state.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_INITIALIZING.toString())) {
 				if (retryCount % 2 == 0) {
 					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
-							+ " - Waiting for Response - Retried  " + retryCount + " times");
+							+ " - Waiting for response - Retried  " + retryCount + " times");
 					retryFrequency *= 2;
 				}
 				try {
 					Thread.sleep(retryFrequency);
 				} catch (InterruptedException i) {
 					GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
-							+ " - Exception While Fetching Export Status");
+							+ " - Exception while fetching export status");
 					continue;
 				}
 			} else
@@ -140,7 +140,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 				return handleException(message);
 			}
 		} catch (JSONException j) {
-			return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		JSONObject output = null;
@@ -152,7 +152,7 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 				outputState = output.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
 			}
 		} catch (JSONException j) {
-			return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		if (outputState.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_FAILURE.toString())) {
@@ -160,13 +160,13 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 			try {
 				errors = output.getJSONArray(DevOpsConstants.COMMON_RESPONSE_ERRORS.toString());
 			} catch (JSONException j) {
-				return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 			}
 			return handleException("Export failed due to : " + errors);
 		}
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Fetching Exported Data");
+				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Fetching exported data");
 
 		JSONObject exportResponse = null;
 		String exportData = "";
@@ -191,11 +191,11 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 					exportData = exportData.replace("\"", "\\\"");
 			}
 		} catch (JSONException j) {
-			return handleException("Export Step Failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Writing Exported Data to File");
+				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Writing exported data to file");
 
 		String exportDataFileName = "";
 		if (GenericUtils.isEmpty(this.step.getFileName())) {

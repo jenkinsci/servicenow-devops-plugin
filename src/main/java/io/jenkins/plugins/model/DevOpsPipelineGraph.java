@@ -54,6 +54,7 @@ public class DevOpsPipelineGraph {
 
 	private final Set<DevOpsTestSummary> jobTestResults = new HashSet<DevOpsTestSummary>();
 	private final Set<DevOpsSonarQubeModel> jobSonarQubeModelResults = new HashSet<DevOpsSonarQubeModel>();
+	private final Set<DevOpsJFrogModel> jobJFrogModelResults = new HashSet<DevOpsJFrogModel>();
 
 	public DevOpsPipelineNode getNodeById(String id) {
 		return this.map.get(id);
@@ -111,6 +112,14 @@ public class DevOpsPipelineGraph {
 
 	public void addToJobSonarQubeModelResults(DevOpsSonarQubeModel sonarQubeModel) {
 		this.jobSonarQubeModelResults.add(sonarQubeModel);
+	}
+
+	public boolean isJFrogModelResultPublished(DevOpsJFrogModel jFrogModel) {
+		return this.jobJFrogModelResults.contains(jFrogModel);
+	}
+
+	public void addToJobJFrogModelResults(DevOpsJFrogModel jFrogModel) {
+		this.jobJFrogModelResults.add(jFrogModel);
 	}
 
 	private String getGraphHashKey(String nodeId) {

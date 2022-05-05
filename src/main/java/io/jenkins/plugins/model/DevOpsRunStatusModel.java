@@ -13,6 +13,7 @@ public class DevOpsRunStatusModel {
 	private DevOpsRunStatusJobModel jobModel;
 	private List<DevOpsTestSummary> testSummaries;
 	private List<DevOpsSonarQubeModel> sonarQubeAnalysisModels;
+	private List<DevOpsJFrogBuildModel> jfrogBuildModels;
 	private List<String> log;
 	private String url;
 	private int number;
@@ -25,6 +26,8 @@ public class DevOpsRunStatusModel {
 	private String pronoun;
 	private String isMultiBranch;
 	private long timestamp;
+	private long stageStartTimeStamp;
+	private long stageCompleteTimeStamp;
 
 	public DevOpsRunStatusModel() {
 		this.url = "";
@@ -184,6 +187,7 @@ public class DevOpsRunStatusModel {
 
 		this.testSummaries.add(testSummary);
 	}
+
 	public List<DevOpsSonarQubeModel> getSonarQubeAnalysisModels() {
 		return sonarQubeAnalysisModels;
 	}
@@ -191,11 +195,52 @@ public class DevOpsRunStatusModel {
 	public void setSonarQubeAnalysisModels(List<DevOpsSonarQubeModel> sonarQubeAnalysisModels) {
 		this.sonarQubeAnalysisModels = sonarQubeAnalysisModels;
 	}
+
 	public void addToSonarQubeAnalysisModels(DevOpsSonarQubeModel sonarQubeAnalysisModel) {
 		if (this.sonarQubeAnalysisModels == null)
 			this.sonarQubeAnalysisModels = new ArrayList<DevOpsSonarQubeModel>();
 
 		this.sonarQubeAnalysisModels.add(sonarQubeAnalysisModel);
+	}
+
+	public long getStageStartTimeStamp() {
+		return stageStartTimeStamp;
+	}
+
+	public void setStageStartTimeStamp(long stageStartTimeStamp) {
+		this.stageStartTimeStamp = stageStartTimeStamp;
+	}
+
+	public long getStageCompleteTimeStamp() {
+		return stageCompleteTimeStamp;
+	}
+
+	public void setStageCompleteTimeStamp(long stageCompleteTimeStamp) {
+		this.stageCompleteTimeStamp = stageCompleteTimeStamp;
+	}
+
+	public List<DevOpsJFrogBuildModel> getJfrogBuildModels() {
+		return jfrogBuildModels;
+	}
+
+	public void setJfrogBuildModels(List<DevOpsJFrogBuildModel> jfrogBuildModels) {
+		this.jfrogBuildModels = jfrogBuildModels;
+	}
+
+	public void addToJfrogBuildModels(DevOpsJFrogModel jFrogModel) {
+		if (jFrogModel != null) {
+			if (this.jfrogBuildModels == null)
+				this.jfrogBuildModels = new ArrayList<DevOpsJFrogBuildModel>();
+
+			for (DevOpsJFrogBuildModel model : this.jfrogBuildModels) {
+				if (model.getArtifactoryUrl() != null && model.getArtifactoryUrl().equals(jFrogModel.getArtifactoryUrl())) {
+					model.addBuild(jFrogModel);
+					return;
+				}
+			}
+			// Adding new jfrog entry
+			this.jfrogBuildModels.add(new DevOpsJFrogBuildModel(jFrogModel.getArtifactoryUrl(), jFrogModel));
+		}
 	}
 }
 

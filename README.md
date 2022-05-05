@@ -69,10 +69,9 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 
 ### Release Notes
-Defects Addressed:
 
-- Artifact registration fails for free style job after upgrade to 1.32
-- [Security Bug] Third Party Library Vulnerability in Enterprise DevOps Extensions
+- Enhancements to DevOps Config APIs
+- Integration with JFrog Artifactory
 
 
 **NOTE**: The ServiceNow DevOps plugin now requires 2.277.1 as a minimum version

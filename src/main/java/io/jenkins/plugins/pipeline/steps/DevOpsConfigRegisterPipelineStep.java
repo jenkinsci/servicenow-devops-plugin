@@ -27,6 +27,7 @@ public class DevOpsConfigRegisterPipelineStep extends Step implements Serializab
 
     private String changesetNumber;
     private String snapshotName;
+    private String applicationName;
     private boolean markFailed;
     private boolean showResults;
 
@@ -81,6 +82,15 @@ public class DevOpsConfigRegisterPipelineStep extends Step implements Serializab
 
     public String getSnapshotName() {
         return snapshotName;
+    }
+
+    @DataBoundSetter
+    public void setApplicationName(String applicationName) {
+        this.applicationName = applicationName;
+    }
+
+    public String getApplicationName() {
+        return applicationName;
     }
 
     @DataBoundSetter

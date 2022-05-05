@@ -1807,11 +1807,11 @@ public class DevOpsModel {
 		JSONObject response = null;
 
 		if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_COMPONENT_TYPE.toString()))
-			response = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
+			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getCDMUploadToComponentURL(), queryParams, fileContent, devopsConfig.getUser(),
 					devopsConfig.getPwd(), "text/plain");
 		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_DEPLOYABLE_TYPE.toString()))
-			response = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
+			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getCDMUploadToDeployableURL(), queryParams, fileContent, devopsConfig.getUser(),
 					devopsConfig.getPwd(), "text/plain");
 		else
@@ -1902,12 +1902,12 @@ public class DevOpsModel {
 		String query = null;
 		if (StringUtils.isEmpty(changesetNumber)) {
 			if(!isValidated)
-				query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName +"^ORDERBYDESCsys_created_on";
+				query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName +"^ORDERBYDESCsys_created_on";
 			else
-				query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName +"^ORDERBYDESClast_validated";
+				query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName +"^ORDERBYDESClast_validated";
 		}	
 		else
-			query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName + "^changeset_id.number=" + changesetNumber;
+			query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName + "^changeset_id.number=" + changesetNumber;
 			
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
@@ -1926,7 +1926,7 @@ public class DevOpsModel {
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		String deployableNamesCommaSeparated = String.join(",", deployableNames);
 
-		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^application_id.name=" + applicationName + "^changeset_id.number=" + changesetNumber;
+		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^cdm_application_id.sys_id=" + applicationName + "^changeset_id.number=" + changesetNumber;
 		queryParams.put("sysparm_query", query);
 		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
 
@@ -1997,7 +1997,7 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, String changesetNumber, String snapshotName, TaskListener listener) {
+	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, String changesetNumber, String snapshotName, String applicationName, TaskListener listener) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -2011,6 +2011,7 @@ public class DevOpsModel {
 
 		filePayloadJSON.put("changeSetId", changesetNumber);
 		filePayloadJSON.put("snapshotName", snapshotName);
+		filePayloadJSON.put("appName", applicationName);
 
 		int retryCount = 0;
 		JSONObject response = null;
@@ -2091,7 +2092,7 @@ public class DevOpsModel {
 		String query = "number=" + changesetId;
 
 		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
-		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,state,cdm_application.name");
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,state,cdm_application.node.name");
 		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), "1");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
@@ -2108,10 +2109,10 @@ public class DevOpsModel {
 
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
-		String query = "name=" +applicationName; 
+		String query = "node.name="+applicationName; 
 
 		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "name");
+		queryParams.put("sysparm_fields", "sys_id,node.name");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getValidAppURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(), 
@@ -2136,7 +2137,7 @@ public class DevOpsModel {
 			if(format.equalsIgnoreCase("xml")) {
 				query = baseQuery+"^policy.name="+policy+"^type=failure";
 				queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
-				queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "impacted_node.name,node_path");
+				queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "description,impacted_node.name,node_path");
 			}
 			else {
 				query = baseQuery+"^policy.name="+policy;

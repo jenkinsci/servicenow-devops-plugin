@@ -50,7 +50,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 		super(context);
 		this.step = step;
 	}
-
+//Jenkins step for uploading configuration data
 	@Override
 	protected String run() throws Exception {
 
@@ -59,7 +59,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 		DevOpsModel model = new DevOpsModel();
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Config Upload Step Exceution starts");
+				DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Config upload step execution starts");
 
 //Checking if mandatory params are missing.
 		if (this.step.getConfigFile() == null || this.step.getConfigFile().isEmpty()) {
@@ -71,7 +71,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 		}
 
 		if (this.step.getDataFormat() == null || this.step.getDataFormat().isEmpty()) {
-			return handleException("DataFormat is empty. Upload failed");
+			return handleException("Data format is empty. Upload failed");
 		}
 
 //Fetching files from regex pattern
@@ -132,7 +132,6 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 				return handleException("Creation of changeset failed due to : " + e.getMessage() + " - Upload failed");
 			}
 
-			//change
 			if (changesetResponse == null) {
 				return handleException("Failed to create changeset. Upload failed");
 			}
@@ -162,7 +161,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 			changesetNumber = this.step.getChangesetNumber();
 
 		GenericUtils.printConsoleLog(listener,
-				DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Intiating the upload");
+				DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + " - Initiating the upload");
 
 //Reading File content.
 		boolean commitFlag = false;

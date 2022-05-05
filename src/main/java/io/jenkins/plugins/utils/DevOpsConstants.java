@@ -73,6 +73,8 @@ public enum DevOpsConstants {
 	PIPELINE_BUILD_NUMBER,
 	GET_SNAPSHOTS_STEP_FUNCTION_NAME,
 	GET_SNAPSHOTS_STEP_DISPLAY_NAME,
+	GET_PUBLISHED_BUILDS_DETAILS,
+	STARTED_TIMESTAMP,
 
 	CONFIG_APPLICATION_NAME,
 	CONFIG_CHANGESET_NUMBER,
@@ -284,6 +286,9 @@ public enum DevOpsConstants {
 
 			case GET_SNAPSHOTS_STEP_FUNCTION_NAME: return "snDevOpsConfigGetSnapshots";
 			case GET_SNAPSHOTS_STEP_DISPLAY_NAME : return "ServiceNow DevOps - Get latest and validated snapshots";
+
+			case GET_PUBLISHED_BUILDS_DETAILS : return "getPublishedBuildsDetails";
+			case STARTED_TIMESTAMP: return "startedTimeStamp";
 
 			
 			case CONFIG_CHANGESET_NUMBER: return "changesetNumber";
