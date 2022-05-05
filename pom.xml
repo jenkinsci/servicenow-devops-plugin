@@ -33,13 +33,13 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.33.3</version>
+    <version>1.34.1-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.277.1</jenkins.version>
         <java.level>8</java.level>
     </properties>
-    <name>ServiceNow DevOps Plugin</name>
+     <name>ServiceNow DevOps Plugin</name>
     <description>ServiceNow Enterprise DevOps plugin.</description>
     <licenses>
         <license>
@@ -48,7 +48,7 @@
         </license>
     </licenses>
 
-    <dependencyManagement>
+     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
@@ -123,7 +123,7 @@
 
     </dependencies>
 
-    <build>
+     <build>
         <plugins>
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>

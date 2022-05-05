@@ -34,7 +34,7 @@ public class DevOpsConfigValidateStepExecution extends SynchronousStepExecution<
 		DevOpsModel model = new DevOpsModel();
 
 		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_VALIDATE_STEP_FUNCTION_NAME.toString()
-				+ " - Config validate step exceution begins");
+				+ " - Config validate step execution starts");
 
 		// Check for Mandatory Parameters
 		if (GenericUtils.isEmpty(this.step.getApplicationName()) || GenericUtils.isEmpty(this.step.getDeployableName()))

@@ -39,12 +39,17 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 		DevOpsModel model = new DevOpsModel();
 
 		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_REGISTER_PIPELINE_STEP_FUNCTION_NAME.toString()
-				+ " - Config Register Pipeline Step exceution starts");
+				+ " - Config register pipeline step execution starts");
 		String changesetNumber = "";
 		String snapshotName = "";
+		String applicationName = "";
 
 		changesetNumber = this.step.getChangesetNumber();
 		snapshotName = this.step.getSnapshotName();
+		applicationName = this.step.getApplicationName();
+
+		if(GenericUtils.isEmpty(applicationName))
+			return handleException("Application name should be provided for registering");
 
 		if(!GenericUtils.isEmpty(changesetNumber) && !GenericUtils.isEmpty(snapshotName))
 			return handleException("Either snapshot or changeset detail should only be provided for registering");
@@ -57,7 +62,7 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 		JSONObject registerResponse = null;
 		try {
 			registerResponse = model.registerChangeset(pipelineName, toolId, buildNumber, type, changesetNumber,
-					snapshotName, listener);
+					snapshotName, applicationName, listener);
 		} catch (Exception e) {
 			return handleException("Failed to register pipeline with given changeset / snapshot : " + e.getMessage());
 		}

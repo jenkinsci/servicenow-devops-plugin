@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -59,6 +60,7 @@ import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.AggregatedTestResultAction;
 import hudson.tasks.test.PipelineBlockWithTests;
 import hudson.tasks.test.TabulatedResult;
+import io.jenkins.plugins.model.DevOpsJFrogModel;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsPipelineGraph;
 import io.jenkins.plugins.model.DevOpsPipelineNode;
@@ -184,13 +186,28 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 			if (!isStageStart) {
 
 				long stageEndtime = 0;
+				long stageStartime = 0;
 				if (fn != null && fn instanceof StepEndNode) {
 					TimingAction timingAction = ((StepEndNode) fn).getAction(TimingAction.class);
 					if (timingAction != null)
 						stageEndtime = timingAction.getStartTime();
 				} else {
-					stageEndtime = run.getTimestamp().getTimeInMillis();
+					stageEndtime = run.getTimestamp().getTimeInMillis() + run.getDuration();
 				}
+
+
+				if (fn != null && fn instanceof StepEndNode) {
+					StepStartNode stageStartNode = (StepStartNode) ((StepEndNode) fn).getStartNode();
+					TimingAction timingAction = stageStartNode.getAction(TimingAction.class);
+					if (timingAction != null)
+						stageStartime = timingAction.getStartTime();
+				} else {
+					stageStartime = run.getTimestamp().getTimeInMillis();
+				}
+
+				status.setStageCompleteTimeStamp(stageEndtime);
+				status.setStageStartTimeStamp(stageStartime);
+
 
 				String pipelineNameForPayload = jobModel.getName();
 				if (GenericUtils.isMultiBranch(job)) {
@@ -199,6 +216,22 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 				String stageName = stageModel.getName();
 
+				// START : Add Jfrog details
+				if (((DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) ||
+						DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
+						DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
+						stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()))) {
+					List<DevOpsJFrogModel> jfrogModelsList = getJfrogBuildDetails(run);
+
+					for (DevOpsJFrogModel jfrogModel : jfrogModelsList) {
+						if (!this.pipelineGraph.isJFrogModelResultPublished(jfrogModel)) {
+							status.addToJfrogBuildModels(jfrogModel);
+							this.pipelineGraph.addToJobJFrogModelResults(jfrogModel);
+						}
+					}
+				}
+
+				// END: Jfrog
 
 				// START : Add sonar details to status and pipeline graph
 				if (((DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) ||
@@ -528,7 +561,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 		if (devOpsPipelineNode != null && stageModel != null) {
 
 			stageModel.setName(devOpsPipelineNode.getName());
-			stageModel.setUrl(DevOpsPipelineGraph.getStageExecutionUrl(devOpsPipelineNode.getPipelineExecutionUrl(),devOpsPipelineNode.getId()));
+			stageModel.setUrl(DevOpsPipelineGraph.getStageExecutionUrl(devOpsPipelineNode.getPipelineExecutionUrl(), devOpsPipelineNode.getId()));
 
 			if (devOpsPipelineNode.getUpstreamTaskExecURL() != null)
 				stageModel.setUpstreamTaskExecutionURL(devOpsPipelineNode.getUpstreamTaskExecURL());
@@ -699,6 +732,70 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 			status.setCulprits(getCulprits(run));
 		}
 		return status;
+	}
+
+	public List<DevOpsJFrogModel> getJfrogBuildDetails(final Run<?, ?> run) {
+		List<DevOpsJFrogModel> finalJfrogModelList = new ArrayList<>();
+
+		try {
+			for (Action runAction : run.getAllActions()) {
+				if (runAction.getClass().getName().equalsIgnoreCase("org.jfrog.hudson.BuildInfoResultAction")) {
+
+					Method[] methods = runAction.getClass().getMethods();
+					List<Object> publishedBuildDetailsList = null;
+
+					Map<String, Method> methodMap = new HashMap<String, Method>();
+					for (Method m : methods) {
+						methodMap.put(m.getName(), m);
+					}
+
+					if (methodMap.containsKey(DevOpsConstants.GET_PUBLISHED_BUILDS_DETAILS.toString())) {
+						Method m = methodMap.get(DevOpsConstants.GET_PUBLISHED_BUILDS_DETAILS.toString());
+						publishedBuildDetailsList = (List<Object>) m.invoke(runAction);
+					}
+
+					if (CollectionUtils.isNotEmpty(publishedBuildDetailsList)) {
+
+						for (Object publishedBuildDetails : publishedBuildDetailsList) {
+							String artifactoryUrl;
+							Field artifactoryUrlPrivateField = publishedBuildDetails.getClass().getDeclaredField("artifactoryUrl");
+							artifactoryUrlPrivateField.setAccessible(true);
+							artifactoryUrl = (String) artifactoryUrlPrivateField.get(publishedBuildDetails);
+							//Removing  suffix form url https://clouldinstnace.jfrog.io/artifactory
+							artifactoryUrl = artifactoryUrl.replaceAll("/artifactory$", "");
+
+							String buildName;
+							Field buildNamePrivateField = publishedBuildDetails.getClass().getDeclaredField("buildName");
+							buildNamePrivateField.setAccessible(true);
+							buildName = (String) buildNamePrivateField.get(publishedBuildDetails);
+
+							String buildNumber;
+							Field buildNumberPrivateField = publishedBuildDetails.getClass().getDeclaredField("buildNumber");
+							buildNumberPrivateField.setAccessible(true);
+							buildNumber = (String) buildNumberPrivateField.get(publishedBuildDetails);
+
+							String startedTimeStamp = "";
+							Field[] fields = publishedBuildDetails.getClass().getDeclaredFields();
+							if (Arrays.stream(fields).anyMatch(field -> field.getName().equals(DevOpsConstants.STARTED_TIMESTAMP.toString()))) {
+								Field startedTimeStampPrivateField = publishedBuildDetails.getClass().getDeclaredField(DevOpsConstants.STARTED_TIMESTAMP.toString());
+								startedTimeStampPrivateField.setAccessible(true);
+								startedTimeStamp = (String) startedTimeStampPrivateField.get(publishedBuildDetails);
+							}
+
+							DevOpsJFrogModel jFrogModel = new DevOpsJFrogModel(buildName, buildNumber, startedTimeStamp, artifactoryUrl);
+							finalJfrogModelList.add(jFrogModel);
+						}
+					}
+				}
+			}
+		} catch (RuntimeException ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getJfrogBuildDetails()- RunTime Exception :  "
+					+ ignore.getMessage());
+		} catch (Exception ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getJfrogBuildDetails()- Exception occured :  "
+					+ ignore.getMessage());
+		}
+		return finalJfrogModelList;
 	}
 
 	public List<DevOpsSonarQubeModel> getSonarQubeAnalysis(final Run<?, ?> run, String stageName, String pipelineName,

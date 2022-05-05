@@ -36,7 +36,7 @@ public class DevOpsConfigPublishStepExecution extends SynchronousStepExecution<B
 		DevOpsModel model = new DevOpsModel();
 
 		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME.toString()
-				+ " - Config Publish Step Exceution starts");
+				+ " - Config publish step execution starts");
 
 		if (GenericUtils.isEmpty(this.step.getApplicationName()) || GenericUtils.isEmpty(this.step.getDeployableName())
 				|| GenericUtils.isEmpty(this.step.getSnapshotName()))
