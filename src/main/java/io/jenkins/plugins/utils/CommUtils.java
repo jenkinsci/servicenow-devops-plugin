@@ -11,10 +11,9 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.logging.Level;
-
-import javax.xml.bind.DatatypeConverter;
 
 import hudson.ProxyConfiguration;
 import net.sf.json.JSONObject;
@@ -151,7 +150,7 @@ public final class CommUtils {
         else
             conn = (HttpURLConnection) url.openConnection();
         byte[] message = (username+":"+password).getBytes(charSet);
-        String encoded = DatatypeConverter.printBase64Binary(message);
+        String encoded = Base64.getEncoder().encodeToString(message);
         conn.setRequestProperty("Authorization", "Basic "+encoded);
         conn.setRequestProperty("Content-Type", contentType);
         conn.setConnectTimeout(connectTimeout);
