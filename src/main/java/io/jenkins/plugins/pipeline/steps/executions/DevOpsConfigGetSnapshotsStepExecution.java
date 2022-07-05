@@ -1,9 +1,8 @@
 package io.jenkins.plugins.pipeline.steps.executions;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.net.ConnectException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -30,6 +29,7 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.remoting.VirtualChannel;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.CDMSnapshot;
 import io.jenkins.plugins.model.DevOpsModel;
@@ -53,7 +53,6 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import java.io.File;
-import java.io.FileOutputStream;
 
 public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecution<String> {
 
@@ -94,7 +93,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 					throw new AbortException("Failed to find application with given name");
 				}
 				String appSysId = appResult.getJSONObject(0).getString("sys_id");
-				if(appSysId == null) {
+				if (appSysId == null) {
 					GenericUtils.printConsoleLog(listener,
 							"snDevOpsConfigGetSnapshots - Failed to find application with given name");
 					throw new AbortException("Failed to find application with given name");
@@ -371,11 +370,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 				filePath.append(path);
 				filePath.append(File.separator);
 				filePath.append(fileName);
-
-				FileOutputStream file = new FileOutputStream(filePath.toString());
-				OutputStreamWriter out = new OutputStreamWriter(file, StandardCharsets.UTF_8);
-				out.write("");
-				out.close();
+				writeToFile(workspace, "", filePath.toString());
 			} else {
 				fileName = fName + ".xml";
 
@@ -403,8 +398,11 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 				transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 				transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
 				DOMSource source = new DOMSource(documentElement);
-				StreamResult result = new StreamResult(new File(filePath.toString()));
+				StringWriter stringWriter = new StringWriter();
+				StreamResult result = new StreamResult(stringWriter);
 				transformer.transform(source, result);
+				writeToFile(workspace, stringWriter.toString(), filePath.toString());
+
 			}
 		}
 	}
@@ -539,8 +537,12 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
 			DOMSource source = new DOMSource(document);
-			StreamResult result = new StreamResult(new File(filePath.toString()));
+			StringWriter stringWriter = new StringWriter();
+			StreamResult result = new StreamResult(stringWriter);
 			transformer.transform(source, result);
+			String outputData = stringWriter.toString();
+			writeToFile(workspace, outputData, filePath.toString());
+
 		} else {
 			fileName = fName + ".json";
 
@@ -585,15 +587,26 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 				modifiedList.add(newObj);
 
 			}
-			FileOutputStream file = new FileOutputStream(filePath.toString());
-			OutputStreamWriter out = new OutputStreamWriter(file, StandardCharsets.UTF_8);
 			JSONObject jsonResult = new JSONObject();
 			jsonResult.put("Application", applicationName);
 			jsonResult.put("Snapshot", snapshotName);
 			jsonResult.put("ValidationResults", modifiedList);
-			out.write(jsonResult.toString());
-			out.close();
+			writeToFile(workspace, jsonResult.toString(), filePath.toString());
 		}
+	}
+
+	private void writeToFile(FilePath workspace, String fileContent, String filePath)
+			throws IOException, InterruptedException {
+
+		VirtualChannel channel = workspace.getChannel();
+		FilePath outputFilePath = null;
+		if (workspace.isRemote()) {
+			outputFilePath = new FilePath(channel, filePath);
+		} else {
+			outputFilePath = new FilePath(new File(filePath));
+		}
+		outputFilePath.write(fileContent, null);
+
 	}
 
 	public List<CDMSnapshot> processSnapshotsByPollingCreationAndValidationStatus(String appSysId,

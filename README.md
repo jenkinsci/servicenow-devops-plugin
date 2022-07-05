@@ -70,8 +70,7 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### Release Notes
 
-- Enhancements to DevOps Config APIs
-- Integration with JFrog Artifactory
+- This hotfix release resolves the DevOps Change which gets stuck in "Implement" state and doesnt resume the pipeline.
 
 
 **NOTE**: The ServiceNow DevOps plugin now requires 2.277.1 as a minimum version
