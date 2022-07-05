@@ -18,11 +18,6 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
-
 import io.jenkins.plugins.utils.DevOpsConstants;
 
 public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Boolean> {
@@ -130,8 +125,8 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		}
 
 		if (this.step.getShowResults())
-				GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
-						+ " - Response from export status api : " + exportStatus);
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString()
+					+ " - Response from export status api : " + exportStatus);
 
 		String message = "";
 		try {
@@ -147,22 +142,26 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		String outputState = "";
 
 		try {
-			if(response != null){
+			if (response != null) {
 				output = response.getJSONObject(DevOpsConstants.COMMON_RESPONSE_EXPORTER_RESULT.toString());
 				outputState = output.getString(DevOpsConstants.COMMON_RESPONSE_STATE.toString());
 			}
 		} catch (JSONException j) {
 			return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
-
-		if (outputState.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_FAILURE.toString())) {
-			JSONArray errors = null;
-			try {
-				errors = output.getJSONArray(DevOpsConstants.COMMON_RESPONSE_ERRORS.toString());
-			} catch (JSONException j) {
-				return handleException("Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+		// Here output cannot be null as for success cases we have exported data and for
+		// failure cases we have failure reason within output key
+		if (output != null) {
+			if (outputState.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_FAILURE.toString())) {
+				JSONArray errors = null;
+				try {
+					errors = output.getJSONArray(DevOpsConstants.COMMON_RESPONSE_ERRORS.toString());
+				} catch (JSONException j) {
+					return handleException(
+							"Export step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				}
+				return handleException("Export failed due to : " + errors);
 			}
-			return handleException("Export failed due to : " + errors);
 		}
 
 		GenericUtils.printConsoleLog(listener,
@@ -215,15 +214,9 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 		} else
 			exportDataFileName = this.step.getFileName();
 
-		String path = workspace.getRemote();
-		String filePath = null;
-
-		filePath = path + File.separator + exportDataFileName;
-
-		try (FileOutputStream file = new FileOutputStream(filePath)) {
-			OutputStreamWriter out = new OutputStreamWriter(file, StandardCharsets.UTF_8);
-			out.write(exportData);
-			out.close();
+		FilePath filePath = new FilePath(workspace,exportDataFileName);
+		try {
+			filePath.write(exportData, "utf-8");
 		} catch (Exception e) {
 			return handleException(" Exception while writing file : " + e.getMessage());
 		}
