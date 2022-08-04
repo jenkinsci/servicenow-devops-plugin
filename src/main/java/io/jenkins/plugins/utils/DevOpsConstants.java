@@ -88,6 +88,7 @@ public enum DevOpsConstants {
 	CONFIG_DEPLOYABLE_TYPE,
 	CONFIG_UPLOAD_ID,
 	CONFIG_BUILD_NUMBER,
+	CONFIG_APP_NAME,
 
 
 
@@ -301,6 +302,7 @@ public enum DevOpsConstants {
 			case CONFIG_DEPLOYABLE_TYPE: return "deployable";
 			case CONFIG_UPLOAD_ID: return "upload_id";
 			case CONFIG_BUILD_NUMBER: return "buildNumber";
+			case CONFIG_APP_NAME: return "applicationName";
 
 			case MAP_FUNCTION_NAME: return "snDevOpsStep";
 			case MAP_DISPLAY_NAME: return "ServiceNow DevOps - Mapping step";

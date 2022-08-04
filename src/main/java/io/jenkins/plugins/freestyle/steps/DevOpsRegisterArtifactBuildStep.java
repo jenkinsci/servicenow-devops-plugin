@@ -54,7 +54,7 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 		this.artifactsPayload = artifactsPayload;
 	}
 
-	public void perform(StepContext stepContext, Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener, EnvVars envVars)
+	public void perform(StepContext stepContext, Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener, EnvVars envVars, Boolean ignoreErrors)
 			throws InterruptedException, IOException {
 
 		if (null == envVars)
@@ -82,7 +82,15 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 			printDebug("perform", new String[]{"message"}, new String[]{errorMsg},
 					Level.WARNING);
 			GenericUtils.printConsoleLog(listener, errorMsg);
-			if (jobProperties != null && jobProperties.isIgnoreSNErrors()) {
+			boolean ignoreArtifactoryRegistrationErrors = false;
+			if (ignoreErrors != null) {
+				// for scripted pipelines ignoreErrors is read as arguments.
+				ignoreArtifactoryRegistrationErrors = ignoreErrors;
+			} else if (jobProperties != null) {
+				// for freestyle jobs IgnoreSNErrors is read from job-properties.
+				ignoreArtifactoryRegistrationErrors = jobProperties.isIgnoreSNErrors();
+			}
+			if (ignoreArtifactoryRegistrationErrors) {
 				GenericUtils.printConsoleLog(listener, "IGNORED: Artifact registration error ignored.");
 			} else { // TODO: Should we really abort here?
 				throw new AbortException(errorMsg);
@@ -94,7 +102,7 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 	public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
 			throws InterruptedException, IOException {
 
-		perform(null, run, workspace, launcher, listener, null);
+		perform(null, run, workspace, launcher, listener, null, null);
 	}
 
 	@Override
@@ -104,7 +112,6 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 
 
 	@Extension
-	@Symbol("snDevOpsArtifact")
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
 		public DescriptorImpl() {

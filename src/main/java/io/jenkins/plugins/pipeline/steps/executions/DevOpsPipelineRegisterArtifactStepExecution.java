@@ -36,11 +36,11 @@ public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStep
 		Launcher launcher = getContext().get(Launcher.class);
 		EnvVars envVars = getContext().get(EnvVars.class);
 		DevOpsModel model = new DevOpsModel();
-		if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
+		if (model.checkIsTrackingCache(run.getParent(), run.getId()) && step.isEnabled()) {
 			DevOpsRegisterArtifactBuildStep registerArtifactBuildStep = new DevOpsRegisterArtifactBuildStep();
 			registerArtifactBuildStep.setArtifactsPayload(this.step.getArtifactsPayload());
 
-			registerArtifactBuildStep.perform(getContext(), run, workspace, launcher, listener, envVars);
+			registerArtifactBuildStep.perform(getContext(), run, workspace, launcher, listener, envVars, step.isIgnoreErrors());
 		}
 
 		return Boolean.valueOf(true);

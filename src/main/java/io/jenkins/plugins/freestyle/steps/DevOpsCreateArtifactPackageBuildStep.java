@@ -121,7 +121,6 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 
 
 	@Extension
-	@Symbol("snDevOpsPackage")
 	public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
 		public DescriptorImpl() {
