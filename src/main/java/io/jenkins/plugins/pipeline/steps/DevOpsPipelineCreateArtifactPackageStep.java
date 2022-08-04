@@ -3,6 +3,7 @@ package io.jenkins.plugins.pipeline.steps;
 import java.io.Serializable;
 import java.util.Set;
 
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -56,7 +57,7 @@ public class DevOpsPipelineCreateArtifactPackageStep extends Step implements Ser
 	public String getArtifactsPayload() {
 		return artifactsPayload;
 	}
-	
+
 	public String getName() {
 		return name;
 	}
@@ -67,11 +68,12 @@ public class DevOpsPipelineCreateArtifactPackageStep extends Step implements Ser
 	}
 	
 	@DataBoundSetter
-	public void setPackageName(String name) {
+	public void setName(String name) {
 		this.name = name;
 	}
-	
+
 	@Extension
+	@Symbol("snDevOpsPackage")
 	public static class DescriptorImpl extends StepDescriptor {
 
 		@Override
