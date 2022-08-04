@@ -708,7 +708,8 @@ public class DevOpsModel {
 	                                    String stageName, DevOpsPipelineNode stageNode, String jenkinsUrl,
 	                                    String endpointUrl, String user, String pwd,
 	                                    String tool, JSONObject jobDetails,
-	                                    Boolean isMultiBranch, String branchName, String changeRequestDetails, PipelineChangeResponse changeResponse) {
+										Boolean isMultiBranch, String branchName, String changeRequestDetails, PipelineChangeResponse changeResponse,
+											String applicationName, String snapshotName) {
 		printDebug("sendJobAndCallbackUrl", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
@@ -748,6 +749,12 @@ public class DevOpsModel {
 			if (GenericUtils.isNotEmpty(changeRequestDetails)) {
 				JSONObject crAttrJSON = JSONObject.fromObject(changeRequestDetails);
 				data.put(DevOpsConstants.CR_ATTRS.toString(), crAttrJSON);
+			}
+
+			//Adding config parameters to request body
+			if(GenericUtils.isNotEmpty(applicationName) && GenericUtils.isNotEmpty(snapshotName)) {
+				data.put(DevOpsConstants.CONFIG_APP_NAME.toString(), applicationName);
+				data.put(DevOpsConstants.CONFIG_SNAPSHOT_NAME.toString(), snapshotName);
 			}
 
 			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(), endpointUrl, params,
@@ -887,7 +894,7 @@ public class DevOpsModel {
 					jobUrl, jobName, null, null,
 					jenkinsUrl, devopsConfig.getChangeControlUrl(), devopsConfig.getUser(),
 					devopsConfig.getPwd(), devopsConfig.getToolId(),
-					jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null);
+					jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null,null,null);
 			/* result: null (if call failed), "unknown", "true", "false" */
 			if (result != null) {
 				if (result.equalsIgnoreCase(
@@ -1059,6 +1066,9 @@ public class DevOpsModel {
 			if (GenericUtils.isNotEmpty(changeRequestDetails) && vars != null)
 				changeRequestDetails = vars.expand(changeRequestDetails);
 
+			//Fetching config parameters
+			String applicationName = stepExecution.getStep().getApplicationName();
+			String snapshotName = stepExecution.getStep().getSnapshotName();
 
 			String buildUrl = DevOpsPipelineGraph.getStageExecutionUrl(stageNode.getPipelineExecutionUrl(), stageNode.getId());
 			jobDetails.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
@@ -1074,7 +1084,7 @@ public class DevOpsModel {
 					devopsConfig.getToolId(),
 					jobDetails, GenericUtils.isMultiBranch(controlledJob),
 					vars != null ? vars.get("BRANCH_NAME") : null,
-					changeRequestDetails,  changeResponse);
+					changeRequestDetails,  changeResponse,applicationName, snapshotName);
 			// only register webhook if able to post to SN endpoint
 			if (null != result && !result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 				if (result.equalsIgnoreCase(
@@ -2150,5 +2160,19 @@ public class DevOpsModel {
 				devopsConfig.getPwd(), null);
 	
 		return response;
+	}
+
+	public JSONObject getConfigInfo(String info) {
+		JSONObject configStatus = null;
+		try {
+			JSONObject jsonObject = JSONObject.fromObject(info);
+			if (jsonObject.containsKey("configResult")) {
+				return jsonObject.getJSONObject("configResult");
+			}
+		} catch (Exception e) {
+			printDebug("getConfigInfo", new String[]{"exception"},
+					new String[]{e.getMessage()}, Level.INFO);
+		}
+		return configStatus;
 	}
 }

@@ -17,45 +17,73 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import io.jenkins.plugins.utils.GenericUtils;
 
 public class DevOpsPipelineChangeStep extends Step implements Serializable {
 	private static final long serialVersionUID = 1L;
-	private boolean m_enabled;
-	private boolean m_ignoreErrors;
-	private String m_changeRequestDetails;
+	private boolean enabled;
+	private boolean ignoreErrors;
+	private String changeRequestDetails;
+	private String applicationName;
+	private String snapshotName;
 	
 	@DataBoundConstructor
     public DevOpsPipelineChangeStep() {
-		m_enabled = true;
-		m_ignoreErrors = false;
-		m_changeRequestDetails = null;
+		enabled = true;
+		ignoreErrors = false;
+		changeRequestDetails = null;
     }
 
 	public boolean isEnabled() {
-		return m_enabled;
+		return enabled;
 	}
 
 	@DataBoundSetter
 	public void setEnabled(boolean enabled) {
-		this.m_enabled = enabled;
+		this.enabled = enabled;
 	}
 
 	public boolean isIgnoreErrors() {
-		return m_ignoreErrors;
+		return ignoreErrors;
 	}
 
 	@DataBoundSetter
 	public void setIgnoreErrors(boolean ignore) {
-		this.m_ignoreErrors = ignore;
+		this.ignoreErrors = ignore;
 	}
 
 	public String getChangeRequestDetails() {
-		return m_changeRequestDetails;
+		return changeRequestDetails;
 	}
 
 	@DataBoundSetter
 	public void setChangeRequestDetails(String changeRequestDetails) {
-		this.m_changeRequestDetails = changeRequestDetails;
+		if(!GenericUtils.isEmpty(changeRequestDetails))
+			this.changeRequestDetails = changeRequestDetails;
+	}
+
+	public String getApplicationName() {
+		return applicationName;
+	}
+
+	@DataBoundSetter
+	public void setApplicationName(String applicationName) {
+		if(applicationName == null || applicationName.isEmpty())
+			this.applicationName = null;
+		else
+			this.applicationName = applicationName;
+	}
+
+	public String getSnapshotName() {
+		return snapshotName;
+	}
+
+	@DataBoundSetter
+	public void setSnapshotName(String snapshotName) {
+		if(snapshotName == null || snapshotName.isEmpty())
+			this.snapshotName = null;
+		else
+			this.snapshotName = snapshotName;
 	}
 	
 	@Override

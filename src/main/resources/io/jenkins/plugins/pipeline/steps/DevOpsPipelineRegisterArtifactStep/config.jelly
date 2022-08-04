@@ -1,7 +1,15 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
 		 xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-		 
-	<j:include file="../../freestyle/steps/DevOpsRegisterArtifactBuildStep/config.jelly"/>	
-
+	<f:section>
+			<f:entry title="Artifact Payload" field="artifactsPayload">
+				<f:textarea placeholder="Input your artifact payload as an array" default='{"artifacts":[{"name": "sa-web.jar", "version": "1.9", "repositoryName": "services-1031"}, {"name": "sa-db.jar", "version": "1.3.2", "repositoryName": "services-1032"}], "branchName": "master"}'/>
+			</f:entry>
+			<f:entry title="Enabled" field="enabled">
+                <f:checkbox placeholder="Ignore Errors"  default="true"/>
+            </f:entry>
+			<f:entry title="Ignore Errors" field="ignoreErrors" >
+                <f:checkbox placeholder="Ignore Errors"  default="false"/>
+            </f:entry>
+	</f:section>
 </j:jelly>

@@ -39,7 +39,7 @@ import net.sf.json.JSONObject;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import io.jenkins.plugins.utils.DevOpsConstants;
-
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.DocumentBuilder;
@@ -394,6 +394,9 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 				testSuiteRootElement.setAttributeNode(nameElement);
 
 				TransformerFactory transformerFactory = TransformerFactory.newInstance();
+				transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+				transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+				transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
 				Transformer transformer = transformerFactory.newTransformer();
 				transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 				transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
@@ -533,6 +536,9 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 				}
 			}
 			TransformerFactory transformerFactory = TransformerFactory.newInstance();
+			transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+			transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+			transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
 			Transformer transformer = transformerFactory.newTransformer();
 			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");

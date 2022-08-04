@@ -70,7 +70,9 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### Release Notes
 
-- This hotfix release resolves the DevOps Change which gets stuck in "Implement" state and doesnt resume the pipeline.
+#### Jenkins snippet generator
+
+- Jenkins plugin for ServiceNow DevOps supports the generation of DevOps scripted pipeline steps. This helps developers to adopt ServiceNow DevOps features quickly and modify the pipelines easily.
 
 
 **NOTE**: The ServiceNow DevOps plugin now requires 2.277.1 as a minimum version

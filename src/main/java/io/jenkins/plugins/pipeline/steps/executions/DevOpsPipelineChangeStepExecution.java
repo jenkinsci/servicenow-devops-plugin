@@ -77,6 +77,21 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			getContext().onSuccess("[ServiceNow DevOps] Change control for step is disabled");
 			return true;
 		}
+		
+		//Validating config parameters
+		if((this.step.getApplicationName() != null && this.step.getSnapshotName() == null) || 
+				(this.step.getApplicationName() == null && this.step.getSnapshotName() != null)) {
+					if (this.step.isIgnoreErrors() || jobProperties.isIgnoreSNErrors()) {
+						listener.getLogger()
+								.println("[ServiceNow DevOps] You must provide both application name and snapshot name.");
+						getContext().onSuccess("[ServiceNow DevOps] You must provide both application name and snapshot name.");
+						return true;
+					}
+					else {
+							getContext().onFailure(new AbortException("Both application name and snapshot name should be provided"));
+							return true;
+					}
+		}
 
 		if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
 
@@ -109,8 +124,14 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 
 			if (changeResponse.getAction() == DevOpsModel.PipelineChangeAction.ABORT) {
 				if (jobProperties.isIgnoreSNErrors() || this.step.isIgnoreErrors()) {
-					listener.getLogger().println("[ServiceNow DevOps] Error registering the job. Ignoring " + "error");
-					getContext().onSuccess("[ServiceNow DevOps] Error registering the job. Ignoring " + "error");
+					if(this.step.getApplicationName() != null || this.step.getSnapshotName() != null) {
+						listener.getLogger().println("[ServiceNow DevOps] "+changeResponse.getErrorMessage());
+						getContext().onSuccess("[ServiceNow DevOps] "+changeResponse.getErrorMessage());
+					}
+					else {
+						listener.getLogger().println("[ServiceNow DevOps] Error registering the job. Ignoring " + "error");
+						getContext().onSuccess("[ServiceNow DevOps] Error registering the job. Ignoring " + "error");
+					}
 				} else {
 					evaluateResultForPipeline(null, model.getAbortResult(), pipelineInfo,
 							changeResponse.getErrorMessage());
@@ -405,9 +426,19 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			}
 
 			String changeRequestId = model.getChangeRequestInfo(info);
+	
+			//Getting config information
+			JSONObject configStatus = model.getConfigInfo(info);
+			String message = "";
+			if(configStatus != null)
+				message = configStatus.getString("message");
 			printDebug("displayPipelineChangeRequestInfo", new String[]{"changeRequestId"}, new String[]{changeRequestId}, Level.FINE);
-			if (!GenericUtils.isEmpty(changeRequestId))
-				listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+			if (!GenericUtils.isEmpty(changeRequestId)) {
+				if(GenericUtils.isEmpty(message))
+					listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+				else 
+					listener.getLogger().println("[ServiceNow DevOps] "+message);		
+			}	
 		}
 	}
 

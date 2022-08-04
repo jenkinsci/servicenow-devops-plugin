@@ -6,6 +6,7 @@ package io.jenkins.plugins.pipeline.steps;
 import java.io.Serializable;
 import java.util.Set;
 
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -40,13 +41,13 @@ public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializ
 
 	private static final long serialVersionUID = 1L;
 	private boolean m_enabled;
-	private boolean m_ignoreErrors;
+	private boolean ignoreErrors;
 	private String artifactsPayload;
 	
 	@DataBoundConstructor
 	public DevOpsPipelineRegisterArtifactStep(String artifactsPayload) {
 		m_enabled = true;
-		m_ignoreErrors = false;
+		this.ignoreErrors = false;
 		this.artifactsPayload = artifactsPayload;
 	}
 
@@ -65,12 +66,12 @@ public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializ
 	}
 
 	public boolean isIgnoreErrors() {
-		return m_ignoreErrors;
+		return ignoreErrors;
 	}
 
 	@DataBoundSetter
 	public void setIgnoreErrors(boolean ignore) {
-		this.m_ignoreErrors = ignore;
+		this.ignoreErrors = ignore;
 	}
 	
 	@DataBoundSetter
@@ -88,6 +89,7 @@ public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializ
 	}
 
 	@Extension
+	@Symbol("snDevOpsArtifact")
 	public static class DescriptorImpl extends StepDescriptor {
 
 		@Override
