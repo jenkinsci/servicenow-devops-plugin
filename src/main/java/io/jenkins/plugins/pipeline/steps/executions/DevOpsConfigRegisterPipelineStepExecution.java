@@ -8,6 +8,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 
 import hudson.model.Run;
+import hudson.model.Job;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.config.DevOpsJobProperty;
@@ -34,9 +35,11 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 	protected Boolean run() throws Exception {
 
 		TaskListener listener = getContext().get(TaskListener.class);
+		Run<?, ?> run = getContext().get(Run.class);
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		EnvVars envVars = getContext().get(EnvVars.class);
 		DevOpsModel model = new DevOpsModel();
+		Job<?, ?> job = run.getParent();
 
 		GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_REGISTER_PIPELINE_STEP_FUNCTION_NAME.toString()
 				+ " - Config register pipeline step execution starts");
@@ -44,6 +47,7 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 		String snapshotName = "";
 		String applicationName = "";
 
+		boolean isMultiBranch = GenericUtils.isMultiBranch(job);
 		changesetNumber = this.step.getChangesetNumber();
 		snapshotName = this.step.getSnapshotName();
 		applicationName = this.step.getApplicationName();
@@ -61,7 +65,7 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 
 		JSONObject registerResponse = null;
 		try {
-			registerResponse = model.registerChangeset(pipelineName, toolId, buildNumber, type, changesetNumber,
+			registerResponse = model.registerChangeset(pipelineName, toolId, buildNumber, type, isMultiBranch, changesetNumber,
 					snapshotName, applicationName, listener);
 		} catch (Exception e) {
 			return handleException("Failed to register pipeline with given changeset / snapshot : " + e.getMessage());
