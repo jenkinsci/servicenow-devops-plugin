@@ -2007,7 +2007,7 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, String changesetNumber, String snapshotName, String applicationName, TaskListener listener) {
+	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, boolean isMultiBranch, String changesetNumber, String snapshotName, String applicationName, TaskListener listener) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -2018,10 +2018,11 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
 		queryParams.put(DevOpsConstants.CONFIG_BUILD_NUMBER.toString(), buildNumber);
 		queryParams.put("type", type);
+		queryParams.put(DevOpsConstants.IS_MULTI_BRANCH_ATTR.toString(),isMultiBranch);
 
 		filePayloadJSON.put("changeSetId", changesetNumber);
-		filePayloadJSON.put("snapshotName", snapshotName);
-		filePayloadJSON.put("appName", applicationName);
+		filePayloadJSON.put(DevOpsConstants.CONFIG_SNAPSHOT_NAME.toString(), snapshotName);
+		filePayloadJSON.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
 
 		int retryCount = 0;
 		JSONObject response = null;

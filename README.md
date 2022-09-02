@@ -70,9 +70,9 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### Release Notes
 
-#### Jenkins snippet generator
+#### Multi-branch pipeline support
 
-- Jenkins plugin for ServiceNow DevOps supports the generation of DevOps scripted pipeline steps. This helps developers to adopt ServiceNow DevOps features quickly and modify the pipelines easily.
+- Multi-branch pipeline support when registering a changeset or snapshot to a pipeline execution (requires DevOps Config).
 
 
 **NOTE**: The ServiceNow DevOps plugin now requires 2.277.1 as a minimum version
