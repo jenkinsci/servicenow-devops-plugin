@@ -8,9 +8,11 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.freestyle.steps.DevOpsCreateArtifactPackageBuildStep;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineCreateArtifactPackageStep;
+import io.jenkins.plugins.utils.DevOpsConstants;
 
 /**
  * 
@@ -36,7 +38,11 @@ public class DevOpsPipelineCreateArtifactPackageStepExecution extends Synchronou
 		Launcher launcher = getContext().get(Launcher.class);
 		EnvVars envVars = getContext().get(EnvVars.class);
 		DevOpsModel model = new DevOpsModel();
-		if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
+		String pronoun = run.getParent().getPronoun();
+		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+		if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
 			DevOpsCreateArtifactPackageBuildStep artifactPackageStep = new DevOpsCreateArtifactPackageBuildStep();
 			artifactPackageStep.setArtifactsPayload(this.step.getArtifactsPayload());
 			artifactPackageStep.setName(this.step.getName());

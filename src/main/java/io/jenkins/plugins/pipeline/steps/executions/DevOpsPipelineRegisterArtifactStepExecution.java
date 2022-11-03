@@ -8,9 +8,11 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.freestyle.steps.DevOpsRegisterArtifactBuildStep;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineRegisterArtifactStep;
+import io.jenkins.plugins.utils.DevOpsConstants;
 
 /**
  *
@@ -36,7 +38,13 @@ public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStep
 		Launcher launcher = getContext().get(Launcher.class);
 		EnvVars envVars = getContext().get(EnvVars.class);
 		DevOpsModel model = new DevOpsModel();
-		if (model.checkIsTrackingCache(run.getParent(), run.getId()) && step.isEnabled()) {
+		String pronoun = run.getParent().getPronoun();
+		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+		if (step.isEnabled() && pipelineTrack &&
+				((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) ||
+						(!isPullRequestPipeline))) {
 			DevOpsRegisterArtifactBuildStep registerArtifactBuildStep = new DevOpsRegisterArtifactBuildStep();
 			registerArtifactBuildStep.setArtifactsPayload(this.step.getArtifactsPayload());
 

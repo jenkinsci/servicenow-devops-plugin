@@ -28,6 +28,7 @@ import hudson.model.TaskListener;
 import io.jenkins.plugins.DevOpsRootAction;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineChangeStep;
+import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 
 public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl {
@@ -93,7 +94,11 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					}
 		}
 
-		if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
+		String pronoun = run.getParent().getPronoun();
+		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+		if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
 
 			// check if this step is already under change control
 			DevOpsPipelineGraph graph = run.getAction(DevOpsRunStatusAction.class).getPipelineGraph();
@@ -222,7 +227,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			params.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
 			JSONObject infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 					devopsConfig.getCallbackUrl(), params, null,
-					devopsConfig.getUser(), devopsConfig.getPwd(), null);
+					devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
 			JSONObject result = (null != infoAPIResponse && !infoAPIResponse.isNullObject()) ? infoAPIResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString()) : null;
 			if (null != result && !result.isNullObject()) {
 				String apiResult = result.getString("result");
@@ -434,8 +439,19 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				message = configStatus.getString("message");
 			printDebug("displayPipelineChangeRequestInfo", new String[]{"changeRequestId"}, new String[]{changeRequestId}, Level.FINE);
 			if (!GenericUtils.isEmpty(changeRequestId)) {
-				if(GenericUtils.isEmpty(message))
+				if(GenericUtils.isEmpty(message)) {
 					listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+					try {
+						Run<?, ?> run = getContext().get(Run.class);
+						DevOpsRunStatusAction action =
+								run.getAction(DevOpsRunStatusAction.class);
+						String currentStageName = DevOpsRunListener.DevOpsStageListener.getCurrentStageName(getContext(), action.getPipelineGraph());
+						action.changeRequestInfo.put(currentStageName, changeRequestId);
+					}catch (Exception ignore) {
+						printDebug("displayPipelineChangeRequestInfo", new String[]{"Exception"},
+							new String[]{ignore.getMessage()}, Level.SEVERE);
+					}
+				}
 				else 
 					listener.getLogger().println("[ServiceNow DevOps] "+message);		
 			}	

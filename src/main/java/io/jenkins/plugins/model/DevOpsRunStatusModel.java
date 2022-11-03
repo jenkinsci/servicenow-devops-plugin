@@ -14,6 +14,7 @@ public class DevOpsRunStatusModel {
 	private List<DevOpsTestSummary> testSummaries;
 	private List<DevOpsSonarQubeModel> sonarQubeAnalysisModels;
 	private List<DevOpsJFrogBuildModel> jfrogBuildModels;
+	private DevOpsPullRequestModel pullRequestModel;
 	private List<String> log;
 	private String url;
 	private int number;
@@ -241,6 +242,14 @@ public class DevOpsRunStatusModel {
 			// Adding new jfrog entry
 			this.jfrogBuildModels.add(new DevOpsJFrogBuildModel(jFrogModel.getArtifactoryUrl(), jFrogModel));
 		}
+	}
+
+	public DevOpsPullRequestModel getPullRequestModel() {
+		return pullRequestModel;
+	}
+
+	public void setPullRequestModel(DevOpsPullRequestModel pullRequestModel) {
+		this.pullRequestModel = pullRequestModel;
 	}
 }
 
