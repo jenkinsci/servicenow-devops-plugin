@@ -49,6 +49,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	private String user;
 	private String pwd;
 	private boolean trackCheck;
+	private boolean trackPullRequestPipelinesCheck;
 
 	public DevOpsConfiguration() {
 		load();
@@ -76,6 +77,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				this.user = null;
 				this.pwd = null;
 				this.trackCheck = snDevOpsJSON.getBoolean("trackCheck");
+				this.trackPullRequestPipelinesCheck = snDevOpsJSON.getBoolean("trackPullRequestPipelinesCheck");
 			}
 		} else {
 			this.snDevopsEnabled = false;
@@ -97,6 +99,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		this.pwd = null;
 		this.credentialsId = null;
 		this.trackCheck = false;
+		this.trackPullRequestPipelinesCheck = false;
 	}
 
 	@Nonnull
@@ -128,6 +131,10 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 
 	public boolean isTrackCheck() {
 		return trackCheck;
+	}
+
+	public boolean isTrackPullRequestPipelinesCheck() {
+		return trackPullRequestPipelinesCheck;
 	}
 
 	public String getUser() {
@@ -270,7 +277,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(), DevOpsConstants.TOOL_TYPE.toString());
 		try {
 			String result = GenericUtils.parseResponseResult(
-					CommUtils.call("GET", changeControlUrl, params, null, user, pwd, null),
+					CommUtils.call("GET", changeControlUrl, params, null, user, pwd, null, null),
 					DevOpsConstants.TEST_CONNECTION_RESPONSE_ATTR.toString());
 			if (result != null && result.equalsIgnoreCase("OK"))
 				return FormValidation.ok("Connection successful!");

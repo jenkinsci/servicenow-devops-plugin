@@ -51,10 +51,13 @@ public class DevOpsQueueTaskDispatcher<P, R> extends QueueTaskDispatcher {
 		if (item.task instanceof Job<?, ?>) {
 			Job<?, ?> job = (Job<?, ?>) item.task;
 			String pronoun = job.getPronoun();
+			if(pronoun == null)
+				return null;
 			GenericUtils.printDebug(DevOpsQueueTaskDispatcher.class.getName(), "canRun",
 					new String[]{"pronoun"}, new String[]{pronoun}, Level.FINE);
-			// Pipeline - gating done at the step execution level
-			if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+			// Pipeline - getting done at the step execution level
+			if (pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) ||
+					pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 				pronoun.equalsIgnoreCase(
 						DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString()))
 				return null;

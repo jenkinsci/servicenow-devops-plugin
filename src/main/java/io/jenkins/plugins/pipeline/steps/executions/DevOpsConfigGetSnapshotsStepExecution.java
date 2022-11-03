@@ -59,7 +59,9 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 	private static final long serialVersionUID = 1L;
 	private static final String RETRY = "retry";
 	private static final long durationBetweenRetries = 200l;
-	private static final int maxNumberOfRetries = 25;
+	private int maxNumberOfRetries = 30;
+	private int notValidatedRetryCount = 60;
+	private boolean checkForNotValidated = true;
 
 	private DevOpsConfigGetSnapshotsStep step;
 	private ObjectMapper mapper = new ObjectMapper();
@@ -639,10 +641,10 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 		// poll for validation.
 		GenericUtils.printConsoleLog(listener,
 				"snDevOpsConfigGetSnapshots - Polling for validation : " + snapshotListAfterpoll.size());
-		pollForSnapshotValidation(snapshotListAfterpoll, model);
+		pollForSnapshotValidation(appSysId, deployableNames, snapshotListAfterpoll, model);
 		// querying db again to get latest status of the snapshots.
 		List<CDMSnapshot> snapshotList = new ArrayList<>();
-		getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, changesetNumber);
+		getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, changesetNumber, false);
 		return snapshotList;
 	}
 
@@ -651,39 +653,104 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		DevOpsModel devOpsModel = new DevOpsModel();
 		List<CDMSnapshot> snapshotList = new ArrayList<>();
+		boolean isValidated = this.step.getIsValidated();
+
 		// get latest published and validated snapshot for each app, deployable
-		getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null);
+		getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null, isValidated);
 		// change
 		if (snapshotList.size() == 0) {
 			return snapshotList;
 		}
 
-		// remove already validated snapshots.
-		Stream<String> validationStates = Stream.of("in_progress", "requested");
-		List<CDMSnapshot> filteredSnapshots = snapshotList.stream()
+		if(isValidated) {
+			CDMSnapshot vSnapshot = null;
+            if(snapshotList.get(0).getValidation().equals("passed") || snapshotList.get(0).getValidation().equals("passed_with_exception")) {
+				vSnapshot = snapshotList.get(0);
+				snapshotList = new ArrayList<>();
+				snapshotList.add(vSnapshot);
+                return snapshotList;
+			}
+			else {
+				List<CDMSnapshot> latestPassed = getLatestPassedSnapshot(snapshotList, isValidated, appSysId, deployableNames, devOpsModel,listener);
+				return latestPassed;
+			}	
+		}
+		else {
+			// remove already validated snapshots.
+			Stream<String> validationStates = Stream.of("in_progress", "requested");
+			List<CDMSnapshot> filteredSnapshots = snapshotList.stream()
 				.filter(snapshot -> validationStates.anyMatch(s -> s.contains(snapshot.getValidation())))
 				.collect(Collectors.toList());
-		// if all snapshots are validated retrun the snapshot object list without
-		// polling
-		if (filteredSnapshots.size() == 0) {
-			// no polling
+			// if all snapshots are validated retrun the snapshot object list without
+			// polling
+			if (filteredSnapshots.size() == 0) {
+				// no polling
+				return snapshotList;
+			}
+
+			pollForSnapshotValidation(appSysId, deployableNames, filteredSnapshots, devOpsModel); // poll all snapshots for 7 minutes.
+			// querying db again to get latest status of the snapshots.
+			snapshotList = new ArrayList<>();
+			getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null, isValidated);
 			return snapshotList;
 		}
+	}
 
-		pollForSnapshotValidation(filteredSnapshots, devOpsModel); // poll all snapshots for 7 minutes.
-		// querying db again to get latest status of the snapshots.
-		snapshotList = new ArrayList<>();
-		getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null);
+	private List<CDMSnapshot> getLatestPassedSnapshot(List<CDMSnapshot> snapshotList, boolean isValidated, String appSysId,
+			 List<String> deployableNames, DevOpsModel model, TaskListener listener) 
+						throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
+		if(snapshotList.size() < 2) 
+			return snapshotList;
+		else {
+				GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Fetching the latest validated snapshot");	
+				CDMSnapshot vSnapshot = snapshotList.get(0);
+				snapshotList.remove(1);
+				pollForSnapshotValidation(appSysId, deployableNames, snapshotList, model);
+
+        		snapshotList = new ArrayList<>();
+				getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, null, isValidated);
+        		if(snapshotList.get(0).getValidation().equals("passed") || snapshotList.get(0).getValidation().equals("passed_with_exception")) {
+					if(snapshotList.size() == 2)
+						snapshotList.remove(1);
+            		return snapshotList;
+        		}
+       			 else if(snapshotList.get(0).getValidation().equals("in_progress") || snapshotList.get(0).getValidation().equals("requested")) {
+					if(snapshotList.get(0).getSys_id().equals(vSnapshot.getSys_id())) {
+                		snapshotList = new ArrayList<>();
+						return snapshotList;
+					}
+					else {
+						return getLatestPassedSnapshot(snapshotList, isValidated, appSysId, deployableNames, model, listener);
+					}
+				}
+			}
 		return snapshotList;
 	}
 
 	private void getSnapShotListAfterQuery(String appSysId, List<String> deployableNames,
-			DevOpsModel devOpsModel, List<CDMSnapshot> snapshotList, String changesetNumber)
+			DevOpsModel devOpsModel, List<CDMSnapshot> snapshotList, String changesetNumber, boolean isValidated)
 			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		TaskListener listener = getContext().get(TaskListener.class);
+		
+		String snapshotType = "";
+		String appName = step.getApplicationName();
+		String depName = step.getDeployableName();
+		String changNumber = step.getChangesetNumber();
+
+		if ((appName != null && !appName.isEmpty()) && (depName != null && !depName.isEmpty())
+				&& (changNumber != null && !changNumber.isEmpty())) {
+			snapshotType = "specific_snapshot";
+		} else if ((appName != null && !appName.isEmpty()) && (depName != null && !depName.isEmpty())) {
+			snapshotType = "latest_snapshot";
+		} else {
+			snapshotType = "all_snapshots";
+		}
+
+		String transactionSource = "system_information=jenkins,interface_type="+step.getIsValidated()+",interface_version="+snapshotType;
+		
 		deployableNames.forEach(deployableName -> {
 			JSONObject snapshots = devOpsModel.getSnapshotsByDeployables(appSysId, deployableName,
-					changesetNumber, this.step.getIsValidated());
+					changesetNumber, isValidated, transactionSource);
 			try {
 				checkErrorInResponse(snapshots,
 						"Unable to fetch snapshots for " + step.getApplicationName() + ":" + step.getDeployableName());
@@ -729,18 +796,27 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousStepExecut
 		pollWithCallable(listener, callable, model);
 	}
 
-	private void pollForSnapshotValidation(List<CDMSnapshot> filteredSnapshots, DevOpsModel model)
+	private void pollForSnapshotValidation(String appSysId, List<String> deployableNames, List<CDMSnapshot> filteredSnapshots, DevOpsModel model)
 			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		TaskListener listener = getContext().get(TaskListener.class);
 		Callable<String> callable = () -> {
 			String retryStatus = "success";
-			Thread.sleep(500);
 			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Waiting for validation to complete");
 			JSONObject snapShotStatus = model
-					.querySnapShotStatus(filteredSnapshots.stream().map(s -> s.getName()).collect(Collectors.toList()));
+					.querySnapShotStatus(appSysId, deployableNames,filteredSnapshots.stream().map(s -> s.getName()).collect(Collectors.toList()), notValidatedRetryCount--, checkForNotValidated);
+
 			checkErrorInResponse(snapShotStatus, "Exception occurred while polling snapshot for validation");
 			JSONArray result = snapShotStatus.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
 			List<CDMSnapshot> snapshotListAfterpoll = getSnapshotList(result);
+
+			int notValidatedSnapshotCount = 0;
+            for (CDMSnapshot cdmSnapshot : snapshotListAfterpoll) {
+                if(cdmSnapshot.getValidation().equals("not_validated"))
+                    notValidatedSnapshotCount +=1;
+            }
+            if(notValidatedSnapshotCount == 0)
+				checkForNotValidated = false;
+				
 			if (snapshotListAfterpoll.size() > 0) {
 				retryStatus = RETRY;
 			}

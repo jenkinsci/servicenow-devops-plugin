@@ -9,6 +9,7 @@ public enum DevOpsConstants {
 	FREESTYLE_PRONOUN,
 	FREESTYLE_MAVEN_PRONOUN,
 	BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN,
+	PULL_REQUEST_PRONOUN,
 
 	TOOL_TYPE,
 	TOOL_TYPE_ATTR,
@@ -21,6 +22,8 @@ public enum DevOpsConstants {
 
 	CHANGE_FUNCTION_NAME,
 	CHANGE_DISPLAY_NAME,
+	CHANGE_REQUEST_INFO_FUNCTION_NAME,
+	CHANGE_REQUEST_INFO_DISPLAY_NAME,
 
 	MAP_FUNCTION_NAME,
 	MAP_DISPLAY_NAME,
@@ -54,6 +57,7 @@ public enum DevOpsConstants {
 	CONFIG_VALIDATE_STEP_DISPLAY_NAME,
 
 	CONFIG_SNAPSHOT_SYS_ID,
+	CONFIG_ENVIRONMENT_TYPE,
 
 	TABLE_API_QUERY,
 	TABLE_API_FIELDS,
@@ -221,6 +225,7 @@ public enum DevOpsConstants {
 			case PIPELINE_PRONOUN: return "Pipeline";
 			case FREESTYLE_PRONOUN: return "Project";
 			case FREESTYLE_MAVEN_PRONOUN: return "Maven project";
+			case PULL_REQUEST_PRONOUN : return  "Pull Request";
 			case TOOL_TYPE: return "jenkins";
 			case TOOL_TYPE_ATTR: return "toolType";
 			case BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN: return "Branch";
@@ -236,6 +241,8 @@ public enum DevOpsConstants {
 
 			case CHANGE_FUNCTION_NAME: return "snDevOpsChange";
 			case CHANGE_DISPLAY_NAME: return "ServiceNow DevOps - Change Control step";
+		    case CHANGE_REQUEST_INFO_FUNCTION_NAME: return "snDevOpsGetChangeNumber";
+		    case CHANGE_REQUEST_INFO_DISPLAY_NAME: return "ServiceNow DevOps - get Change Number step";
 
 			case ARTIFACT_REGISTER_STEP_FUNCTION_NAME: return "snDevOpsArtifact";
 			case ARTIFACT_REGISTER_STEP_DISPLAY_NAME: return "ServiceNow DevOps - Register Artifact step";
@@ -265,6 +272,7 @@ public enum DevOpsConstants {
 			case CONFIG_VALIDATE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Validate";
 
 			case CONFIG_SNAPSHOT_SYS_ID: return "sys_id";
+			case CONFIG_ENVIRONMENT_TYPE: return "cdm_deployable_id.environment_type";
 
 			case TABLE_API_QUERY: return "sysparm_query";
 			case TABLE_API_FIELDS: return "sysparm_fields";

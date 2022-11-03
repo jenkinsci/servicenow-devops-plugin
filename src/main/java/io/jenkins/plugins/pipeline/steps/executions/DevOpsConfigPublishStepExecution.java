@@ -67,9 +67,12 @@ public class DevOpsConfigPublishStepExecution extends SynchronousStepExecution<B
 			return handleException("Unable to find snapshot with given inputs : Publish step failed");
 
 		String snapshotId = "";
+		String environmentType = "";
 		try {
 			JSONObject responseBody = result.getJSONObject(0);
 			snapshotId = responseBody.getString(DevOpsConstants.CONFIG_SNAPSHOT_SYS_ID.toString());
+			environmentType=responseBody.getString(DevOpsConstants.CONFIG_ENVIRONMENT_TYPE.toString());
+			
 		} catch (JSONException j) {
 			return handleException("Publish step failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 		}
@@ -78,8 +81,10 @@ public class DevOpsConfigPublishStepExecution extends SynchronousStepExecution<B
 				DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Sending snapshot for publishing");
 
 		JSONObject publishResponse = null;
+		String transactionSource = "system_information=jenkins,interface_version="+environmentType;
+		
 		try {
-			publishResponse = model.publishSnapshot(snapshotId, listener);
+			publishResponse = model.publishSnapshot(snapshotId, listener, transactionSource);
 		} catch (Exception e) {
 			return handleException("Exception occured while publish - " + e.getMessage() + " : Publish step failed");
 		}

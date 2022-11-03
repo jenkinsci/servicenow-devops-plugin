@@ -14,10 +14,12 @@ import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.DevOpsRunListener;
+import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsPipelineGraph;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineMapStep;
+import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 
 public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boolean> {
@@ -48,7 +50,11 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 			return true;
 		}
 
-		if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
+		String pronoun = run.getParent().getPronoun();
+		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+		if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
 			DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 
 			StepContext ctx = this.getContext();

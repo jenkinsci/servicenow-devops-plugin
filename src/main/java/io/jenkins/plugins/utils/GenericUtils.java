@@ -233,7 +233,8 @@ public final class GenericUtils {
 		String job_pronoun = job.getPronoun();
 
 		if (job_pronoun == null ||
-		    ! (job_pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString())
+		    ! (job_pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString())
+				    || job_pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString())
 		            || job_pronoun.equalsIgnoreCase(DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
 				    .toString())))
 			return false;

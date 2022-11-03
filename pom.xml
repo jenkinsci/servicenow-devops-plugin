@@ -33,10 +33,10 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>1.35.2</version>
+    <version>1.36</version>
     <packaging>hpi</packaging>
     <properties>
-        <jenkins.version>2.277.1</jenkins.version>
+        <jenkins.version>2.289.1</jenkins.version>
         <java.level>8</java.level>
     </properties>
      <name>ServiceNow DevOps Plugin</name>
@@ -52,8 +52,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.277.x</artifactId>
-                <version>950.v396cb834de1e</version>
+                <artifactId>bom-2.289.x</artifactId>
+                <version>890.vbc071bce1cf6</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

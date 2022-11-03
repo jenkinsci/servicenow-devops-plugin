@@ -45,12 +45,46 @@ public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Bo
 
 		GenericUtils.printConsoleLog(listener,
 				DevOpsConstants.CONFIG_EXPORT_STEP_FUNCTION_NAME.toString() + " - Sending export request");
+				
+		String snapshot = "";
+		if(GenericUtils.isNotEmpty(this.step.getSnapshotName()))
+			snapshot = this.step.getSnapshotName().trim();
+
+		JSONObject responseEnvType = null;
+		try {
+			responseEnvType = model.fetchSnapshotRecord(this.step.getApplicationName().trim(),
+					this.step.getDeployableName().trim(), snapshot);
+		} catch (Exception e) {
+			return handleException("Exception occurred while export - " + e.getMessage() + " : Export step failed");
+		}
+
+		if (responseEnvType == null)
+			return handleException("Unable to find snapshot with given inputs : Export step failed");
+
+		JSONArray resultEnvType = null;
+		try {
+			resultEnvType = responseEnvType.getJSONArray(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+		} catch (JSONException j) {
+			return handleException("Export step failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+		}
+
+		if (resultEnvType.isEmpty())
+			return handleException("Unable to find snapshot with given inputs : Export step failed");
+
+		String environmentType = "";
+		try {
+			JSONObject responseBody = resultEnvType.getJSONObject(0);
+			environmentType=responseBody.getString(DevOpsConstants.CONFIG_ENVIRONMENT_TYPE.toString());			
+		} catch (JSONException j) {
+			return handleException("Export step failed :" + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+		}
+		String transactionSource = "system_information=jenkins,interface_type="+step.getExporterName()+",interface="+step.getExporterFormat()+",interface_version="+environmentType;
 
 		JSONObject request = null;
 		try {
 			request = model.insertExportRequest(this.step.getApplicationName(), this.step.getDeployableName(),
 					this.step.getExporterName(), this.step.getExporterFormat(), this.step.getExporterArgs(),
-					this.step.getSnapshotName());
+					this.step.getSnapshotName(), transactionSource);
 		} catch (Exception e) {
 			return handleException(e.getMessage());
 		}
