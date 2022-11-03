@@ -247,12 +247,13 @@ public class DevOpsModel {
 
 	public boolean checkIsValid(Job<?, ?> job) {
 		printDebug("checkIsValid", null, null, Level.FINE);
-		if (job == null)
+		if (job == null ||  job.getPronoun() == null)
 			return false;
 		// check if the job pronoun is the one we support
 		String pronoun = job.getPronoun();
 		if (!(pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 				pronoun.equalsIgnoreCase(DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString()) ||
+				pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) ||
 				pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
 				pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())))
 			return false;
@@ -357,7 +358,7 @@ public class DevOpsModel {
 			params.put("isMultiBranch", isMultiBranch);
 			infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 					devopsConfig.getTrackingUrl(), params, null,
-					devopsConfig.getUser(), devopsConfig.getPwd(), null);
+					devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
 			if (GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) {
 				updatePipelineInfoInFile(jobName, infoAPIResponse, infoFilePath);
 			}
@@ -541,6 +542,7 @@ public class DevOpsModel {
 						java.util.UUID.randomUUID().toString();
 			else if (pronoun
 					.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+					pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) ||
 					pronoun.equalsIgnoreCase(
 							DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
 									.toString()))
@@ -655,7 +657,7 @@ public class DevOpsModel {
 			result = GenericUtils.parseResponseResult(
 					CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
 							devopsConfig.getChangeControlUrl() + "/" + token, params, data.toString(),
-							devopsConfig.getUser(), devopsConfig.getPwd(), null),
+							devopsConfig.getUser(), devopsConfig.getPwd(), null, null),
 					DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 		} catch (Exception e) {
 			printDebug("sendBuildAndToken", new String[]{"exception"},
@@ -695,7 +697,7 @@ public class DevOpsModel {
 			result = GenericUtils
 					.parseResponseResult(
 							CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeControlUrl(), params, null,
-									devopsConfig.getUser(), devopsConfig.getPwd(), null),
+									devopsConfig.getUser(), devopsConfig.getPwd(), null, null),
 							DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 		} catch (Exception e) {
 			printDebug("sendIsUnderChgControl", new String[]{"exception"},
@@ -758,7 +760,7 @@ public class DevOpsModel {
 			}
 
 			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(), endpointUrl, params,
-					data.toString(), user, pwd, null);
+					data.toString(), user, pwd, null, null);
 			result = GenericUtils
 					.parseResponseResult(response, DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 			
@@ -820,7 +822,7 @@ public class DevOpsModel {
 		try {
 			result = GenericUtils.parseResponseResult(
 					CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(), devopsConfig.getMappingUrl(), params,
-							data.toString(), devopsConfig.getUser(), devopsConfig.getPwd(), null),
+							data.toString(), devopsConfig.getUser(), devopsConfig.getPwd(), null, null),
 					DevOpsConstants.STEP_MAPPING_RESPONSE_ATTR.toString());
 		} catch (Exception e) {
 			printDebug("sendIsMappingValid", new String[]{"exception"},
@@ -1617,7 +1619,7 @@ public class DevOpsModel {
 			// make a POST call
 			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getArtifactRegistrationUrl(), queryParams, payload.toString(),
-					devopsConfig.getUser(), devopsConfig.getPwd(), null);
+					devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
 
 			if (null != response) {
 				// log the response for user
@@ -1742,7 +1744,7 @@ public class DevOpsModel {
 			// make a POST call
 			JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getArtifactCreatePackageUrl(), queryParams, payload.toString(),
-					devopsConfig.getUser(), devopsConfig.getPwd(), null);
+					devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
 			//validate response and assign it to result.
 			if (response != null) {
 				// log the response for user
@@ -1791,12 +1793,12 @@ public class DevOpsModel {
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 				devopsConfig.getCDMChangeSetCreationURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
 
-	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path, boolean autoCommit, boolean autoValidate, String fileContent, String target, String deployableName) {
+	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path, boolean autoCommit, boolean autoValidate, String fileContent, String target, String deployableName, String transactionSource) {
 		JSONObject queryParams = new JSONObject();
 
 		queryParams.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
@@ -1819,11 +1821,11 @@ public class DevOpsModel {
 		if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_COMPONENT_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getCDMUploadToComponentURL(), queryParams, fileContent, devopsConfig.getUser(),
-					devopsConfig.getPwd(), "text/plain");
+					devopsConfig.getPwd(), "text/plain", transactionSource);
 		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_DEPLOYABLE_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getCDMUploadToDeployableURL(), queryParams, fileContent, devopsConfig.getUser(),
-					devopsConfig.getPwd(), "text/plain");
+					devopsConfig.getPwd(), "text/plain", transactionSource);
 		else
 			return null;
 
@@ -1840,13 +1842,13 @@ public class DevOpsModel {
 		String deleteURL = devopsConfig.getUploadStatusURL() + uploadId;
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				deleteURL, queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 
 	}
 
-	public JSONObject insertExportRequest(String applicationName, String deployableName, String exporterName, String exporterFormat, JSONObject exporterArgs, String snapshotName) {
+	public JSONObject insertExportRequest(String applicationName, String deployableName, String exporterName, String exporterFormat, JSONObject exporterArgs, String snapshotName, String transactionSource) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -1862,7 +1864,7 @@ public class DevOpsModel {
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 				devopsConfig.getExportRequestURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, transactionSource);
 
 		return response;
 	}
@@ -1876,7 +1878,7 @@ public class DevOpsModel {
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getImpactedDeployableURL(changesetId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
@@ -1889,7 +1891,7 @@ public class DevOpsModel {
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				exportStatusURL, null, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
@@ -1902,32 +1904,40 @@ public class DevOpsModel {
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				exportDataURL, null, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 		return response;
 	}
-
-	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changesetNumber, boolean isValidated) {
+  
+	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changesetNumber, boolean isValidated, String transactionSource) {
 		JSONObject queryParams = new JSONObject();
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-		String query = null;
-		if (StringUtils.isEmpty(changesetNumber)) {
-			if(!isValidated)
-				query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName +"^ORDERBYDESCsys_created_on";
-			else
-				query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName +"^ORDERBYDESClast_validated";
-		}	
-		else
-			query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName + "^changeset_id.number=" + changesetNumber;
-			
-		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
-		queryParams.put("sysparm_limit", "1");
+    DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+    String query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName;
+		String queryLimit = "";
 
-		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+        if (StringUtils.isEmpty(changesetNumber)) {
+            if(!isValidated) {
+                query = query +"^ORDERBYDESCsys_created_on";
+                queryLimit = "1";
+            }
+            else {
+                query = query +"^validationINpassed,in_progress,passed_with_exception,requested^ORDERBYDESCsys_created_on";
+                queryLimit = "2";
+            }
+        }
+        else {
+            query = query + "^changeset_id.number=" + changesetNumber;
+            queryLimit = "1";
+		    }
+  		   
+        queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+        queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,name,description,validation,published,sys_created_on");
+        queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), queryLimit);
 
-		return response;
+        JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+                devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
+                devopsConfig.getPwd(), null, transactionSource);
+
+        return response;
 	}
 
 	public JSONObject snapShotExists(String applicationName, List<String> deployableNames, String changesetNumber) {
@@ -1937,31 +1947,36 @@ public class DevOpsModel {
 		String deployableNamesCommaSeparated = String.join(",", deployableNames);
 
 		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^cdm_application_id.sys_id=" + applicationName + "^changeset_id.number=" + changesetNumber;
-		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "sys_id,name,description,validation,published,sys_created_on");
+		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,name,description,validation,published,sys_created_on");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
 
-	public JSONObject querySnapShotStatus(List<String> snapshotNames) {
+	public JSONObject querySnapShotStatus(String appSysId, List<String> deployableNames, List<String> snapshotNames, int retryCount, boolean checkForNotValidated) throws InterruptedException {
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
 		String validationStates = "in_progress,requested";
 		String snapShotNamesCommaSeparated = String.join(",", snapshotNames);
+		String deployableNamesCommaSeparated = String.join(",", deployableNames);
 
-		String query = "nameIN" + snapShotNamesCommaSeparated + "^validationIN" + validationStates;
-
-		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "name,validation");
+		String query = "cdm_application_id.sys_id="+appSysId+"^cdm_deployable_id.nameIN"+deployableNamesCommaSeparated+"^nameIN" + snapShotNamesCommaSeparated + "^validationIN" + validationStates;
+		if(retryCount > 1 && checkForNotValidated) {
+			queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query+",not_validated");
+			Thread.sleep(500);
+		}
+		else
+			queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "name,validation");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
@@ -1976,18 +1991,20 @@ public class DevOpsModel {
 		else
 			query = query + "^name=" + snapshotName;
 
+		String fields=DevOpsConstants.CONFIG_SNAPSHOT_SYS_ID.toString()+","+DevOpsConstants.CONFIG_ENVIRONMENT_TYPE.toString();
+		
 		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
-		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), DevOpsConstants.CONFIG_SNAPSHOT_SYS_ID.toString());
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), fields);
 		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), "1");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
 
-	public JSONObject publishSnapshot(String snapshotId, TaskListener listener) {
+	public JSONObject publishSnapshot(String snapshotId, TaskListener listener, String transactionSource) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -1998,7 +2015,7 @@ public class DevOpsModel {
 		try {
 			response = CommUtils.callSafe(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getPublishSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null);
+					devopsConfig.getPwd(), null, transactionSource);
 		} catch (Exception e) {
 			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Publish Failed due to Connection Issue");
 			response.put("failureCause", "Failed due to Exception");
@@ -2033,7 +2050,7 @@ public class DevOpsModel {
 			retryCount++;
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getPipelineRegisterURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null);
+					devopsConfig.getPwd(), null, null);
 
 			if (response == null) {
 				try {
@@ -2076,7 +2093,7 @@ public class DevOpsModel {
 		return responseBody;
 	}
 
-	public JSONObject validateSnapshot(String snapshotId, TaskListener listener) {
+	public JSONObject validateSnapshot(String snapshotId, TaskListener listener, String transactionSource) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -2087,7 +2104,7 @@ public class DevOpsModel {
 		try {
 			response = CommUtils.callSafe(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getValidateSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null);
+					devopsConfig.getPwd(), null, transactionSource);
 		} catch (Exception e) {
 			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_VALIDATE_STEP_FUNCTION_NAME + " - Validation of snapshot failed " + e.getMessage());
 			response.put(DevOpsConstants.COMMON_RESULT_FAILURE.toString(), "Validate failed due to exception " + e.getMessage());
@@ -2108,7 +2125,7 @@ public class DevOpsModel {
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getChangesetURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
@@ -2122,12 +2139,12 @@ public class DevOpsModel {
 
 		String query = "node.name="+applicationName; 
 
-		queryParams.put("sysparm_query", query);
-		queryParams.put("sysparm_fields", "sys_id,node.name");
+		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,node.name");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getValidAppURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(), 
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}
@@ -2158,7 +2175,7 @@ public class DevOpsModel {
 		}
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
 				devopsConfig.getPolicyValidationURL(), queryParams, null, devopsConfig.getUser(), 
-				devopsConfig.getPwd(), null);
+				devopsConfig.getPwd(), null, null);
 	
 		return response;
 	}

@@ -33,6 +33,7 @@ import hudson.model.Run;
 import hudson.model.Run.RunnerAbortedException;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
+import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsNotificationModel;
@@ -328,7 +329,9 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 				if (notificationModel == null)
 					notificationModel = new DevOpsNotificationModel();
 				// Pipeline
-				if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+				DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+				if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) && devopsConfig.isTrackPullRequestPipelinesCheck() ) ||
+						pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 						pronoun.equalsIgnoreCase(
 								DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString()))
 					handleRunCompleted(run, vars); // not necessary in case we don't want run Start/Completed events
@@ -534,7 +537,9 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 					notificationModel = new DevOpsNotificationModel();
 					String pronoun = run.getParent().getPronoun();
 					// Pipeline
-					if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+					DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+					if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) && devopsConfig.isTrackPullRequestPipelinesCheck()) ||
+							pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 							pronoun.equalsIgnoreCase(
 									DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString())) {
 						handleRunStarted(run, vars); // not necessary in case we don't want run Start/Completed events

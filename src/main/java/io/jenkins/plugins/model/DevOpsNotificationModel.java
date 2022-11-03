@@ -68,7 +68,7 @@ public class DevOpsNotificationModel {
 				params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
 				String user = devopsConfig.getUser();
 				String pwd = devopsConfig.getPwd();
-				CommUtils.call("POST", notificationUrl, params, data, user, pwd, null);
+				CommUtils.call("POST", notificationUrl, params, data, user, pwd, null, null);
 
 		} else {
 			LOGGER.log(Level.INFO,

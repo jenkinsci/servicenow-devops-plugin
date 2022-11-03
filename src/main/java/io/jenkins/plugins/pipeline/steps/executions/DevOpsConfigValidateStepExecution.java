@@ -86,8 +86,10 @@ public class DevOpsConfigValidateStepExecution extends SynchronousStepExecution<
 				DevOpsConstants.CONFIG_VALIDATE_STEP_FUNCTION_NAME + " - Calling validate api");
 
 		JSONObject validateResponse = null;
+		String transactionSource = "system_information=jenkins,interface_type="+step.getShowResults()+",interface_version="+step.getMarkFailed();
+		
 		try {
-			validateResponse = model.validateSnapshot(snapshotId, listener);
+			validateResponse = model.validateSnapshot(snapshotId, listener, transactionSource);
 		} catch (Exception e) {
 			return handleException("Failed to validate snapshot - Exception " + e.getMessage());
 		}

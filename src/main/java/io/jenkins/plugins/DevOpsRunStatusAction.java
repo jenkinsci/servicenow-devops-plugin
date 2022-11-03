@@ -64,6 +64,7 @@ import io.jenkins.plugins.model.DevOpsJFrogModel;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsPipelineGraph;
 import io.jenkins.plugins.model.DevOpsPipelineNode;
+import io.jenkins.plugins.model.DevOpsPullRequestModel;
 import io.jenkins.plugins.model.DevOpsRunStatusJobModel;
 import io.jenkins.plugins.model.DevOpsRunStatusModel;
 import io.jenkins.plugins.model.DevOpsRunStatusSCMModel;
@@ -84,6 +85,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 	private Set<String> seenIds = new HashSet<String>();
 	private DevOpsPipelineGraph pipelineGraph = new DevOpsPipelineGraph();
 	private static final int LOG_SIZE_LIMIT = 1024 * 500;
+	public Map<String,String> changeRequestInfo = new HashMap<String,String>();
 
 
 	public void setModel(DevOpsRunStatusModel model) {
@@ -180,6 +182,64 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 					}
 				}
 			}*/
+
+			// Populating pull request details
+			if (DevOpsConstants.PULL_REQUEST_PRONOUN.toString().equals(job.getPronoun())) {
+
+				// pull request Job name is in pattern PR-<PR-NUMBER>  EX: PR-15
+				String jobName = job.getName();
+				String pullRequestNumber = jobName.replaceAll("[^0-9]", "");
+
+				try {
+					for (Action runAction : run.getAllActions()) {
+						if (runAction.getClass().getName().equalsIgnoreCase("hudson.plugins.git.util.BuildData")) {
+
+							Method[] methods = runAction.getClass().getMethods();
+							Set<String> remoteUrls = null;
+							List<String> pullRequestRepoUrls = new ArrayList<String>();
+
+
+							Map<String, Method> methodMap = new HashMap<String, Method>();
+							for (Method m : methods) {
+								methodMap.put(m.getName(), m);
+							}
+
+							if (methodMap.containsKey("getRemoteUrls")) {
+								Method m = methodMap.get("getRemoteUrls");
+								remoteUrls = (HashSet<String>) m.invoke(runAction);
+								if(remoteUrls.size() > 0) {
+									String url = (String) remoteUrls.toArray()[0];
+									String repoUrl=url.replaceAll(".git$","");
+									// replacing .git suffix in repoUrl
+									// Format-1: "http://bitbucket2.sndevops.xyz/scm/bal/test_devops"
+									// Format-2: "http://bitbucket2.sndevops.xyz/projects/bal/repos/test_devops"
+
+									String pullRequestRepoUrlFormat1 = repoUrl;
+									pullRequestRepoUrls.add(pullRequestRepoUrlFormat1);
+
+									String[] parts = repoUrl.split("/");
+									if(parts.length > 2) {
+										String projectName = parts[parts.length - 2];
+										String repoName = parts[parts.length - 1];
+										String pullRequestRepoUrlFormat2 = repoUrl.replaceAll("/scm/" + projectName + "/.*$", "/projects/" + projectName + "/repos/" + repoName);
+										if (!pullRequestRepoUrlFormat1.equalsIgnoreCase(pullRequestRepoUrlFormat2))
+											pullRequestRepoUrls.add(pullRequestRepoUrlFormat2);
+									}
+								}
+							}
+							DevOpsPullRequestModel pullRequestModel = new DevOpsPullRequestModel(pullRequestRepoUrls, pullRequestNumber);
+							status.setPullRequestModel(pullRequestModel);
+
+						}
+					}
+				} catch (RuntimeException ignore) {
+					LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.createRunStatus()- RunTime Exception :  "
+							+ ignore.getMessage());
+				} catch (Exception ignore) {
+					LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.createRunStatus()- Exception occured :  "
+							+ ignore.getMessage());
+				}
+			}
 
 
 			// populate test summary and sonar details
@@ -904,7 +964,8 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 
 			TabulatedResult testResult = (TabulatedResult) result;
 
-			if ((pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+			if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) ||
+					pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 					pronoun.equalsIgnoreCase(
 							DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
 									.toString())) && testResult.hasMultipleBlocks()) {
@@ -981,7 +1042,8 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 				if (testResult != null) {
 					status.setDuration(testResult.getDuration());
 					status.setName(testResult.getDisplayName() + " - " + testResult.getName());
-					if (pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
+					if (pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) ||
+							pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 							pronoun.equalsIgnoreCase(
 									DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN
 											.toString())) {

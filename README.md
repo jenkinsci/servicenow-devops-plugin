@@ -21,8 +21,8 @@ The following instructions demonstrate how to download and install the ServiceNo
 
 ### Prerequisities
 
-1. Jenkins 2.204.6+ instance
-2. ServiceNow DevOps 1.30 application installed in your ServiceNow instance
+1. Jenkins 2.289.1+ instance
+2. ServiceNow DevOps 1.36.0 application installed in your ServiceNow instance
 
 ### Installation/Upgrade
 
@@ -57,29 +57,42 @@ To support declarative and scripted pipelines in the 1.5 version of the plugin, 
 For complete details please see: Using a declarative or scripted pipeline in the ServiceNow DevOps documentation.
 
 
-
-
 ## Requirements
 
 ### System Requirements
 
-1. Jenkins 2.277.1+ instance
+1. Jenkins 2.289.1+ instance
 2. ServiceNow DevOps application installed in your ServiceNow instance
-
 
 
 ### Release Notes
 
 #### Multi-branch pipeline support
 
-- Multi-branch pipeline support when registering a changeset or snapshot to a pipeline execution (requires DevOps Config).
+- Pull Request (PR) pipeline executions support – GitHub/Jenkins
 
+- Track and support Pull Request pipeline executions for the Jenkins orchestration tool and PRs created in the GitHub coding tool.
 
-**NOTE**: The ServiceNow DevOps plugin now requires 2.277.1 as a minimum version
+- Integrate PR data like the following from the GitHub coding tool to the DevOps CHG created for the corresponding pipeline execution in the Jenkins orchestration tool:
+
+    - Pull Request ID
+    - Commits
+    - Origin branch
+    - Destination branch
+    - Raised by, Approver
+    - Comments
+    - PR raised time
+    - PR approved time
+    - PR merged/closed time
+    - In addition, attach the PR-related data to the DevOps CHG to review who authorized, validated, verified, and approved the PR merge process.
+
+**NOTE**: The ServiceNow DevOps plugin now requires 2.289.1 as a minimum version
+
 
 ## Support Model
 
 ServiceNow customers may request support through the [Now Support (HI) portal](https://support.servicenow.com/nav_to.do?uri=%2Fnow_support_home.do).
+
 
 ## Governance Model
 

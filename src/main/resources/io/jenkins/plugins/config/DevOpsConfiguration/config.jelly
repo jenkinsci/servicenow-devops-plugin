@@ -24,6 +24,9 @@
 			<f:entry title="Force Tracking Check" field="trackCheck">
 				<f:checkbox/>
 			</f:entry>
+			<f:entry title="Pull Request Pipeline Tracking Check" field="trackPullRequestPipelinesCheck">
+            	<f:checkbox/>
+            </f:entry>
 			<f:validateButton title="Test Connection" progress="Testing..." method="testConnection"
 							  with="instanceUrl,apiVersion,toolId,credentialsId"/>
 		</f:optionalBlock>
