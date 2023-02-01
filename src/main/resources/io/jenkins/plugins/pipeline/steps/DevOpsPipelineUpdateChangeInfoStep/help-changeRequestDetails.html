@@ -1,0 +1,30 @@
+<div>
+    Change request details to be updated must be provided as Key:Value pairs in the following format:
+    <br/>
+    Example:
+    <br/>
+<p>
+    {
+        "short_description": "Test description",
+        "priority": "1",
+        "start_date": "2021-02-05 08:00:00",
+        "end_date": "2022-04-05 08:00:00",
+        "justification": "test justification",
+        "description": "test description",
+        "cab_required": &lt;true/false&gt;,
+        "comments": "This update for work notes is from jenkins file",
+        "work_notes": "test work notes",
+        "assignment_group": "&lt;SYS_ID&gt;",
+        "state":"&lt;STATE_CODE&gt;",
+        "close_code":"&lt;successful/successful_issues/unsuccessful&gt;",
+        "reason":"&lt;As per Choice List&gt;"
+    }
+</p>
+    <p>
+    <ul>
+        <li> Key:Value pairs provided as input parameters must match with the Change_request table's field column values. </li>
+        <li> For choice type of fields, the field value must match with the appropriate choice value (Ex: close_code) </li>
+        <li> For State Transition to 'Close' of Change, 'close_code' and 'close_notes' are mandatory, and to 'Cancel' of Change, 'reason' is mandatory.</li>
+    </ul>
+    </p>
+</div>

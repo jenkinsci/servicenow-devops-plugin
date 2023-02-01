@@ -301,6 +301,14 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				: null;
 	}
 
+	private String getChangeInfoUrl(String instanceUrl, String apiVersion) {
+
+		return GenericUtils.isNotEmpty(instanceUrl)
+				? String.format("%s/api/sn_devops/%s/devops/orchestration/changeInfo",
+				getTrimmedUrl(instanceUrl), apiVersion)
+				: null;
+	}
+
 	private String getTrackingUrl(String instanceUrl, String apiVersion) {
 
 		return GenericUtils.isNotEmpty(instanceUrl)
@@ -316,6 +324,11 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	// change control url
 	public String getChangeControlUrl() {
 		return getChangeControlUrl(getInstanceUrl(), getApiVersion());
+	}
+
+	// change Info url
+	public String getChangeInfoUrl() {
+		return getChangeInfoUrl(getInstanceUrl(), getApiVersion());
 	}
 
 	public String getCallbackUrl() {
@@ -398,6 +411,12 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	public String getCDMUploadToDeployableURL() {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
 				? String.format("%s/api/sn_cdm/applications/uploads/deployables", getTrimmedUrl(getInstanceUrl()))
+				: null;
+	}
+
+	public String getCDMUploadToCollectionURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/sn_cdm/applications/uploads/collections", getTrimmedUrl(getInstanceUrl()))
 				: null;
 	}
 

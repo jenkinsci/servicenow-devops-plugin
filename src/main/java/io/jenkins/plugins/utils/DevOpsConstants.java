@@ -55,6 +55,8 @@ public enum DevOpsConstants {
 	CONFIG_REGISTER_PIPELINE_STEP_DISPLAY_NAME,
 	CONFIG_VALIDATE_STEP_FUNCTION_NAME,
 	CONFIG_VALIDATE_STEP_DISPLAY_NAME,
+	CHANGE_REQUEST_UPDATE_INFO_FUNCTION_NAME,
+	CHANGE_REQUEST_UPDATE_INFO_DISPLAY_NAME,
 
 	CONFIG_SNAPSHOT_SYS_ID,
 	CONFIG_ENVIRONMENT_TYPE,
@@ -74,6 +76,7 @@ public enum DevOpsConstants {
 	CONFIG_SNAPSHOT_NAME,
 
 	PIPELINE_JOB_NAME,
+	PIPELINE_BRANCH_NAME,
 	PIPELINE_BUILD_NUMBER,
 	GET_SNAPSHOTS_STEP_FUNCTION_NAME,
 	GET_SNAPSHOTS_STEP_DISPLAY_NAME,
@@ -87,9 +90,11 @@ public enum DevOpsConstants {
 	CONFIG_AUTO_COMMIT,
 	CONFIG_AUTO_VALIDATE,
 	CONFIG_DEPLOYABLE_NAME,
+	CONFIG_COLLECTION_NAME,
 	CONFIG_FILE_CONTENT,
 	CONFIG_COMPONENT_TYPE,
 	CONFIG_DEPLOYABLE_TYPE,
+	CONFIG_COLLECTION_TYPE,
 	CONFIG_UPLOAD_ID,
 	CONFIG_BUILD_NUMBER,
 	CONFIG_APP_NAME,
@@ -121,6 +126,7 @@ public enum DevOpsConstants {
 	COMMON_RESPONSE_COMPLETED,
 	CR_ATTRS,
 	COMMON_RESPONSE_OPEN,
+	COMMON_RESPONSE_ERROR_MESSAGE,
 
 	FAILURE_REASON_CONN_REFUSED,
 	FAILURE_REASON_CONN_REFUSED_UI,
@@ -213,7 +219,10 @@ public enum DevOpsConstants {
 	PATH_SEPARATOR,
 	MULTIBRANCH_PATH_SEPARATOR,
 	PIPELINE_INFO_UPDATE_IDENTIFIER,
-	PIPELINE_INFO_DELETE_IDENTIFIER;
+	PIPELINE_INFO_DELETE_IDENTIFIER,
+	
+	SN_DEVOPS_DISCOVER_API_BASE_URL;
+
 
 	@Override
 	public String toString() {
@@ -270,6 +279,8 @@ public enum DevOpsConstants {
 			case CONFIG_REGISTER_PIPELINE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Register Pipeline";
 			case CONFIG_VALIDATE_STEP_FUNCTION_NAME: return "snDevOpsConfigValidate";
 			case CONFIG_VALIDATE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Validate";
+			case CHANGE_REQUEST_UPDATE_INFO_FUNCTION_NAME: return "snDevOpsUpdateChangeInfo";
+			case CHANGE_REQUEST_UPDATE_INFO_DISPLAY_NAME: return "ServiceNow DevOps - Update Change Request Info";
 
 			case CONFIG_SNAPSHOT_SYS_ID: return "sys_id";
 			case CONFIG_ENVIRONMENT_TYPE: return "cdm_deployable_id.environment_type";
@@ -280,6 +291,7 @@ public enum DevOpsConstants {
 			case CONFIG_EXPORT_STEP_FUNCTION_NAME: return "snDevOpsConfigExport";
 			case CONFIG_EXPORT_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Export";
 			case CONFIG_DEPLOYABLE_NAME: return "deployableName";
+			case CONFIG_COLLECTION_NAME: return "collectionName";
 			case CONFIG_APPLICATION_NAME: return "appName";
 			case CONFIG_EXPORTER_NAME: return "exporterName";
 			case CONFIG_EXPORTER_FORMAT: return "dataFormat";
@@ -290,6 +302,7 @@ public enum DevOpsConstants {
 			case CONFIG_SNAPSHOT_NAME: return "snapshotName";
 
 			case PIPELINE_JOB_NAME: return "JOB_NAME";
+			case PIPELINE_BRANCH_NAME: return "BRANCH_NAME";
 			case PIPELINE_BUILD_NUMBER: return "BUILD_NUMBER";
 			case PIPLINE_EXECUTION_URL: return "pipelineExecutionUrl";
 
@@ -308,6 +321,7 @@ public enum DevOpsConstants {
 			case CONFIG_FILE_CONTENT: return "dataStream";
 			case CONFIG_COMPONENT_TYPE: return "component";
 			case CONFIG_DEPLOYABLE_TYPE: return "deployable";
+			case CONFIG_COLLECTION_TYPE: return "collection";
 			case CONFIG_UPLOAD_ID: return "upload_id";
 			case CONFIG_BUILD_NUMBER: return "buildNumber";
 			case CONFIG_APP_NAME: return "applicationName";
@@ -341,6 +355,7 @@ public enum DevOpsConstants {
 			case COMMON_RESPONSE_ERRORS: return "errors";
 			case COMMON_RESPONSE_OPEN: return "open";
 			case COMMON_RESPONSE_COMPLETED: return "completed";
+			case COMMON_RESPONSE_ERROR_MESSAGE: return "errorMessage";
 
 			case TOOL_ID_ATTR: return "toolId";
 			case ORCHESTRATION_TOOL_ID_ATTR: return "orchestrationToolId";
@@ -430,6 +445,8 @@ public enum DevOpsConstants {
 			case SERVICENOW_PIPELINE_INFO_FILE_NAME: return "snPipelineInfo.json";
 			case PIPELINE_INFO_UPDATE_IDENTIFIER: return "snupdate";
 			case PIPELINE_INFO_DELETE_IDENTIFIER: return "sndelete";
+
+			case SN_DEVOPS_DISCOVER_API_BASE_URL: return "sn-devops-discover-api";
 
 			default: throw new IllegalArgumentException();
 		}

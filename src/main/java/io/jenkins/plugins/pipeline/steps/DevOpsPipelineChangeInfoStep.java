@@ -16,18 +16,30 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChageInfoStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import org.kohsuke.stapler.DataBoundSetter;
 
 public class DevOpsPipelineChangeInfoStep extends Step implements Serializable {
 
+	private String changeDetails;
 
 	@DataBoundConstructor
 	public  DevOpsPipelineChangeInfoStep() {
 
 	}
 
+	public String getChangeDetails() {
+		return changeDetails;
+	}
+
+	@DataBoundSetter
+	public void setChangeDetails(String changeDetails) {
+		this.changeDetails = changeDetails;
+	}
+
+
 	@Override
 	public StepExecution start(StepContext stepContext) throws Exception {
-		return new DevOpsPipelineChageInfoStepExecution(stepContext);
+		return new DevOpsPipelineChageInfoStepExecution(stepContext,this);
 	}
 
 
