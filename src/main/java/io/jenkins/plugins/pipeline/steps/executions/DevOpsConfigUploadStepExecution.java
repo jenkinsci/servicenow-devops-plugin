@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 
 import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
+import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
 
 import hudson.FilePath;
 import hudson.model.TaskListener;
@@ -30,14 +30,14 @@ import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
 import io.jenkins.plugins.utils.DevOpsConstants;
 
-public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<String> {
+public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepExecution<String> {
 
 	private static final long serialVersionUID = 1L;
 	private static final int MAX_DEPTH_COUNT = 10;
 
 	private DevOpsConfigUploadStep step;
 
-	private int retryFrequency = 200;
+	private int retryFrequency = 220;
 	private int maxRetryCount = 20;
 
 	public DevOpsConfigUploadStepExecution(StepContext context, DevOpsConfigUploadStep step) {
@@ -172,7 +172,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 					uploadRequest = model.uploadData(this.step.getApplicationName().trim(), changesetNumber,
 							this.step.getDataFormat().toLowerCase(), modifiedNamePath, commitFlag,
 							this.step.getAutoValidate(), fileContent, this.step.getTarget(),
-							this.step.getDeployableName(), transactionSource);
+							this.step.getDeployableName(), this.step.getCollectionName(), transactionSource);
 				} catch (Exception e) {
 					return handleException("Failed to upload file due to : " + e.getMessage() + " - Upload failed");
 				}
@@ -266,7 +266,8 @@ public class DevOpsConfigUploadStepExecution extends SynchronousStepExecution<St
 					return handleException(
 							"Upload step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 				}
-
+				//resetting retryFrequency for the next file upload
+                this.retryFrequency = 220;
 			}
 			try {
 				if (responseStatus != null)

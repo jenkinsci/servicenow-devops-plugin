@@ -67,26 +67,16 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### Release Notes
 
-#### Multi-branch pipeline support
+#### Enhancement
 
-- Pull Request (PR) pipeline executions support – GitHub/Jenkins
+- Get and update DevOps Change Request details
+    - Get and update change request details associated with a Jenkins pipeline by running the snDevOpsGetChangeNumber and snDevOpsUpdateChangeInfo scripts respectively in the Jenkins pipeline.
 
-- Track and support Pull Request pipeline executions for the Jenkins orchestration tool and PRs created in the GitHub coding tool.
+#### Defects fixed
 
-- Integrate PR data like the following from the GitHub coding tool to the DevOps CHG created for the corresponding pipeline execution in the Jenkins orchestration tool:
+- Jenkins Discover fails with large number of pipelines/jobs.
 
-    - Pull Request ID
-    - Commits
-    - Origin branch
-    - Destination branch
-    - Raised by, Approver
-    - Comments
-    - PR raised time
-    - PR approved time
-    - PR merged/closed time
-    - In addition, attach the PR-related data to the DevOps CHG to review who authorized, validated, verified, and approved the PR merge process.
-
-**NOTE**: The ServiceNow DevOps plugin now requires 2.289.1 as a minimum version
+**NOTE**: The ServiceNow DevOps plugin now requires 2.289.1+ as a minimum version
 
 
 ## Support Model

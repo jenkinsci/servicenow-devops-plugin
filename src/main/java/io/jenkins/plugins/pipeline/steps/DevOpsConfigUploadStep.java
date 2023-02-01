@@ -33,6 +33,7 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
     private boolean autoCommit;
     private boolean autoValidate;
     private String deployableName;
+    private String collectionName;
     private String dataFormat;
     private boolean convertPath;
     private boolean markFailed;
@@ -90,13 +91,25 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
    @DataBoundSetter
    public void setDeployableName(String deployableName) {
         if(deployableName == null || deployableName.isEmpty())
-            this.changesetNumber = null;
+            this.deployableName = null;
         else
             this.deployableName = deployableName;
    }
 
     public String getDeployableName() {
         return deployableName;
+    }
+
+    @DataBoundSetter
+   public void setCollectionName(String collectionName) {
+        if(collectionName == null || collectionName.isEmpty())
+            this.collectionName = null;
+        else
+            this.collectionName = collectionName;
+   }
+
+    public String getCollectionName() {
+        return collectionName;
     }
 
     @DataBoundSetter
