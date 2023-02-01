@@ -59,13 +59,14 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 			return handleException("Either snapshot or changeset detail should only be provided for registering");
 
 		String pipelineName = envVars.get(DevOpsConstants.PIPELINE_JOB_NAME.toString());
+		String branchName = envVars.get(DevOpsConstants.PIPELINE_BRANCH_NAME.toString());
 		String toolId = devopsConfig.getToolId();
 		String buildNumber = envVars.get(DevOpsConstants.PIPELINE_BUILD_NUMBER.toString());
 		String type = "jenkins";
 
 		JSONObject registerResponse = null;
 		try {
-			registerResponse = model.registerChangeset(pipelineName, toolId, buildNumber, type, isMultiBranch, changesetNumber,
+			registerResponse = model.registerChangeset(pipelineName, branchName, toolId, buildNumber, type, isMultiBranch, changesetNumber,
 					snapshotName, applicationName, listener);
 		} catch (Exception e) {
 			return handleException("Failed to register pipeline with given changeset / snapshot : " + e.getMessage());

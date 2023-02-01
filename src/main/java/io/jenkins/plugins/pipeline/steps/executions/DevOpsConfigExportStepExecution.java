@@ -5,7 +5,7 @@ import hudson.EnvVars;
 import hudson.model.Result;
 
 import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
+import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
 
 import hudson.FilePath;
 import hudson.model.Run;
@@ -20,11 +20,11 @@ import net.sf.json.JSONObject;
 
 import io.jenkins.plugins.utils.DevOpsConstants;
 
-public class DevOpsConfigExportStepExecution extends SynchronousStepExecution<Boolean> {
+public class DevOpsConfigExportStepExecution extends SynchronousNonBlockingStepExecution<Boolean> {
 	private static final long serialVersionUID = 1L;
 
 	private DevOpsConfigExportStep step;
-	private int retryFrequency = 200;
+	private int retryFrequency = 220;
 	private int maxRetryCount = 20;
 
 	public DevOpsConfigExportStepExecution(StepContext context, DevOpsConfigExportStep step) {

@@ -1798,7 +1798,9 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path, boolean autoCommit, boolean autoValidate, String fileContent, String target, String deployableName, String transactionSource) {
+	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path,
+				 boolean autoCommit, boolean autoValidate, String fileContent, String target, String deployableName, 
+				 		String collectionName, String transactionSource) {
 		JSONObject queryParams = new JSONObject();
 
 		queryParams.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
@@ -1808,6 +1810,7 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.CONFIG_AUTO_COMMIT.toString(), autoCommit);
 		queryParams.put(DevOpsConstants.CONFIG_AUTO_VALIDATE.toString(), autoValidate);
 		queryParams.put(DevOpsConstants.CONFIG_DEPLOYABLE_NAME.toString(), deployableName);
+		queryParams.put(DevOpsConstants.CONFIG_COLLECTION_NAME.toString(), collectionName);
 
 
 		JSONObject filePayloadJSON = new JSONObject();
@@ -1825,6 +1828,10 @@ public class DevOpsModel {
 		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_DEPLOYABLE_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 					devopsConfig.getCDMUploadToDeployableURL(), queryParams, fileContent, devopsConfig.getUser(),
+					devopsConfig.getPwd(), "text/plain", transactionSource);
+		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_COLLECTION_TYPE.toString()))
+			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
+					devopsConfig.getCDMUploadToCollectionURL(), queryParams, fileContent, devopsConfig.getUser(),
 					devopsConfig.getPwd(), "text/plain", transactionSource);
 		else
 			return null;
@@ -2024,7 +2031,7 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject registerChangeset(String pipelineName, String toolId, String buildNumber, String type, boolean isMultiBranch, String changesetNumber, String snapshotName, String applicationName, TaskListener listener) {
+	public JSONObject registerChangeset(String pipelineName, String branchName, String toolId, String buildNumber, String type, boolean isMultiBranch, String changesetNumber, String snapshotName, String applicationName, TaskListener listener) {
 
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
@@ -2032,6 +2039,7 @@ public class DevOpsModel {
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
 		queryParams.put(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString(), pipelineName);
+		queryParams.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
 		queryParams.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
 		queryParams.put(DevOpsConstants.CONFIG_BUILD_NUMBER.toString(), buildNumber);
 		queryParams.put("type", type);

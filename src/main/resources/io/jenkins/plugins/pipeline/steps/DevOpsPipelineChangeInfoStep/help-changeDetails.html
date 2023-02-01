@@ -1,0 +1,15 @@
+<div>
+    Pipeline Name, Build Number, Stage Name are mandatory input parameters to retrieve the change request number. If these input field parameters are not provided, the change request number for the current Pipeline Name, Build Number, Stage Name will be retrieved.
+    For multi-branch pipelines, you must provide the Branch Name as an input parameter as well. (starting with version 1.37).<br/>
+    <br/>
+    Example:
+    <br/>
+<p>
+    {
+        "pipeline_name": "Test Pipeline",
+        "build_number": "1",
+        "stage_name": "ChangeStage",
+        "branch_name": "master"
+    }
+</p>
+</div>
