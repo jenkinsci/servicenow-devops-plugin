@@ -98,9 +98,12 @@ public enum DevOpsConstants {
 	CONFIG_UPLOAD_ID,
 	CONFIG_BUILD_NUMBER,
 	CONFIG_APP_NAME,
-
-
-
+	CHANGE_FOUND,
+	CHANGE_ASSIGNMENT_GROUP,
+	CHANGE_APPROVERS,
+	CHANGE_STATE_DISPLAY_VALUE,
+	CHANGE_START_DATE,
+	CHANGE_END_DATE,
 	COMMON_RESPONSE_CHANGE_CTRL,
 	COMMON_RESPONSE_VALUE_UNKNOWN,
 	COMMON_RESPONSE_VALUE_TRUE,
@@ -216,6 +219,7 @@ public enum DevOpsConstants {
 	SERVICENOW_PIPELINE_INFO_FILE_NAME,
 	JOBS_PATH,
 	JOBNAME_ATTR,
+	STAGENAME_ATTR,
 	PATH_SEPARATOR,
 	MULTIBRANCH_PATH_SEPARATOR,
 	PIPELINE_INFO_UPDATE_IDENTIFIER,
@@ -281,6 +285,13 @@ public enum DevOpsConstants {
 			case CONFIG_VALIDATE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Validate";
 			case CHANGE_REQUEST_UPDATE_INFO_FUNCTION_NAME: return "snDevOpsUpdateChangeInfo";
 			case CHANGE_REQUEST_UPDATE_INFO_DISPLAY_NAME: return "ServiceNow DevOps - Update Change Request Info";
+
+			case CHANGE_FOUND: return "changeFound";
+			case CHANGE_ASSIGNMENT_GROUP: return "changeAssignmentGroup";
+			case CHANGE_APPROVERS: return "changeApprovers";
+			case CHANGE_STATE_DISPLAY_VALUE: return "stateDisplayValue";
+			case CHANGE_START_DATE: return "plannedStartDate";
+			case CHANGE_END_DATE: return "plannedEndDate";
 
 			case CONFIG_SNAPSHOT_SYS_ID: return "sys_id";
 			case CONFIG_ENVIRONMENT_TYPE: return "cdm_deployable_id.environment_type";
@@ -442,6 +453,7 @@ public enum DevOpsConstants {
 			case JOBS_PATH: return "/jobs/";
 			case MULTIBRANCH_PATH_SEPARATOR: return "/branches/";
 			case JOBNAME_ATTR: return "jobName";
+			case STAGENAME_ATTR: return "stageName";
 			case SERVICENOW_PIPELINE_INFO_FILE_NAME: return "snPipelineInfo.json";
 			case PIPELINE_INFO_UPDATE_IDENTIFIER: return "snupdate";
 			case PIPELINE_INFO_DELETE_IDENTIFIER: return "sndelete";

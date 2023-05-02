@@ -288,5 +288,20 @@ public final class GenericUtils {
 	public static boolean isNotEmpty(final CharSequence cs) {
 		return !isEmpty(cs);
 	}
+	public static String getPropertyValueFromJsonTree (Object jsonInput, String[] str) {
+		if (jsonInput == null) return null;
+		JSONObject json = JSONObject.fromObject(jsonInput);
+		Object jsonObj = null;
+		for(String key : str){
+			if(key != null && json!= null && json.containsKey(key)){
+				jsonObj = json.get(key);
+			} else return null;
 
+			if(jsonObj != null && jsonObj instanceof JSONObject)
+				json = JSONObject.fromObject(jsonObj);
+			else json = null;
+		}
+		if(jsonObj == null) return null;
+		return jsonObj.toString();
+	}
 }

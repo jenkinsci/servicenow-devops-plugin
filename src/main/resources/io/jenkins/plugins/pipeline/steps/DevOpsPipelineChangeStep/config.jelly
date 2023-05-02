@@ -11,5 +11,20 @@
 			<f:entry title="Ignore Errors" field="ignoreErrors">
                 <f:checkbox placeholder="Ignore Errors"  default="false"/>
             </f:entry>
+            <f:entry title="Polling Interval" field="pollingInterval">
+                <f:number placeholder="Polling Interval"  default="60"/>
+            </f:entry>
+            <f:entry title="Change Creation Timeout" field="changeCreationTimeOut">
+                <f:number placeholder="Change Creation Timeout"  default="3600"/>
+            </f:entry>
+            <f:entry title="Abort on change creation failure" field="abortOnChangeCreationFailure">
+                <f:checkbox placeholder="Abort on change creation failure"  default="true"/>
+            </f:entry>
+            <f:entry title="Change Step Timeout" field="changeStepTimeOut">
+                <f:number placeholder="Change Step Timeout"  default="18000"/>
+            </f:entry>
+            <f:entry title="Abort on change step timeout" field="abortOnChangeStepTimeOut">
+                <f:checkbox placeholder="Abort on change step timeout"  default="true"/>
+            </f:entry>
 	</f:section>
 </j:jelly>
