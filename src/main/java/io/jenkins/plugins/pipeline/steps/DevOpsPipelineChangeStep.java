@@ -26,14 +26,57 @@ public class DevOpsPipelineChangeStep extends Step implements Serializable {
 	private String changeRequestDetails;
 	private String applicationName;
 	private String snapshotName;
-	
+	private int pollingInterval;
+	private int changeCreationTimeOut;
+	private boolean abortOnChangeCreationFailure;
+	private int changeStepTimeOut;
+	private boolean abortOnChangeStepTimeOut;
 	@DataBoundConstructor
-    public DevOpsPipelineChangeStep() {
+	public DevOpsPipelineChangeStep() {
 		enabled = true;
 		ignoreErrors = false;
 		changeRequestDetails = null;
-    }
-
+		abortOnChangeCreationFailure = true;
+		abortOnChangeStepTimeOut = true;
+	}
+	public int getPollingInterval() {
+		return pollingInterval;
+	}
+	@DataBoundSetter
+	public void setPollingInterval(Object pollingInterval) {
+		if(pollingInterval != null)
+			this.pollingInterval = pollingInterval.toString().matches("\\d+(\\.\\d+)?") ? (int)Float.parseFloat(pollingInterval.toString()) : 0;
+	}
+	public int getChangeCreationTimeOut() {
+		return changeCreationTimeOut;
+	}
+	@DataBoundSetter
+	public void setChangeCreationTimeOut(Object changeCreationTimeOut) {
+		if(changeCreationTimeOut != null)
+			this.changeCreationTimeOut = changeCreationTimeOut.toString().matches("\\d+(\\.\\d+)?") ? (int)Float.parseFloat(changeCreationTimeOut.toString()) : 0;
+	}
+	public boolean isAbortOnChangeCreationFailure() {
+		return abortOnChangeCreationFailure;
+	}
+	@DataBoundSetter
+	public void setAbortOnChangeCreationFailure(boolean abortOnChangeCreationFailure) {
+		this.abortOnChangeCreationFailure = abortOnChangeCreationFailure;
+	}
+	public int getChangeStepTimeOut() {
+		return changeStepTimeOut;
+	}
+	@DataBoundSetter
+	public void setChangeStepTimeOut(Object changeStepTimeOut) {
+		if(changeStepTimeOut != null)
+			this.changeStepTimeOut = changeStepTimeOut.toString().matches("\\d+(\\.\\d+)?") ? (int)Float.parseFloat(changeStepTimeOut.toString()) : 0;
+	}
+	public boolean isAbortOnChangeStepTimeOut() {
+		return abortOnChangeStepTimeOut;
+	}
+	@DataBoundSetter
+	public void setAbortOnChangeStepTimeOut(boolean abortOnChangeStepTimeOut) {
+		this.abortOnChangeStepTimeOut = abortOnChangeStepTimeOut;
+	}
 	public boolean isEnabled() {
 		return enabled;
 	}

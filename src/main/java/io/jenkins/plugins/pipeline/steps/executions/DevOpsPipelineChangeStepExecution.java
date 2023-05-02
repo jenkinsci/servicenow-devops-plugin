@@ -28,7 +28,6 @@ import hudson.model.TaskListener;
 import io.jenkins.plugins.DevOpsRootAction;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineChangeStep;
-import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 
 public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl {
@@ -38,6 +37,14 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 	private String callbackUrl;
 	private String token;
 	private DevOpsPipelineChangeStep step;
+	private transient Thread pollingThread;
+	public void stopPollingThread() {
+		if(this.pollingThread != null && this.pollingThread.isAlive())
+			this.pollingThread.interrupt();
+	}
+	public void setPollingThread(Thread pollingThread) {
+		this.pollingThread = pollingThread;
+	}
 
 	public DevOpsPipelineChangeStepExecution(StepContext context, DevOpsPipelineChangeStep step) {
 		super(context);
@@ -124,6 +131,8 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				// once callback is
 				// received on
 				// onTriggered
+				//Launching the new thread for polling and logging
+				new DevOpsChangePollingModel().launchChangePollingThread(listener, run, run.getParent(), this);
 				return false;
 			}
 
@@ -159,7 +168,6 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				evaluateResultForPipeline(null, model.getCommFailureResult(), pipelineInfo, null);
 		}
 
-		// Tracking disabled
 		getContext().onSuccess("[ServiceNow DevOps] Change control check not needed");
 		return true;
 	}
@@ -168,6 +176,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 	public void stop(Throwable cause) throws Exception {
 		DevOpsRootAction.deregisterPipelineWebhook(this);
 		getContext().onFailure(cause);
+		stopPollingThread();
 	}
 
 	@Override
@@ -240,7 +249,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					printDebug("onResume", new String[]{"message"},
 							new String[]{"Job waiting for change callback"}, Level.FINE);
 					this.log(listener, "[ServiceNow DevOps] Job waiting for change callback");
-
+					new DevOpsChangePollingModel().launchChangePollingThread(listener, run, run.getParent(), this);
 				} else {
 					Job<?, ?> job = run.getParent();
 					if (job != null) {
@@ -357,6 +366,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					}
 				}
 				if (!model.isApproved(result)) {
+					boolean isError = Boolean.parseBoolean(GenericUtils.getPropertyValueFromJsonTree(result, new String[]{"isError"}));
 					String message = "";
 					// Check if it was canceled by user
 					if (model.isCanceled(result)) {
@@ -374,20 +384,26 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 						listener.getLogger().println("[ServiceNow DevOps] " + message);
 					}
 					// Not canceled and not approved
-					else {
-						message = "Not approved";
-						String displayMessage = GenericUtils.isEmpty(errorMessage) ? "Job was not approved for execution"
-								: errorMessage;
-						printDebug("evaluateResultForPipeline", new String[]{"message"},
-								new String[]{displayMessage},
-								Level.FINE);
-						listener.getLogger().println(
-								"[ServiceNow DevOps] " + displayMessage);
-
+					else if (isError) {
 						String changeComments = model.getChangeComments(result);
-						if (!GenericUtils.isEmpty(changeComments))
-							listener.getLogger().println("[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
-					}
+						message = changeComments;
+						printDebug("evaluateResultForPipeline", new String[]{"message"},
+								new String[]{changeComments},
+								Level.FINE);
+					} else {
+							message = "Not approved";
+							String displayMessage = GenericUtils.isEmpty(errorMessage) ? "Job was not approved for execution"
+									: errorMessage;
+							printDebug("evaluateResultForPipeline", new String[]{"message"},
+									new String[]{displayMessage},
+									Level.FINE);
+							listener.getLogger().println(
+									"[ServiceNow DevOps] " + displayMessage);
+
+							String changeComments = model.getChangeComments(result);
+							if (!GenericUtils.isEmpty(changeComments))
+								listener.getLogger().println("[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
+						}
 					run.setResult(Result.FAILURE);
 					getContext().onFailure(new AbortException(message));
 
@@ -407,6 +423,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			printDebug("evaluateResultForPipeline", new String[]{"InterruptedException"},
 					new String[]{e.getMessage()}, Level.SEVERE);
 		}
+		this.stopPollingThread();
 	}
 
 	// called from DevOpsRootAction _handlePipelineCallback
@@ -440,7 +457,11 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			printDebug("displayPipelineChangeRequestInfo", new String[]{"changeRequestId"}, new String[]{changeRequestId}, Level.FINE);
 			if (!GenericUtils.isEmpty(changeRequestId)) {
 				if(GenericUtils.isEmpty(message)) {
-					listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+					String changeRequestUrl = GenericUtils.getPropertyValueFromJsonTree(info, new String[]{"changeRequestUrl"});
+					if(GenericUtils.isEmpty(changeRequestUrl))
+						listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+					else
+						listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + hudson.console.ModelHyperlinkNote.encodeTo(changeRequestUrl, changeRequestId));
 					try {
 						Run<?, ?> run = getContext().get(Run.class);
 						DevOpsRunStatusAction action =

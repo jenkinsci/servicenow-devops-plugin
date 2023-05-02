@@ -31,8 +31,15 @@ public class DevOpsPipelineNode {
 	private boolean changeCtrlInProgress;
 	private String stageExecutionStatus;
 	private long startTime;
+	private long changeStartTime;
 	private WorkspaceAction wsAction;
 
+	public long getChangeStartTime() {
+		return changeStartTime;
+	}
+	public void setChangeStartTime(long changeStartTime) {
+		this.changeStartTime = changeStartTime;
+	}
 	public long getStartTime() {
 		return startTime;
 	}
