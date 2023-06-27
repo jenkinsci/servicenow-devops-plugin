@@ -24,6 +24,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.verb.POST;
 
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
@@ -229,6 +230,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	}
 
 	// Skipping validation for Artifact tool Id as it is an optional parameter.
+	@POST
 	public FormValidation doTestConnection(@QueryParameter("instanceUrl") String instanceUrl,
 			@QueryParameter("apiVersion") String apiVersion, @QueryParameter("toolId") String toolId,
 			@QueryParameter("credentialsId") String credentialsId) throws IOException, ServletException {
@@ -236,7 +238,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		List<DomainRequirement> drl = null;
 		ItemGroup itemGroup = null;
 		Authentication authentication = null;
-
+		Jenkins.get().checkPermission(Jenkins.MANAGE);
 		if (GenericUtils.isEmpty(instanceUrl))
 			return FormValidation.error("Please provide the url!");
 
