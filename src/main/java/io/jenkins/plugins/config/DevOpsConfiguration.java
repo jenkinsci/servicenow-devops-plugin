@@ -238,7 +238,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		List<DomainRequirement> drl = null;
 		ItemGroup itemGroup = null;
 		Authentication authentication = null;
-		Jenkins.get().checkPermission(Jenkins.MANAGE);
+		Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 		if (GenericUtils.isEmpty(instanceUrl))
 			return FormValidation.error("Please provide the url!");
 
