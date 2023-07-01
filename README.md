@@ -67,10 +67,7 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### Release Notes
 
-#### Enhancement
-
-- Logging change status while pipeline is pending decision to resume execution
-    - Change information such as, Change Number, State, Assignment Group, Approvers, Planned Start/End date is displayed in the console logs of Jenkins and GitHub Actions, while the pipeline/workflow is pending for change approval. The ServiceNow DevOps application is polled at regular intervals and if there is any difference in the change information, it is logged directly in the console logs, thereby minimizing the hops to ServiceNow instance.
+- Security fixes.
 
 
 **NOTE**: The ServiceNow DevOps plugin now requires 2.289.1+ as a minimum version
