@@ -10,6 +10,10 @@ import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 import net.sf.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
 
@@ -56,8 +60,21 @@ public class DevOpsPipelineUpdateChangeInfoStepExecution extends SynchronousStep
 				changeRequestDetailsJSON = JSONObject.fromObject(this.step.getChangeRequestDetails());
 			}
 			params.put("changeRequestNumber", changeRequestNumber);
-			JSONObject responseJSON = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(), devopsConfig.getChangeInfoUrl(), params, changeRequestDetailsJSON.toString(),
-					devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+			JSONObject responseJSON=null;
+			
+			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
+				Map<String, String> tokenDetails = new HashMap<String, String>();
+				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+				tokenDetails.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
+				responseJSON = CommUtils.callV2Support(DevOpsConstants.REST_PUT_METHOD.toString(),
+						devopsConfig.getChangeInfoUrl(), params, changeRequestDetailsJSON.toString(),
+						devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails);
+			} else {
+				responseJSON = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(), devopsConfig.getChangeInfoUrl(), params, changeRequestDetailsJSON.toString(),
+						devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+			}
+			
 			String parsedResponse = GenericUtils.parseResponseResult(responseJSON, DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
 			if (parsedResponse!=null && parsedResponse.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_SUCCESS.toString())) {
 				listener.getLogger().println(currentJenkinsStepName + " Update Successful for 'Change Request Number' => " + changeRequestNumber + ", with given 'Change Request Details'");

@@ -31,6 +31,7 @@ import java.io.FileNotFoundException;
 import hudson.FilePath;
 
 import java.io.UnsupportedEncodingException;  
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -163,7 +164,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             }
             return false;
         } catch (Exception e) {
-            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateResponseInFile", new String[]{"Exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            e.printStackTrace();
 			return false;
         }
 	}
@@ -256,7 +257,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			}
 			return null;
         } catch (Exception e) {
-            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkInfoInFile", new String[]{"Exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            e.printStackTrace();
 			return null;
         }
 	} 
@@ -268,7 +269,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             pipelineInfoFile.write(infoAPIResponse.toString(), "UTF-8");
             return true;
         } catch (Exception e) {
-            GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", new String[]{"Exception"}, new String[]{e.getMessage()}, Level.SEVERE);
+            e.printStackTrace();
 			return false;
         }
 	}

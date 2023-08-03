@@ -60,6 +60,7 @@ import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.AggregatedTestResultAction;
 import hudson.tasks.test.PipelineBlockWithTests;
 import hudson.tasks.test.TabulatedResult;
+import io.jenkins.plugins.actions.RegisterSecurityAction;
 import io.jenkins.plugins.model.DevOpsJFrogModel;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsPipelineGraph;
@@ -72,6 +73,7 @@ import io.jenkins.plugins.model.DevOpsRunStatusStageModel;
 import io.jenkins.plugins.model.DevOpsRunStatusTestCaseModel;
 import io.jenkins.plugins.model.DevOpsRunStatusTestModel;
 import io.jenkins.plugins.model.DevOpsRunStatusTestSuiteModel;
+import io.jenkins.plugins.model.DevOpsSecurityResultModel;
 import io.jenkins.plugins.model.DevOpsSonarQubeModel;
 import io.jenkins.plugins.model.DevOpsTestSummary;
 import io.jenkins.plugins.utils.DevOpsConstants;
@@ -319,12 +321,73 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 						}
 					} catch (Exception e) {
-						printDebug("createRunStatus", new String[]{"Exception"}, new String[]{e.getMessage()},
-								Level.SEVERE);
+						e.printStackTrace();
 					}
 				}
 
 				//END : Sonar block
+
+				if (((DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) ||
+						DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
+						DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
+						stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()))) {
+					List<DevOpsSecurityResultModel> veracodeModels = getVeracodeModels(run,
+							stageName, pipelineNameForPayload, status.getNumber(),
+							stageEndtime, stageModel.getId(), status.getPronoun(), status.isMultiBranch(), scmModel.getBranch());
+
+					try {
+
+						if (veracodeModels != null && veracodeModels.size() > 0) {
+							List<DevOpsSecurityResultModel> finalList = new ArrayList<>();
+
+							for (DevOpsSecurityResultModel veracodeModel : veracodeModels) {
+								if (!this.pipelineGraph.isJobSecurityResultsPublished(veracodeModel)) {
+									finalList.add(veracodeModel);
+									this.pipelineGraph.addToJobSecurityResults(veracodeModel);
+								}
+							}
+
+							if (finalList.size() > 0)
+								status.addToSecurityResults(finalList);
+
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+
+
+
+				// START: Security result block
+				if (((DevOpsConstants.FREESTYLE_PRONOUN.toString().equals(job.getPronoun()) ||
+						DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
+						DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
+						stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()))) {
+					List<DevOpsSecurityResultModel> veracodeList = getSecurityResultSteps(run,
+							stageName, pipelineNameForPayload, status.getNumber(),
+							stageEndtime, stageModel.getId(), status.getPronoun(), status.isMultiBranch(), scmModel.getBranch());
+
+					try {
+
+						if (veracodeList != null && veracodeList.size() > 0) {
+							List<DevOpsSecurityResultModel> finalList = new ArrayList<>();
+
+							for (DevOpsSecurityResultModel model : veracodeList) {
+								if (!this.pipelineGraph.isJobSecurityResultsPublished(model)) {
+									finalList.add(model);
+									this.pipelineGraph.addToJobSecurityResults(model);
+								}
+							}
+
+							if (finalList.size() > 0) {
+								status.addToSecurityResults(finalList);
+							}
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+				// END: Security result block
 
 				List<DevOpsTestSummary> testSummaryList = createTestSummary(run,
 						stageName, pipelineNameForPayload, status.getNumber(),
@@ -500,8 +563,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
 
 		} catch (Exception e) {
-			LOGGER.log(Level.WARNING, "DevOpsRunStatusAction.getTestFiles()- Error getting test " +
-					"files - " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
@@ -540,6 +602,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 
     /*
 API (wfapi) for individual stage execution example (build #6, stageId #6)
+http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/describe
  */
 
 	public DevOpsRunStatusStageModel createRunStatusStage(FlowNode fn, final Run<?, ?> run,
@@ -566,6 +629,7 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 				if (startNode != null) {
 					stageModel.setId(startNode.getId());
 					stageModel.setDuration(getTime(startNode, (StepEndNode) fn));
+
 
 					setStageModelDetailsFromPipelineNode(devOpsPipelineNode, stageModel);
 					stageModel.setWaitForChildExecutions(pipelineGraph.getWaitForChildExecutions(devOpsPipelineNode.getId()));
@@ -1282,6 +1346,72 @@ API (wfapi) for individual stage execution example (build #6, stageId #6)
 
 	public void setPipelineGraph(DevOpsPipelineGraph pipelineGraph) {
 		this.pipelineGraph = pipelineGraph;
+	}
+
+	public List<DevOpsSecurityResultModel> getVeracodeModels(final Run<?, ?> run, String stageName, String pipelineName,
+	                                                             int buildNumber, long stageEndTime, String blockId, String pronoun, String isMultiBranch,
+	                                                             String branchName) {
+		List<DevOpsSecurityResultModel> veracodeModels = new ArrayList<>();
+
+		try {
+			for (Action runAction : run.getAllActions()) {
+				if (runAction.getClass().getName().equalsIgnoreCase("com.veracode.jenkins.plugin.VeracodeAction")) {
+
+					Method[] methods = runAction.getClass().getMethods();
+
+					Map<String, Method> methodMap = new HashMap<String, Method>();
+					for (Method m : methods) {
+						methodMap.put(m.getName(), m);
+					}
+
+					if(methodMap.containsKey("getDetailedReportURLForHTMLAttr")) {
+						Method m = methodMap.get("getDetailedReportURLForHTMLAttr");
+						String detailedURL = (String) m.invoke(runAction);
+						String[] urlParts = detailedURL.split(":");
+						if (urlParts.length > 3) {
+							String buildId = urlParts[urlParts.length - 1];
+							String appId = urlParts[urlParts.length - 2];
+							JSONObject attributes = new JSONObject();
+							attributes.put(DevOpsConstants.SEC_TOOL_SCANNER.toString(), DevOpsConstants.VERACODE.toString());
+							attributes.put(DevOpsConstants.VERACODE_APP_ID.toString(), appId);
+							attributes.put(DevOpsConstants.VERACODE_BUILD_ID.toString(), buildId);
+							attributes.put(DevOpsConstants.CREATE_IBE.toString(), true);
+							veracodeModels.add(new DevOpsSecurityResultModel(attributes.toString()));
+						}
+					}
+				}
+			}
+		} catch (RuntimeException ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getVeracodeModels()- RunTime Exception :  "
+					+ ignore.getMessage());
+		} catch (Exception ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getVeracodeModels()- Exception occured :  "
+					+ ignore.getMessage());
+		}
+
+		return veracodeModels;
+	}
+
+	public List<DevOpsSecurityResultModel> getSecurityResultSteps(final Run<?, ?> run, String stageName, String pipelineName,
+	                                                              int buildNumber, long stageEndTime, String blockId, String pronoun, String isMultiBranch,
+	                                                              String branchName) {
+		List<DevOpsSecurityResultModel> finalSecurityResultModel = new ArrayList<>();
+		try {
+			for (Action action : run.getAllActions()) {
+				if (action.getClass().getName().equalsIgnoreCase(RegisterSecurityAction.class.getName())) {
+					RegisterSecurityAction ra = (RegisterSecurityAction) action;
+					DevOpsSecurityResultModel securityResultModel = new DevOpsSecurityResultModel(ra.getSecurityToolAttributes().toString());
+					finalSecurityResultModel.add(securityResultModel);
+				}
+			}
+		} catch (RuntimeException ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getSecurityResultModel()- RunTime Exception :  "
+					+ ignore.getMessage());
+		} catch (Exception ignore) {
+			LOGGER.log(Level.WARNING, " DevOpsRunStatusAction.getSecurityResultModel()- Exception occured : "
+					+ ignore.getMessage());
+		}
+		return finalSecurityResultModel;
 	}
 
 }

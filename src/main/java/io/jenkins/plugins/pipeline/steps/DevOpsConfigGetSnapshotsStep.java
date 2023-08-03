@@ -103,7 +103,6 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
         return isValidated;
     }
 
-    @DataBoundSetter
     public void setApplicationName(String applicationName) {
         this.applicationName = applicationName;
     }
@@ -112,6 +111,7 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
         return applicationName;
     }
 
+    @DataBoundSetter
     public void setDeployableName(String deployableName) {
         this.deployableName = deployableName;
     }
@@ -124,6 +124,7 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
 		return changesetNumber;
 	}
 
+    @DataBoundSetter
 	public void setChangesetNumber(String changesetNumber) {
 		this.changesetNumber = changesetNumber;
 	}

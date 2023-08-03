@@ -57,6 +57,8 @@ public enum DevOpsConstants {
 	CONFIG_VALIDATE_STEP_DISPLAY_NAME,
 	CHANGE_REQUEST_UPDATE_INFO_FUNCTION_NAME,
 	CHANGE_REQUEST_UPDATE_INFO_DISPLAY_NAME,
+	CONFIG_PIPELINE_STEP_FUNCTION_NAME,
+	CONFIG_PIPELINE_STEP_DISPLAY_NAME,
 
 	CONFIG_SNAPSHOT_SYS_ID,
 	CONFIG_ENVIRONMENT_TYPE,
@@ -102,6 +104,7 @@ public enum DevOpsConstants {
 	CHANGE_ASSIGNMENT_GROUP,
 	CHANGE_APPROVERS,
 	CHANGE_STATE_DISPLAY_VALUE,
+	CHANGE_DETAILS,
 	CHANGE_START_DATE,
 	CHANGE_END_DATE,
 	COMMON_RESPONSE_CHANGE_CTRL,
@@ -224,8 +227,45 @@ public enum DevOpsConstants {
 	MULTIBRANCH_PATH_SEPARATOR,
 	PIPELINE_INFO_UPDATE_IDENTIFIER,
 	PIPELINE_INFO_DELETE_IDENTIFIER,
+
+	SN_DEVOPS_DISCOVER_API_BASE_URL,
+
 	
-	SN_DEVOPS_DISCOVER_API_BASE_URL;
+	VERSION_V1,
+	VERSION_V2,
+	BASIC,
+	SECRET_TOKEN,
+
+
+	SECURITY_RESULT_STEP_DISPLAY_NAME,
+
+	SECURITY_RESULT_STEP_FUNCTION_NAME,
+
+	SEC_TOOL_STAGE_NAME,
+	SEC_TOOL_BRANCH_NAME,
+	SEC_TOOL_JOB_NAME,
+	SEC_TOOL_BUILD_NUMBER,
+	SEC_TOOL_TASK_EXEC_URL,
+	SEC_TOOL_JSON_ATTR_TOOL_ID,
+	SEC_TOOL_JSON_ATTR_RESULT_META_DATA,
+	SEC_TOOL_JSON_ATTR_TASK_INFO,
+
+	SEC_TOOL_SCANNER,
+	VERACODE_APP_ID,
+	VERACODE_BUILD_ID,
+	VERACODE,
+	CREATE_IBE,
+
+	TOKEN_VALUE,
+	SN_DEFAULT_KEY,
+	BASIC_AUTHENCIATION_SUCCUSS,
+	TOKEN_AUTHENTICATION_SUCCUSS,
+	BASIC_AUTHENCIATION_FAILURE,
+	TOKEN_AUTHENTICATION_FAILURE,
+	SN_DEFUALT;
+	
+
+
 
 
 	@Override
@@ -254,8 +294,8 @@ public enum DevOpsConstants {
 
 			case CHANGE_FUNCTION_NAME: return "snDevOpsChange";
 			case CHANGE_DISPLAY_NAME: return "ServiceNow DevOps - Change Control step";
-		    case CHANGE_REQUEST_INFO_FUNCTION_NAME: return "snDevOpsGetChangeNumber";
-		    case CHANGE_REQUEST_INFO_DISPLAY_NAME: return "ServiceNow DevOps - get Change Number step";
+			case CHANGE_REQUEST_INFO_FUNCTION_NAME: return "snDevOpsGetChangeNumber";
+			case CHANGE_REQUEST_INFO_DISPLAY_NAME: return "ServiceNow DevOps - get Change Number step";
 
 			case ARTIFACT_REGISTER_STEP_FUNCTION_NAME: return "snDevOpsArtifact";
 			case ARTIFACT_REGISTER_STEP_DISPLAY_NAME: return "ServiceNow DevOps - Register Artifact step";
@@ -285,6 +325,8 @@ public enum DevOpsConstants {
 			case CONFIG_VALIDATE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Validate";
 			case CHANGE_REQUEST_UPDATE_INFO_FUNCTION_NAME: return "snDevOpsUpdateChangeInfo";
 			case CHANGE_REQUEST_UPDATE_INFO_DISPLAY_NAME: return "ServiceNow DevOps - Update Change Request Info";
+			case CONFIG_PIPELINE_STEP_FUNCTION_NAME: return "snDevOpsConfig";
+			case CONFIG_PIPELINE_STEP_DISPLAY_NAME: return "ServiceNow DevOps - DevOps Configuration Pipeline";
 
 			case CHANGE_FOUND: return "changeFound";
 			case CHANGE_ASSIGNMENT_GROUP: return "changeAssignmentGroup";
@@ -292,6 +334,7 @@ public enum DevOpsConstants {
 			case CHANGE_STATE_DISPLAY_VALUE: return "stateDisplayValue";
 			case CHANGE_START_DATE: return "plannedStartDate";
 			case CHANGE_END_DATE: return "plannedEndDate";
+			case CHANGE_DETAILS: return "details";
 
 			case CONFIG_SNAPSHOT_SYS_ID: return "sys_id";
 			case CONFIG_ENVIRONMENT_TYPE: return "cdm_deployable_id.environment_type";
@@ -323,7 +366,7 @@ public enum DevOpsConstants {
 			case GET_PUBLISHED_BUILDS_DETAILS : return "getPublishedBuildsDetails";
 			case STARTED_TIMESTAMP: return "startedTimeStamp";
 
-			
+
 			case CONFIG_CHANGESET_NUMBER: return "changesetNumber";
 			case CONFIG_NAME_PATH: return "namePath";
 			case CONFIG_DATA_FORMAT: return "dataFormat";
@@ -459,6 +502,44 @@ public enum DevOpsConstants {
 			case PIPELINE_INFO_DELETE_IDENTIFIER: return "sndelete";
 
 			case SN_DEVOPS_DISCOVER_API_BASE_URL: return "sn-devops-discover-api";
+			case VERSION_V1: return "v1";
+			case VERSION_V2: return "v2";
+
+			case SECURITY_RESULT_STEP_DISPLAY_NAME: return  "Servicenow Register Security Step";
+			case SECURITY_RESULT_STEP_FUNCTION_NAME: return "snDevOpsSecurityResult";
+
+			case SEC_TOOL_STAGE_NAME: return "stageName";
+			case SEC_TOOL_BRANCH_NAME: return "branch";
+			case SEC_TOOL_JOB_NAME: return "pipelineName";
+			case SEC_TOOL_BUILD_NUMBER: return "buildNumber";
+			case SEC_TOOL_TASK_EXEC_URL: return "taskExecutionUrl";
+			case SEC_TOOL_JSON_ATTR_TOOL_ID: return "securityToolId";
+			case SEC_TOOL_JSON_ATTR_RESULT_META_DATA: return "securityResultAttributes";
+			case SEC_TOOL_JSON_ATTR_TASK_INFO: return "pipelineInfo";
+
+			case SEC_TOOL_SCANNER: return "scanner";
+			case VERACODE_APP_ID: return "applicationId";
+			case VERACODE_BUILD_ID: return "buildId";
+			case VERACODE: return "Veracode";
+			case CREATE_IBE: return "CREATE_IBE";
+
+			case BASIC: return "Basic";
+			case SECRET_TOKEN: return "Secret Token";
+			case TOKEN_VALUE: return "token";
+			case BASIC_AUTHENCIATION_SUCCUSS:
+				return "Connection using 'Credentials' is successful!";
+			case BASIC_AUTHENCIATION_FAILURE:
+				return "Connection using 'Credentials' failed!";
+			case TOKEN_AUTHENTICATION_FAILURE:
+				return "Connection using 'Secret Credentials' failed!";
+			case TOKEN_AUTHENTICATION_SUCCUSS:
+				return "Connection using 'Secret Credentials' is successful!";
+			case SN_DEFUALT:
+				return "SNDefualt";
+			case SN_DEFAULT_KEY: return "- none -";
+			
+
+
 
 			default: throw new IllegalArgumentException();
 		}

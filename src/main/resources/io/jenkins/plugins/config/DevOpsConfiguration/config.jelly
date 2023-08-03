@@ -6,18 +6,26 @@
 			<f:entry title="Instance URL" field="instanceUrl">
 				<f:textbox placeholder="https://&lt;your-instance&gt;.service-now.com/"/>
 			</f:entry>
-			<f:entry title="API Version" field="apiVersion">
-				<f:textbox placeholder="v1"/>
-			</f:entry>
+			
 			<f:entry title="Orchestration Tool ID" field="toolId">
 				<f:textbox placeholder="The sys_id of the orchestration tool"/>
 			</f:entry>
 			<f:entry title="Artifact Tool ID" field="snArtifactToolId">
 				<f:textbox placeholder="The sys_id of the artifact tool"/>
 			</f:entry>
+			
+			<div id="credList">
 			 <f:entry field="credentialsId" title="Credentials">
                 <c:select/>
               </f:entry>
+            </div>
+              
+			<div id="secretList">
+				<f:entry title="Secret Credentials" field="secretCredentialId">
+					<c:select/>
+				</f:entry>
+			</div>
+			
 			<f:entry title="LogLevel" field="logLevel">
                 <f:select/>
             </f:entry>
@@ -28,7 +36,10 @@
             	<f:checkbox/>
             </f:entry>
 			<f:validateButton title="Test Connection" progress="Testing..." method="testConnection"
-							  with="instanceUrl,apiVersion,toolId,credentialsId"/>
+							  with="instanceUrl,authType,toolId,credentialsId,secretCredentialId"/>
 		</f:optionalBlock>
 	</f:section>
+	<script>
+		
+	</script>
 </j:jelly>

@@ -4,9 +4,12 @@ import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineChangeInfoStep;
 import io.jenkins.plugins.utils.CommUtils;
 import net.sf.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
-
 import hudson.model.Run;
 import io.jenkins.plugins.DevOpsRunListener;
 import io.jenkins.plugins.DevOpsRunStatusAction;
@@ -94,8 +97,19 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 		params.put(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString(), pipelineName);
 		params.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
 		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
-		JSONObject responseJSON = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeInfoUrl(), params, null,
-				devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+		JSONObject responseJSON=null;
+		if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
+			Map<String, String> tokenDetails = new HashMap<String, String>();
+			tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+					devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+
+			responseJSON = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeInfoUrl(),
+					params, null, devopsConfig.getUser(), devopsConfig.getPwd(), null, null,tokenDetails);
+		} else {
+			responseJSON = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeInfoUrl(),
+					params, null, devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+		}
+		
 		return parseResponseResult(listener, responseJSON);
 	}
 
@@ -145,6 +159,5 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 			listener.getLogger().println(currentJenkinsStepName+" Please enable 'Pipeline Track' to fetch 'Change Request Number' using 'Stage Name'.");
 		}
 		return null;
-
 	}
 }

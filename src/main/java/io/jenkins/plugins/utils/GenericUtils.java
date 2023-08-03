@@ -77,8 +77,7 @@ public final class GenericUtils {
 					}
 				}
 			} catch (Exception e) {
-				printDebug("GenericUtils", "parseResponseResult", new String[]{"Exception"},
-						new String[]{e.getMessage()}, Level.SEVERE);
+				e.printStackTrace();
 			}
 		}
 		return null;
@@ -97,8 +96,7 @@ public final class GenericUtils {
 					}
 				} 
 			} catch (Exception e) {
-				printDebug("GenericUtils", "checkIfAttributeExist", new String[]{"Exception"},
-						new String[]{e.getMessage()}, Level.SEVERE);
+				e.printStackTrace();
 			}
 		}
 		return valid;
@@ -209,14 +207,20 @@ public final class GenericUtils {
 				errMsg.append(" API version not provided |");
 			}
 
-			if (isEmpty(devopsConfig.getUser())) {
+			if (DevOpsConstants.VERSION_V1.toString().equals(devopsConfig.getApiVersion()) && isEmpty(devopsConfig.getUser())) {
 				result = false;
 				errMsg.append(" User not provided  |");
 			}
 
-			if (isEmpty(devopsConfig.getPwd())) {
+			if (DevOpsConstants.VERSION_V1.toString().equals(devopsConfig.getApiVersion()) && isEmpty(devopsConfig.getPwd())) {
 				result = false;
 				errMsg.append(" Password not provided |");
+			}
+			
+			if (DevOpsConstants.VERSION_V2.toString().equals(devopsConfig.getApiVersion()) 
+					&& isEmpty(devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()))) {
+				result = false;
+				errMsg.append(" Secret Token not provided |");
 			}
 
 			if (!result)
@@ -266,8 +270,7 @@ public final class GenericUtils {
 			try {
 				vars = run.getEnvironment(listener);
 			} catch (IOException | InterruptedException e) {
-				printDebug("GenericUtils", "getEnvVars", new String[]{"IOException"},
-						new String[]{e.getMessage()}, Level.SEVERE);
+				e.printStackTrace();
 			}
 		}
 		return vars;
@@ -283,6 +286,10 @@ public final class GenericUtils {
 
 	public static boolean isEmpty(final CharSequence cs) {
 		return cs == null || cs.length() == 0;
+	}
+	
+	public static boolean isEmptyOrDefault(final CharSequence cs) {
+		return cs == null || cs.length() == 0 || DevOpsConstants.SN_DEFUALT.toString().equals(cs);
 	}
 
 	public static boolean isNotEmpty(final CharSequence cs) {

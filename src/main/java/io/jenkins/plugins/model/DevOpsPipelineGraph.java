@@ -56,6 +56,9 @@ public class DevOpsPipelineGraph {
 	private final Set<DevOpsSonarQubeModel> jobSonarQubeModelResults = new HashSet<DevOpsSonarQubeModel>();
 	private final Set<DevOpsJFrogModel> jobJFrogModelResults = new HashSet<DevOpsJFrogModel>();
 
+	private final Set<DevOpsSecurityResultModel> jobSecurityResults = new HashSet<DevOpsSecurityResultModel>();
+
+
 	public DevOpsPipelineNode getNodeById(String id) {
 		return this.map.get(id);
 	}
@@ -216,4 +219,13 @@ public class DevOpsPipelineGraph {
 		}
 		return childs;
 	}
+
+	public void addToJobSecurityResults(DevOpsSecurityResultModel model){
+		this.jobSecurityResults.add(model);
+	}
+
+	public boolean isJobSecurityResultsPublished(DevOpsSecurityResultModel securityResultModel) {
+		return this.jobSecurityResults.contains(securityResultModel);
+	}
+
 }

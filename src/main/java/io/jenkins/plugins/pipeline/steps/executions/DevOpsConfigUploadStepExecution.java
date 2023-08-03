@@ -44,6 +44,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 		super(context);
 		this.step = step;
 	}
+
 //Jenkins step for uploading configuration data
 	@Override
 	protected String run() throws Exception {
@@ -172,7 +173,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 					uploadRequest = model.uploadData(this.step.getApplicationName().trim(), changesetNumber,
 							this.step.getDataFormat().toLowerCase(), modifiedNamePath, commitFlag,
 							this.step.getAutoValidate(), fileContent, this.step.getTarget(),
-							this.step.getDeployableName(), this.step.getCollectionName(), transactionSource);
+							this.step.getDeployableName(), this.step.getCollectionName(), this.step.getAutoPublish(), transactionSource);
 				} catch (Exception e) {
 					return handleException("Failed to upload file due to : " + e.getMessage() + " - Upload failed");
 				}
