@@ -38,10 +38,11 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
     private boolean convertPath;
     private boolean markFailed;
     private boolean showResults;
+    private boolean autoPublish;
    
 
     @DataBoundConstructor
-    public DevOpsConfigUploadStep(String applicationName, String target, String namePath, String configFile, boolean autoCommit, boolean autoValidate, String dataFormat) {
+    public DevOpsConfigUploadStep(String applicationName, String target, String namePath, String configFile, boolean autoCommit, boolean autoValidate, String dataFormat, boolean autoPublish) {
         m_enabled  =true;
         m_ignoreErrors = false;
         this.applicationName = applicationName;
@@ -51,6 +52,7 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         this.autoCommit = autoCommit;
         this.autoValidate = autoValidate;
         this.dataFormat = dataFormat;
+        this.autoPublish = autoPublish;
     }
 
     @Override
@@ -88,7 +90,7 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
        return changesetNumber;
    }
 
-   @DataBoundSetter
+    @DataBoundSetter
    public void setDeployableName(String deployableName) {
         if(deployableName == null || deployableName.isEmpty())
             this.deployableName = null;
@@ -142,9 +144,7 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         return showResults;
     }
 
-
-   @DataBoundSetter
-   public void setAppliactionName(String applicationName) {
+   public void setApplicationName(String applicationName) {
        this.applicationName = applicationName;
    }
 
@@ -152,7 +152,6 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
        return applicationName;
    }
 
-   @DataBoundSetter
    public void setTarget(String target) {
        this.target = target;
    }
@@ -161,7 +160,6 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
        return target;
    }
 
-   @DataBoundSetter
    public void setConfigFile(String configFile) {
        this.configFile = configFile;
    }
@@ -170,7 +168,6 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
        return configFile;
    }
 
-    @DataBoundSetter
     public void setNamePath(String namePath) {
         this.namePath = namePath;
     }
@@ -179,7 +176,6 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         return namePath;
     }
 
-    @DataBoundSetter
     public void setDataFormat(String dataFormat) {
         this.dataFormat = dataFormat;
     }
@@ -188,7 +184,6 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         return dataFormat;
     }
 
-    @DataBoundSetter
     public void setAutoCommit(boolean autoCommit) {
         this.autoCommit = autoCommit;
     }
@@ -201,9 +196,16 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         return autoValidate;
     }
 
-    @DataBoundSetter
     public void setAutoValidate(boolean autoValidate) {
         this.autoValidate = autoValidate;
+    }
+
+    public void setAutoPublish(boolean autoPublish) {
+        this.autoPublish = autoPublish;
+    }
+
+    public boolean getAutoPublish() {
+        return autoPublish;
     }
 
     @Extension

@@ -1,0 +1,33 @@
+<div>
+    <p class="p">This action ties a changeset and/or snapshot to the pipeline so that it can be tracked during the
+        pipeline execution. In <span class="ph">DevOps Change Velocity</span>, this is shown in the Pipeline UI.</p>
+    <p class="p">See <a data-bundleid="utah-devops"
+            data-navpath="https://docs.servicenow.com/bundle/utah-devops/product/enterprise-dev-ops/concept/dev-ops-change-acceleration.html"
+            href="https://docs.servicenow.com/bundle/utah-devops/bundle/utah-devops/page/product/devops-config/concept/../../enterprise-dev-ops/concept/dev-ops-change-acceleration.html"
+            class="xref" target="_blank"
+            title="Enable the Change Acceleration feature of DevOps for automatic change request creation in your pipeline, and use change approval policies to automate approval under certain conditions.">Accelerating
+            your DevOps change process</a> for more information regarding the <span class="ph">DevOps</span> Change
+        Acceleration feature.</p>
+    <b>Example:</b>
+    <ul class="ul" id="devops-config-jenkins-integration__ul_cc2_knl_yxb">
+        <li class="li">Input:<p class="p">Here is an example of the <kbd
+                    class="ph userinput">snDevOpsConfigRegisterPipeline</kbd> action. For the sake of illustration,
+                we’ll assign the response to a variable,
+                <kbd class="ph userinput">changeSetRegResult</kbd>, which could be echoed out to our console log for
+                debugging scenarios.
+            </p>
+            <div class="p">
+                <div class="code-toolbar">
+                    <pre class="prettyprint language-php hljs" tabindex="0">
+changeSetRegResult = <span class="hljs-title function_ invoke__">snDevOpsConfigRegisterPipeline</span>(
+<span class="hljs-attr">applicationName</span>: <span class="hljs-string">"PaymentDemo"</span>,
+<span class="hljs-attr">changesetNumber</span>: <span class="hljs-string">"Chset-122"</span>
+)
+
+<span class="hljs-keyword">echo</span> <span class="hljs-string">"Pipeline registration result: ${changeSetRegResult}"</span></pre>
+                   
+                </div>
+            </div>
+        </li>
+    </ul>
+</div>

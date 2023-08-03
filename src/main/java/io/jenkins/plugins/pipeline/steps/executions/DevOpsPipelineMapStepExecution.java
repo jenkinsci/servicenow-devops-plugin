@@ -62,8 +62,7 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 			try {
 				vars = ctx.get(EnvVars.class);
 			} catch (Exception e) {
-				printDebug("run", new String[]{"Exception"},
-						new String[]{e.getMessage()}, Level.SEVERE);
+				e.printStackTrace();
 			}
 			boolean _result = model.handleStepMapping(run, run.getParent(), this, vars);
 

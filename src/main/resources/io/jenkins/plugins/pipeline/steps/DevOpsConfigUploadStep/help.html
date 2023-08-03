@@ -1,0 +1,142 @@
+<div>
+    <!-- <dd class="dd"> -->
+    <p>
+        This action uploads a configuration file to a given location within an application data model. <br />
+        It is meant to be used in an iterative nature for all config files to upload to the application data model
+        during the pipeline run. <br />
+        <div class="p">Supports:<ul class="ul">
+                <li class="li">Upload to:<ul class="ul">
+                        <li class="li">A component, collection, or deployable.</li>
+                        <li class="li">The variable (vars) folder of a component, collection, or deployable.</li>
+                    </ul>
+                <li class="li">Regex pattern for config file input.</li>
+                <li class="li">Ability to be called multiple times in the same pipeline.</li>
+            </ul>
+        </div>
+        
+            <ul class="ul" id="devops-config-jenkins-integration__ul_tqb_n4l_yxb">
+                <li class="li">Input:<p class="p">Here is an example of the <kbd
+                            class="ph userinput">snDevOpsConfigUpload</kbd> action. For the sake of illustration, we’ll
+                        assign the response to a variable, <kbd class="ph userinput">changeSetId</kbd>, which could be
+                        echoed out to our console log for debugging scenarios.</p>
+                    <div class="p">
+                        <div class="code-toolbar">
+                            <pre class="prettyprint language-php hljs" tabindex="0">
+        changeSetId = <span class="hljs-title function_ invoke__">snDevOpsConfigUpload</span>(
+            <span class="hljs-attr">applicationName</span>: <span class="hljs-string">"PaymentDemo"</span>,
+            <span class="hljs-attr">target</span>: <span class="hljs-string">'component'</span>,
+            <span class="hljs-attr">namePath</span>: <span class="hljs-string">"web-api-v1.0"</span>,
+            <span class="hljs-attr">configFile</span>: <span class="hljs-string">"k8s/helm/values.yml"</span>,
+            <span class="hljs-attr">dataFormat</span>: <span class="hljs-string">"json"</span>,
+            <span class="hljs-attr">autoCommit</span>: <span class="hljs-string">'true'</span>,
+            <span class="hljs-attr">autoValidate</span>: <span class="hljs-string">'true'</span>
+        )
+
+<span class="hljs-keyword">echo</span> <span class="hljs-string">"Changeset: <span class="hljs-subst">$changeSetId</span> created"</span></pre>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        <b> Example - Multiple uploads (component) </b>
+            <div class="p">You can call the upload action more than once to upload configuration data in different
+                file formats from different locations, while still keeping the uploads part of one
+                changeset.<ul class="ul" id="devops-config-jenkins-integration__ul_hwg_rng_hvb">
+                    <li class="li">In the first upload, name the action so the changesetNumber output variable can be
+                        reused in subsequent uploads.<div class="p">YAML file upload:<div class="code-toolbar">
+                                <pre class="prettyprint language-php hljs" tabindex="0">
+ <span class="hljs-variable">$changeset</span> = <span class="hljs-title function_ invoke__">snDevOpsConfigUpload</span>(
+      <span class="hljs-attr">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+      <span class="hljs-attr">target</span>: <span class="hljs-string">'component'</span>,
+      <span class="hljs-attr">namePath</span>: <span class="hljs-string">'wep-api-v1.0'</span>,
+      <span class="hljs-attr">configFile</span>: <span class="hljs-string">'k8s/helm/values.yml'</span>,
+      <span class="hljs-attr">dataFormat</span>: <span class="hljs-string">'yaml'</span>,
+      <span class="hljs-attr">autoCommit</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attr">autoValidate</span>: <span class="hljs-string">'false'</span>
+ )</pre>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="li">In subsequent uploads, reference the changesetNumber output variable from the first
+                        upload as an input variable.<div class="p">3 JSON files upload:<div class="code-toolbar">
+                                <pre class="prettyprint language-less hljs" tabindex="0">
+ <span class="hljs-selector-tag">snDevOpsConfigUpload</span>(
+      <span class="hljs-attribute">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+      <span class="hljs-attribute">target</span>: <span class="hljs-string">'component'</span>,
+      <span class="hljs-attribute">namePath</span>: <span class="hljs-string">'wep-api-v1.0'</span>,
+      <span class="hljs-attribute">configFile</span>: <span class="hljs-string">'infra/*.json'</span>,
+      <span class="hljs-attribute">dataFormat</span>: <span class="hljs-string">'json'</span>,
+      <span class="hljs-attribute">autoCommit</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attribute">autoValidate</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attribute">changesetNumber</span>: ”${<span class="hljs-selector-tag">changeset</span>}”
+ )</pre>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="li">In the final call, in addition to referencing the changesetNumber output variable
+                        from
+                        the first upload as an input variable, set autoCommit and autoValidate to
+                        <kbd class="ph userinput">true</kbd>.<div class="p">INI file upload:<div class="code-toolbar">
+                                <pre class="prettyprint language-less hljs" tabindex="0">
+ <span class="hljs-selector-tag">snDevOpsConfigUpload</span>(
+      <span class="hljs-attribute">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+      <span class="hljs-attribute">target</span>: <span class="hljs-string">'component'</span>,
+      <span class="hljs-attribute">namePath</span>: <span class="hljs-string">'wep-api-v1.0'</span>,
+      <span class="hljs-attribute">configFile</span>: <span class="hljs-string">'featureToggles/set1.ini'</span>,
+      <span class="hljs-attribute">dataFormat</span>: <span class="hljs-string">'ini'</span>,
+      <span class="hljs-attribute">autoCommit</span>: <span class="hljs-string">'true'</span>,
+      <span class="hljs-attribute">autoValidate</span>: <span class="hljs-string">'true'</span>,
+      <span class="hljs-attribute">changesetNumber</span>: ”${<span class="hljs-selector-tag">changeset</span>}”
+ )</pre>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        <b> Example - Multiple uploads (collection and vars) </b>
+            <div class="p">You can call the upload action more than once to upload configuration data in different
+                file formats from different locations, while still keeping the uploads part of one
+                changeset.<ul class="ul" id="devops-config-jenkins-integration__ul_ofk_4qm_dwb">
+                    <li class="li">In the first upload, create a variable (for example, $changeset), and assign the
+                        return
+                        value of the step to it so it can be reused in subsequent uploads.<div class="p">XML file
+                            upload:<div class="code-toolbar">
+                                <pre class="prettyprint language-php hljs" tabindex="0">
+ <span class="hljs-variable">$changeset</span> = <span class="hljs-title function_ invoke__">snDevOpsConfigUpload</span>(
+      <span class="hljs-attr">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+      <span class="hljs-attr">target</span>: <span class="hljs-string">'collection'</span>,
+      <span class="hljs-attr">collectionName</span>: <span class="hljs-string">'release-v1.0'</span>,
+      <span class="hljs-attr">namePath</span>: <span class="hljs-string">'v1-common-configs'</span>,
+      <span class="hljs-attr">configFile</span>: <span class="hljs-string">'infra/v1/config.xml'</span>,
+      <span class="hljs-attr">dataFormat</span>: <span class="hljs-string">'xml'</span>,
+      <span class="hljs-attr">autoCommit</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attr">autoValidate</span>: <span class="hljs-string">'false'</span>
+ )</pre>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="li">In subsequent uploads, use the variable as an input.<div class="p">JSON file upload:
+                            <div class="code-toolbar">
+                                <pre class="prettyprint language-less hljs" tabindex="0">
+ <span class="hljs-selector-tag">snDevOpsConfigUpload</span>(
+      <span class="hljs-attribute">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+      <span class="hljs-attribute">target</span>: <span class="hljs-string">'deployable'</span>,
+      <span class="hljs-attribute">deployableName</span>: <span class="hljs-string">'Production'</span>,
+      <span class="hljs-attribute">namePath</span>: <span class="hljs-string">'vars/dbSettings'</span>,
+      <span class="hljs-attribute">configFile</span>: <span class="hljs-string">'infra/prod/dbConfig.json'</span>,
+      <span class="hljs-attribute">dataFormat</span>: <span class="hljs-string">'json'</span>,
+      <span class="hljs-attribute">autoCommit</span>: <span class="hljs-string">'true'</span>,
+      <span class="hljs-attribute">autoValidate</span>: <span class="hljs-string">'true'</span>,
+      <span class="hljs-attribute">changesetNumber</span>: ”${<span class="hljs-selector-tag">changeset</span>}”
+ )</pre>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="note note note_note"><span class="note__title">Note:</span> To upload to a variable folder,
+                uploadTarget must be set to
+                <kbd class="ph userinput">deployable</kbd>, and the correct values must be set for deployableName and
+                changesetNumber.</div>
+        <!-- </dd>  -->
+
+</div>

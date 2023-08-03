@@ -1,0 +1,28 @@
+<div>
+        Validate config data against your organization policies.<br />
+        <b>Example:</b><br />
+        <ul class="ul" id="devops-config-jenkins-integration__ul_qgw_kpg_hvb">
+                <li class="li">Specific snapshot (specified):<div class="p">
+                                <div class="code-toolbar">
+                                        <pre class="prettyprint language-less hljs" tabindex="0">
+<span class="hljs-selector-tag">snDevOpsConfigValidate</span>(
+<span class="hljs-attribute">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+<span class="hljs-attribute">deployableName</span>: <span class="hljs-string">'Production'</span>,
+<span class="hljs-attribute">snapshotName</span>: <span class="hljs-string">'Production-v23.dpl'</span>,
+)</pre>
+                                </div>
+                        </div>
+                </li>
+                <li class="li">Latest snapshot (retrieves and validates the latest snapshot for application and
+                        deployable combination):<div class="p">
+                                <div class="code-toolbar">
+                                        <pre class="prettyprint language-php hljs" tabindex="0">
+<span class="hljs-variable">$changeset</span> = <span class="hljs-title function_ invoke__">snDevOpsConfigValidate</span>(
+<span class="hljs-attr">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+<span class="hljs-attr">deployableName</span>: <span class="hljs-string">'Production'</span>
+)</pre>
+                                </div>
+                        </div>
+                </li>
+        </ul>
+</div>

@@ -1,0 +1,20 @@
+<div>
+    This action exports a snapshot for the given application and deployable. <br />
+    The user should specify the exporter, relevant exporter arguments, the export format (for example, YAML, JSON,
+    etc.), and output location for the exported config data. <br />
+    From here, the config data can be used directly as an input for a deployment or provisioning tool downstream in the
+    pipeline. <br />
+    <b>Example:</b><br />
+    <div class="code-toolbar">
+        <pre class="prettyprint language-less hljs" tabindex="0">
+        <span class="hljs-selector-tag">snDevOpsConfigExport</span>(
+             <span class="hljs-attribute">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+             <span class="hljs-attribute">deployableName</span>: <span class="hljs-string">'Production'</span>,
+             <span class="hljs-attribute">snapshotName</span>: <span class="hljs-string">'Production-v23.dpl'</span>,
+             <span class="hljs-attribute">exporterFormat</span>: <span class="hljs-string">'yaml'</span>,
+             <span class="hljs-attribute">exporterName</span>: <span class="hljs-string">'returnAllData-now'</span>,
+             <span class="hljs-attribute">exporterArgs</span>: <span class="hljs-string">''</span>,
+             <span class="hljs-attribute">fileName</span>: <span class="hljs-string">'exported_file-Production-20220302.yml'</span>
+        )</pre>
+    </div>
+</div>

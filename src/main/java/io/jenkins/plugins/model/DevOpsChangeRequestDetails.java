@@ -8,14 +8,16 @@ public class DevOpsChangeRequestDetails {
     String changeApprovers;
     String changeStartDate;
     String changeEndDate;
+    String changeDetails;
 
     public DevOpsChangeRequestDetails() {}
-    public DevOpsChangeRequestDetails(String changeState, String changeAssignmentGroup, String changeApprovers, String changeStartDate, String changeEndDate) {
+    public DevOpsChangeRequestDetails(String changeState, String changeAssignmentGroup, String changeApprovers, String changeStartDate, String changeEndDate, String changeDetails) {
         this.changeState = changeState;
         this.changeAssignmentGroup = changeAssignmentGroup;
         this.changeApprovers = changeApprovers;
         this.changeStartDate = changeStartDate;
         this.changeEndDate = changeEndDate;
+        this.changeDetails = changeDetails;
     }
     public String getChangeState() {
         return changeState;
@@ -35,6 +37,10 @@ public class DevOpsChangeRequestDetails {
 
     public String getChangeApprovers() {
         return changeApprovers;
+    }
+
+    public String getChangeDetails() {
+        return changeDetails;
     }
 
     public void setChangeApprovers(String changeApprovers) {
@@ -62,11 +68,11 @@ public class DevOpsChangeRequestDetails {
         if (this == o) return true;
         if (!(o instanceof DevOpsChangeRequestDetails)) return false;
         DevOpsChangeRequestDetails that = (DevOpsChangeRequestDetails) o;
-        return Objects.equals(getChangeState(), that.getChangeState()) && Objects.equals(getChangeAssignmentGroup(), that.getChangeAssignmentGroup()) && Objects.equals(getChangeApprovers(), that.getChangeApprovers()) && Objects.equals(getChangeStartDate(), that.getChangeStartDate()) && Objects.equals(getChangeEndDate(), that.getChangeEndDate());
+        return Objects.equals(getChangeState(), that.getChangeState()) && Objects.equals(getChangeAssignmentGroup(), that.getChangeAssignmentGroup()) && Objects.equals(getChangeApprovers(), that.getChangeApprovers()) && Objects.equals(getChangeStartDate(), that.getChangeStartDate()) && Objects.equals(getChangeEndDate(), that.getChangeEndDate()) && Objects.equals(getChangeDetails(), that.getChangeDetails());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getChangeState(), getChangeAssignmentGroup(), getChangeApprovers(), getChangeStartDate(), getChangeEndDate());
+        return Objects.hash(getChangeState(), getChangeAssignmentGroup(), getChangeApprovers(), getChangeStartDate(), getChangeEndDate(), getChangeDetails());
     }
 }

@@ -91,7 +91,6 @@ public class DevOpsConfigValidateStep extends Step implements Serializable{
         return showResults;
     }
 
-    @DataBoundSetter
     public void setApplicationName(String applicationName) {
         this.applicationName = applicationName;
     }
@@ -100,7 +99,6 @@ public class DevOpsConfigValidateStep extends Step implements Serializable{
         return applicationName;
     }
 
-    @DataBoundSetter
     public void setDeployableName(String deployableName) {
         this.deployableName = deployableName;
     }

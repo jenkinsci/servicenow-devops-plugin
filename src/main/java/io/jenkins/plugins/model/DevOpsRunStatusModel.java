@@ -30,6 +30,8 @@ public class DevOpsRunStatusModel {
 	private long stageStartTimeStamp;
 	private long stageCompleteTimeStamp;
 
+	private List<DevOpsSecurityResultModel> securityResults;
+
 	public DevOpsRunStatusModel() {
 		this.url = "";
 		this.number = 0;
@@ -251,6 +253,23 @@ public class DevOpsRunStatusModel {
 	public void setPullRequestModel(DevOpsPullRequestModel pullRequestModel) {
 		this.pullRequestModel = pullRequestModel;
 	}
+
+	public List<DevOpsSecurityResultModel> getSecurityResults() {
+		return securityResults;
+	}
+
+	public void setSecurityResults(List<DevOpsSecurityResultModel> securityResults) {
+		this.securityResults = securityResults;
+	}
+
+	public void addToSecurityResults(List<DevOpsSecurityResultModel> securityResults) {
+		if(this.securityResults == null){
+			this.securityResults = securityResults;
+		} else {
+			this.securityResults.addAll(securityResults);
+		}
+	}
+
 }
 
 

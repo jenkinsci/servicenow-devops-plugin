@@ -67,7 +67,8 @@ For complete details please see: Using a declarative or scripted pipeline in the
 
 ### Release Notes
 
-- Security fixes.
+#### Secure token authentication for Integration user 
+Jenkins now supports token-based authentication for the integration user. It also supports basic auth and token authentication to make it compatible with DevOps Config. 
 
 
 **NOTE**: The ServiceNow DevOps plugin now requires 2.289.1+ as a minimum version

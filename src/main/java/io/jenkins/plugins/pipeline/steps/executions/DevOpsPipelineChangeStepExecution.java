@@ -3,6 +3,8 @@ package io.jenkins.plugins.pipeline.steps.executions;
 import static io.jenkins.plugins.DevOpsRunListener.DevOpsStageListener.getCurrentStageId;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 
 import io.jenkins.plugins.DevOpsRunListener;
@@ -214,11 +216,9 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 					ex.addListener(new DevOpsRunListener.DevOpsStageListener(run, vars, new DevOpsNotificationModel()));
 			}
 		} catch (IOException e) {
-			printDebug("onResume", new String[]{"IOException"},
-					new String[]{e.getMessage()}, Level.SEVERE);
+			e.printStackTrace();
 		} catch (InterruptedException e) {
-			printDebug("onResume", new String[]{"InterruptedException"},
-					new String[]{e.getMessage()}, Level.SEVERE);
+			e.printStackTrace();
 		}
 		super.onResume();
 		String currentStageId = getCurrentStageId(getContext(), graph);
@@ -234,9 +234,22 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 			JSONObject params = new JSONObject();
 			params.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
-			JSONObject infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-					devopsConfig.getCallbackUrl(), params, null,
-					devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+			JSONObject infoAPIResponse;
+			if(!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
+				Map<String, String> tokenDetails = new HashMap<String, String>();
+				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+				tokenDetails.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
+
+				infoAPIResponse = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
+						devopsConfig.getCallbackUrl(), params, null, devopsConfig.getUser(), devopsConfig.getPwd(),
+						null, null,tokenDetails);
+			} else {
+				infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+						devopsConfig.getCallbackUrl(), params, null, devopsConfig.getUser(), devopsConfig.getPwd(),
+						null, null);
+			}
+			
 			JSONObject result = (null != infoAPIResponse && !infoAPIResponse.isNullObject()) ? infoAPIResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString()) : null;
 			if (null != result && !result.isNullObject()) {
 				String apiResult = result.getString("result");
@@ -342,8 +355,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 						fn = getContext().get(FlowNode.class);
 						vars = getContext().get(EnvVars.class);
 					} catch (IOException | InterruptedException e) {
-						printDebug("evaluateResultForPipeline", new String[]{"InterruptedException"},
-								new String[]{e.getMessage()}, Level.SEVERE);
+						e.printStackTrace();
 					}
 					Job<?, ?> job = run.getParent();
 					if (job != null) {
@@ -420,8 +432,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				}
 			}
 		} catch (IOException | InterruptedException e) {
-			printDebug("evaluateResultForPipeline", new String[]{"InterruptedException"},
-					new String[]{e.getMessage()}, Level.SEVERE);
+			e.printStackTrace();
 		}
 		this.stopPollingThread();
 	}
@@ -443,10 +454,8 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			try {
 				listener = getContext().get(TaskListener.class);
 			} catch (IOException | InterruptedException e) {
-				printDebug("displayPipelineChangeRequestInfo", new String[]{"IOException"},
-					new String[]{e.getMessage()}, Level.SEVERE);
+				e.printStackTrace();
 			}
-
 			String changeRequestId = model.getChangeRequestInfo(info);
 	
 			//Getting config information
@@ -469,8 +478,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 						String currentStageName = DevOpsRunListener.DevOpsStageListener.getCurrentStageName(getContext(), action.getPipelineGraph());
 						action.changeRequestInfo.put(currentStageName, changeRequestId);
 					}catch (Exception ignore) {
-						printDebug("displayPipelineChangeRequestInfo", new String[]{"Exception"},
-							new String[]{ignore.getMessage()}, Level.SEVERE);
+						ignore.printStackTrace();
 					}
 				}
 				else 
@@ -485,4 +493,5 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				.printDebug(DevOpsPipelineChangeStepExecution.class.getName(), methodName,
 						variables, values, logLevel);
 	}
+
 }

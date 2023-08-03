@@ -42,7 +42,6 @@ public class DevOpsPipelineChangeInfoStep extends Step implements Serializable {
 		return new DevOpsPipelineChageInfoStepExecution(stepContext,this);
 	}
 
-
 	@Override
 	public DevOpsPipelineChangeInfoStep.DescriptorImpl getDescriptor() {
 		return (DevOpsPipelineChangeInfoStep.DescriptorImpl) super.getDescriptor();

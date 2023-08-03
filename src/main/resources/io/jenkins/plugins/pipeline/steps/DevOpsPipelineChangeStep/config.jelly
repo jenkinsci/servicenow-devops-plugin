@@ -26,5 +26,11 @@
             <f:entry title="Abort on change step timeout" field="abortOnChangeStepTimeOut">
                 <f:checkbox placeholder="Abort on change step timeout"  default="true"/>
             </f:entry>
+            <f:entry title="Application Name" field="applicationName">
+				<f:textarea placeholder="Application Name"/>
+			</f:entry>
+            <f:entry title="Snapshot Name" field="snapshotName">
+				<f:textarea placeholder="Snapshot Name"/>
+			</f:entry>
 	</f:section>
 </j:jelly>

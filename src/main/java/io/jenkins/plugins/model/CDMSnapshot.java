@@ -6,9 +6,13 @@ import net.sf.json.JSONObject;
 public class CDMSnapshot {
 	private String sys_id;
 	private String name;
+	private String deployableName;
+	private String environmentType;
 	private String description;
 	private String validation;
+	private String last_validated;
 	private Boolean published;
+	private String last_published;
 	private JSONObject validationResults;
 
 	public JSONObject getValidationResults() {
@@ -45,6 +49,22 @@ public class CDMSnapshot {
 		this.name = name;
 	}
 
+	public String getDeployableName() {
+		return deployableName;
+	}
+
+	public void setDeployableName(String deployableName) {
+		this.deployableName = deployableName;
+	}
+
+	public String getEnvironmentType() {
+		return environmentType;
+	}
+
+	public void setEnvironmentType(String environmentType) {
+		this.environmentType = environmentType; 
+	}
+
 	public String getDescription() {
 		return description;
 	}
@@ -61,8 +81,24 @@ public class CDMSnapshot {
 		this.validation = validation;
 	}
 
+	public void setLast_validated(String last_validated) {
+		this.last_validated = last_validated;
+	}
+
+	public String getLast_validated() {
+		return last_validated;
+	}
+
 	public Boolean getPublished() {
 		return published;
+	}
+
+	public void setLast_published(String last_published) {
+		this.last_published = last_published;
+	}
+
+	public String getLast_published() {
+		return last_published;
 	}
 
 	public void setPublished(Boolean published) {

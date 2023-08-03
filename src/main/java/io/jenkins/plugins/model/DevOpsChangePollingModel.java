@@ -17,6 +17,8 @@ import net.sf.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.logging.Level;
 
@@ -185,7 +187,8 @@ public class DevOpsChangePollingModel {
             String changeApprovers = GenericUtils.parseResponseResult(response, DevOpsConstants.CHANGE_APPROVERS.toString());
             String changeStartDate = GenericUtils.parseResponseResult(response, DevOpsConstants.CHANGE_START_DATE.toString());
             String changeEndDate = GenericUtils.parseResponseResult(response, DevOpsConstants.CHANGE_END_DATE.toString());
-            DevOpsChangeRequestDetails currentChangeDetails = new DevOpsChangeRequestDetails(changeState, changeAssignmentGroup, changeApprovers, changeStartDate, changeEndDate);
+            String changeDetails = GenericUtils.parseResponseResult(response, DevOpsConstants.CHANGE_DETAILS.toString());
+            DevOpsChangeRequestDetails currentChangeDetails = new DevOpsChangeRequestDetails(changeState, changeAssignmentGroup, changeApprovers, changeStartDate, changeEndDate, changeDetails);
             if(!previousChangeDetails.equals(currentChangeDetails)){
                 listener.getLogger().println();
                 listener.getLogger().println("[ServiceNow DevOps] Change State: " + changeState);
@@ -195,6 +198,9 @@ public class DevOpsChangePollingModel {
                 }if(GenericUtils.isNotEmpty(changeStartDate) && GenericUtils.isNotEmpty(changeEndDate)){
                     listener.getLogger().println("[ServiceNow DevOps] Planned Start Date: " + changeStartDate + " UTC" +
                             ", Planned End Date: " + changeEndDate + " UTC");
+                }
+                if(changeDetails != null){
+                    listener.getLogger().println("[ServiceNow DevOps] Change Details: " + changeDetails);
                 }
                 return currentChangeDetails;
             }
@@ -230,9 +236,20 @@ public class DevOpsChangePollingModel {
                 queryParams.put(DevOpsConstants.ARTIFACT_STAGE_NAME.toString(), stageName);
                 queryParams.put(DevOpsConstants.CONFIG_BUILD_NUMBER.toString(), buildNumber);
                 queryParams.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
+				if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 
-                response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeInfoUrl(), queryParams,
-                        null, devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+					Map<String, String> tokenDetails = new HashMap<String, String>();
+					tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+							devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+					response = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
+							devopsConfig.getChangeInfoUrl(), queryParams, null, devopsConfig.getUser(),
+							devopsConfig.getPwd(), null, null, tokenDetails);
+				} else {
+					response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+							devopsConfig.getChangeInfoUrl(), queryParams, null, devopsConfig.getUser(),
+							devopsConfig.getPwd(), null, null);
+				}
+                
 
             }
         }

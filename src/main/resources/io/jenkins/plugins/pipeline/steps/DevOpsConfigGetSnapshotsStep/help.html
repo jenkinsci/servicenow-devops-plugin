@@ -1,0 +1,93 @@
+<ul class="ul">
+    <li class="li">Retrieve all snapshots for any impacted deployables.<p class="p">When config files are uploaded to an
+            application data model, the system will create snapshots for any deployables determined to be impacted by
+            the upload. Following along the CI flow, assuming the last Upload call had validation enabled, the next step
+            would be to iterate through the list of snapshots and ensure they all passed validation.</p>
+    </li>
+    <li class="li">Retrieve a specific snapshot.<p class="p">Following the CD flow, a specific snapshot is retrieved so
+            it can be published and then exported to be consumed downstream (for example, to provision out
+            infrastructure or application).</p>
+    </li>
+    <li class="li">Show policy validation results in a pipeline execution.<p class="p">View policy validation results as
+            test results on the Jenkins build tests results page, including compliant with exception, when getting a
+            snapshot.</p>
+    </li>
+    <b>Example:</b><br>
+    <ul class="ul" id="devops-config-jenkins-integration__ul_v33_4qg_hvb">
+        <li class="li">Specific snapshot (specified):<div class="p">
+                <div class="code-toolbar">
+                    <pre class="prettyprint language-php hljs" tabindex="0">
+<span class="hljs-variable">$snapshots</span> = <span class="hljs-title function_ invoke__">snDevOpsConfigGetSnapshots</span>(
+<span class="hljs-attr">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+<span class="hljs-attr">deployableName</span>: <span class="hljs-string">'Production'</span>,
+<span class="hljs-attr">changesetNumber</span>: <span class="hljs-string">'Chset-16'</span>
+)</pre>
+                </div>
+            </div>
+        </li>
+        <li class="li">Latest validated snapshot (returns the latest snapshot for application and deployable
+            combination):<div class="p">
+                <div class="code-toolbar">
+                    <pre class="prettyprint language-php hljs" tabindex="0">
+<span class="hljs-variable">$snapshots</span> = <span class="hljs-title function_ invoke__">snDevOpsConfigGetSnapshots</span>(
+<span class="hljs-attr">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+<span class="hljs-attr">deployableName</span>: <span class="hljs-string">'Production'</span>,
+<span class="hljs-attr">isValidated</span>: <span class="hljs-string">'true'</span>
+)</pre>
+                </div>
+            </div>
+        </li>
+        <li class="li">All changeset snapshots (returns all snapshots for application and deployable combination):<div
+                class="p">
+                <div class="code-toolbar">
+                    <pre class="prettyprint language-php hljs" tabindex="0">
+<span class="hljs-variable">$snapshots</span> = <span class="hljs-title function_ invoke__">snDevOpsConfigGetSnapshots</span>(
+<span class="hljs-attr">applicationName</span>: <span class="hljs-string">'PaymentDemo'</span>,
+<span class="hljs-attr">changesetNumber</span>: <span class="hljs-string">'Chset-16'</span>,
+)</pre>
+                </div>
+            </div>
+        </li>
+        <li class="li">Show policy validation results in a pipeline execution.<div class="p">
+                <ol class="ol" id="devops-config-jenkins-integration__ol_zkz_gyz_mwb">
+                    <li class="li">Assign a variable to the path of the file that contains the snapshot validation
+                        results generated during the <kbd class="ph userinput">snDevOpsConfigGetSnapshots</kbd> action.
+                    </li>
+                    <li class="li">Call the <a class="xref true-external" href="https://plugins.jenkins.io/junit/"
+                            target="_blank">JUnit action</a> to load the snapshot validation results into the pipeline
+                        execution test section.</li>
+                </ol>
+                <div class="code-toolbar">
+                    <pre class="prettyprint language-dart hljs" tabindex="0">
+stage(<span class="hljs-string">'Validate'</span>) {
+steps {
+script {
+changeSetResults = snDevOpsConfigGetSnapshots( … )
+<span class="hljs-keyword">if</span> (!changeSetResults) {
+ echo <span class="hljs-string">"No snapshots were created"</span>
+} <span class="hljs-keyword">else</span> {
+def changeSetResultsObject = readJSON text: changeSetResults
+
+changeSetResultsObject.each {
+     snapshotName = it.name
+     snapshotObject = it
+}
+<span class="hljs-comment">// STEP 1</span>
+validationResultsPath = <span class="hljs-string">"<span class="hljs-subst">${snapshotName}</span>_<span class="hljs-subst">${currentBuild.projectName}</span>_<span class="hljs-subst">${currentBuild.number}</span>.xml"</span>
+}
+}
+}
+}
+
+post {
+always {
+<span class="hljs-comment">// STEP 2</span>
+junit testResults: <span class="hljs-string">"<span class="hljs-subst">${validationResultsPath}</span>"</span>, skipPublishingChecks: <span class="hljs-keyword">true</span>
+}
+}
+</pre>
+                </div>
+            </div>
+        </li>
+    </ul>
+</ul>

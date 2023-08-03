@@ -121,7 +121,6 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 		return showResults;
 	}
 
-	@DataBoundSetter
 	public void setApplicationName(String applicationName) {
 		this.applicationName = applicationName;
 	}
@@ -130,7 +129,6 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 		return applicationName;
 	}
 
-	@DataBoundSetter
 	public void setDeployableName(String deployableName) {
 		this.deployableName = deployableName;
 	}
@@ -139,7 +137,6 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 		return deployableName;
 	}
 
-	@DataBoundSetter
 	public void setExporterName(String exporterName) {
 		this.exporterName = exporterName;
 	}
@@ -148,7 +145,6 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 		return exporterName;
 	}
 
-	@DataBoundSetter
 	public void setExporterFormat(String exporterFormat) {
 		this.exporterFormat = exporterFormat;
 	}
@@ -157,7 +153,6 @@ public class DevOpsConfigExportStep extends Step implements Serializable {
 		return exporterFormat;
 	}
 
-	@DataBoundSetter
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
 	}

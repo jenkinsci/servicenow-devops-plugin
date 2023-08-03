@@ -1,0 +1,39 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+		 xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+	<f:section>
+			<f:entry title="Application Name" field="applicationName">
+				<f:textarea placeholder="Application Name"/>
+			</f:entry>
+			<f:entry title="Deployable Name" field="deployableName">
+				<f:textarea placeholder="Deployable Name"/>
+			</f:entry>
+			<f:entry title="Snapshot Name" field="snapshotName">
+				<f:textarea placeholder="Snapshot Name"/>
+			</f:entry>
+			<f:entry title="Exporter Name" field="exporterName">
+				<f:textarea placeholder="Exporter Name"/>
+			</f:entry>
+			<f:entry title="Exporter Args" field="exporterArgs">
+				<f:textarea placeholder="Exporter Args"/>
+			</f:entry>
+			<f:entry title="Exporter Format" field="exportFormat">
+				<f:textarea placeholder="Exporter Format"/>
+			</f:entry>
+			<f:entry title="File Name" field="fileName">
+				<f:textarea placeholder="File Name"/>
+			</f:entry>
+			<f:entry title="Enabled" field="enabled">
+                <f:checkbox placeholder="Enabled"  default="true"/>
+            </f:entry>
+			<f:entry title="Ignore Errors" field="ignoreErrors">
+                <f:checkbox placeholder="Ignore Errors"  default="true"/>
+            </f:entry>
+			<f:entry title="Mark Failed" field="markFailed">
+                <f:checkbox placeholder="Mark Failed"  default="true"/>
+            </f:entry>
+			<f:entry title="Show Results" field="showResults">
+                <f:checkbox placeholder="Show Results"  default="true"/>
+            </f:entry>
+	</f:section>
+</j:jelly>

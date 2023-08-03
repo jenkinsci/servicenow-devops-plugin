@@ -1,5 +1,7 @@
 package io.jenkins.plugins.model;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,7 +70,17 @@ public class DevOpsNotificationModel {
 				params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
 				String user = devopsConfig.getUser();
 				String pwd = devopsConfig.getPwd();
-				CommUtils.call("POST", notificationUrl, params, data, user, pwd, null, null);
+				
+				if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
+					Map<String, String> tokenDetails = new HashMap<String, String>();
+					tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+							devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+					CommUtils.callV2Support("POST", notificationUrl, params, data, user, pwd, null, null, tokenDetails);
+				} else {
+					CommUtils.call("POST", notificationUrl, params, data, user, pwd, null, null);
+				}
+				
+				
 
 		} else {
 			LOGGER.log(Level.INFO,

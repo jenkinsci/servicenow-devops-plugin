@@ -1,6 +1,7 @@
 package io.jenkins.plugins;
 
 import java.util.logging.Level;
+
 import hudson.Extension;
 import hudson.model.Queue;
 import hudson.model.queue.QueueListener;

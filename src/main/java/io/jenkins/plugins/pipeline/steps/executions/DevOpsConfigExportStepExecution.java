@@ -256,7 +256,9 @@ public class DevOpsConfigExportStepExecution extends SynchronousNonBlockingStepE
 		}
 
 		return Boolean.valueOf(true);
+		
 	}
+	
 
 	private Boolean handleException(String exceptionMessage) throws Exception {
 		Run<?, ?> run = getContext().get(Run.class);

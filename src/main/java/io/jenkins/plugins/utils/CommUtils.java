@@ -12,6 +12,7 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.logging.Level;
 
 import javax.xml.bind.DatatypeConverter;
@@ -130,6 +131,58 @@ public final class CommUtils {
             return null;
         }
     }
+    
+	public static JSONObject callV2Support(String method, String urlString, JSONObject params, String data,
+			String username, String password, String contentType, String transactionSource, Map<String,String> tokenDetails) {
+		if (contentType == null)
+			contentType = CommUtils.defaultContentType;
+		if (params == null)
+			printDebug("callV2Support", new String[] { "method", "urlString", "params", "data" },
+					new String[] { method, urlString, "", data }, Level.FINE);
+		else
+			printDebug("callV2Support", new String[] { "method", "urlString", "params", "data" },
+					new String[] { method, urlString, params.toString(), data }, Level.FINE);
+
+		JSONObject jsonResult = null;
+		try {
+			switch (method) {
+			case "GET":
+				jsonResult = _sendV2Support(urlString, params, data, username, password,
+						DevOpsConstants.REST_GET_METHOD.toString(), contentType, transactionSource, tokenDetails);
+				break;
+			case "POST":
+				jsonResult = _sendV2Support(urlString, params, data, username, password,
+						DevOpsConstants.REST_POST_METHOD.toString(), contentType, transactionSource, tokenDetails);
+				break;
+			case "PUT":
+				jsonResult = _sendV2Support(urlString, params, data, username, password,
+						DevOpsConstants.REST_PUT_METHOD.toString(), contentType, transactionSource, tokenDetails);
+				break;
+			case "DELETE":
+				jsonResult = _sendV2Support(urlString, params, data, username, password,
+						DevOpsConstants.REST_DELETE_METHOD.toString(), contentType, transactionSource, tokenDetails);
+				break;
+			default:
+				printDebug("callV2Support", new String[] { "message" }, new String[] { "Invalid method name" }, Level.WARNING);
+				break;
+			}
+			return jsonResult;
+
+		} catch (MalformedURLException e) {
+			printDebug("callV2Support", new String[] { "MalformedURLException" }, new String[] { e.getMessage() }, Level.SEVERE);
+			return null;
+		} catch (IllegalArgumentException e) {
+			printDebug("callV2Support", new String[] { "IllegalArgumentException" }, new String[] { e.getMessage() },
+					Level.SEVERE);
+			return null;
+		} catch (IOException e) {
+			printDebug("callV2Support", new String[] { "IOException" }, new String[] { e.getMessage() }, Level.SEVERE);
+			return getErrorMessage("IOException: " + e.getMessage());
+		} catch (Exception e) {
+			printDebug("callV2Support", new String[] { "Exception" }, new String[] { e.getMessage() }, Level.SEVERE);
+			return null;
+		}
+	}
 
     private static JSONObject getErrorMessage(String message) {
 		JSONObject resultJSON = new JSONObject();
@@ -169,6 +222,61 @@ public final class CommUtils {
         jsonResult = _readResponse(conn);
         return jsonResult;
     }
+    
+	private static JSONObject _sendV2Support(String urlString, JSONObject params, String data, String username,
+			String password, String method, String contentType, String transactionSource, Map<String,String> tokenDetails)
+			throws IOException, MalformedURLException, IllegalArgumentException, Exception {
+		JSONObject jsonResult = null;
+		URL url = new URL(_appendParams(urlString, params));
+		if (!url.getProtocol().startsWith("http"))
+			throw new IllegalArgumentException("Not an http(s) url: " + url);
+		ProxyConfiguration pc = ProxyConfiguration.load();
+		HttpURLConnection conn;
+
+		if (pc != null)
+			conn = (HttpURLConnection) ProxyConfiguration.open(url);
+		else
+			conn = (HttpURLConnection) url.openConnection();
+
+		
+		if (null != tokenDetails && !tokenDetails.isEmpty()
+				&& tokenDetails.containsKey(DevOpsConstants.TOKEN_VALUE.toString())) {
+			String token = tokenDetails.get(DevOpsConstants.TOKEN_VALUE.toString());
+			String toolId = "";
+			if (params.containsKey(DevOpsConstants.TOOL_ID_ATTR.toString())) {
+				toolId = params.getString(DevOpsConstants.TOOL_ID_ATTR.toString());
+			} else if (params.containsKey(DevOpsConstants.ORCHESTRATION_TOOL_ID_ATTR.toString())) {
+				toolId = params.getString(DevOpsConstants.ORCHESTRATION_TOOL_ID_ATTR.toString());
+			} else {
+				toolId = tokenDetails.get(DevOpsConstants.TOOL_ID_ATTR.toString());
+			}
+			conn.setRequestProperty("Authorization", "sn_devops.DevOpsToken" + " " + toolId + ":" + token);
+
+		} else {
+			byte[] message = (username + ":" + password).getBytes(charSet);
+			String encoded = DatatypeConverter.printBase64Binary(message);
+			conn.setRequestProperty("Authorization", "Basic " + encoded);
+
+		}
+
+		conn.setRequestProperty("Content-Type", contentType);
+		conn.setRequestProperty("X-Transaction-Source", transactionSource);
+		conn.setConnectTimeout(connectTimeout);
+		conn.setRequestMethod(method);
+		if (method.equals(DevOpsConstants.REST_POST_METHOD.toString())
+				|| method.equals(DevOpsConstants.REST_PUT_METHOD.toString())) {
+			conn.setDoOutput(true);
+			OutputStream os = conn.getOutputStream();
+			try {
+				os.write(data.getBytes(charSet));
+			} finally {
+				os.close();
+			}
+		}
+		
+		jsonResult = _readResponse(conn);
+		return jsonResult;
+	}
     
     private static String _appendParams(String urlString, JSONObject params) {
         printDebug("_appendParams", null, null, Level.FINE);
@@ -220,5 +328,5 @@ public final class CommUtils {
     
     private static void printDebug(String methodName, String[] variables, String[] values, Level logLevel) {
 		GenericUtils.printDebug(CommUtils.class.getName(), methodName, variables, values, logLevel);
-    }
+    }	  
 }

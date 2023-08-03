@@ -12,6 +12,7 @@ import hudson.model.ItemGroup;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import hudson.util.ListBoxModel.Option;
 import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
@@ -20,6 +21,7 @@ import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 import org.acegisecurity.Authentication;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.QueryParameter;
@@ -29,7 +31,9 @@ import org.kohsuke.stapler.verb.POST;
 import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -51,6 +55,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	private String pwd;
 	private boolean trackCheck;
 	private boolean trackPullRequestPipelinesCheck;
+	private String secretCredentialId;
 
 	public DevOpsConfiguration() {
 		load();
@@ -58,6 +63,13 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		if (this.logLevel == null)
 			this.logLevel = (this.debug) ? "info" : "off";
 		GenericUtils.configureLogger(this.logLevel);
+		if (GenericUtils.isEmpty(this.credentialsId)) {
+			this.credentialsId = DevOpsConstants.SN_DEFUALT.toString();
+		}
+		if (GenericUtils.isEmpty(this.secretCredentialId)) {
+			this.secretCredentialId = DevOpsConstants.SN_DEFUALT.toString();
+		}
+		
 	}
 
 	@Override
@@ -71,7 +83,6 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				this.instanceUrl = snDevOpsJSON.getString("instanceUrl");
 				this.toolId = snDevOpsJSON.getString("toolId");
 				this.snArtifactToolId = snDevOpsJSON.getString("snArtifactToolId");
-				this.apiVersion = snDevOpsJSON.getString("apiVersion");
 				this.credentialsId = snDevOpsJSON.getString("credentialsId");
 				this.logLevel = snDevOpsJSON.getString("logLevel");
 				GenericUtils.configureLogger(this.logLevel);
@@ -79,11 +90,16 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				this.pwd = null;
 				this.trackCheck = snDevOpsJSON.getBoolean("trackCheck");
 				this.trackPullRequestPipelinesCheck = snDevOpsJSON.getBoolean("trackPullRequestPipelinesCheck");
+				this.secretCredentialId = snDevOpsJSON.getString("secretCredentialId");
 			}
 		} else {
 			this.snDevopsEnabled = false;
 		}
-
+		if (!GenericUtils.isEmptyOrDefault(this.secretCredentialId)) {
+			this.apiVersion = DevOpsConstants.VERSION_V2.toString();
+		} else if (!GenericUtils.isEmptyOrDefault(this.credentialsId)) {
+			this.apiVersion = DevOpsConstants.VERSION_V1.toString();
+		}
 		this.save();
 		return super.configure(req, formData);
 	}
@@ -101,6 +117,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		this.credentialsId = null;
 		this.trackCheck = false;
 		this.trackPullRequestPipelinesCheck = false;
+		this.secretCredentialId = null;
 	}
 
 	@Nonnull
@@ -177,6 +194,22 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		}
 		return null;
 	}
+	
+	public String getTokenText(String credentialsId) {
+		DomainRequirement dr = null;
+		ItemGroup itemGroup = null;
+		Authentication authentication = null;
+		List<StringCredentials> lc = CredentialsProvider.lookupCredentials(StringCredentials.class, itemGroup,
+				authentication, dr);
+
+		for (int i = 0; i < lc.size(); i++) {
+			StringCredentials sc = lc.get(i);
+			if (sc.getId().equals(credentialsId)) {
+				return sc.getSecret().getPlainText();
+			}
+		}
+		return null;
+	}
 
 	public String getToolId() {
 		return toolId;
@@ -201,23 +234,45 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		return FormValidation.ok();
 	}
 
-	public FormValidation doCheckApiVersion(@QueryParameter("apiVersion") String snApiVersion)
-			throws IOException, ServletException {
-		if (GenericUtils.isEmpty(snApiVersion))
-			return FormValidation.error("Please provide an api version");
-		return FormValidation.ok();
-	}
+	
+    public FormValidation doCheckAuthType(@QueryParameter("authType") String authType)
+            throws IOException, ServletException {
+        if (GenericUtils.isEmpty(authType))
+            return FormValidation.error("Please provide an auth Type");
+        return FormValidation.ok();
+    }
 
-	public FormValidation doCheckCredentialsId(@QueryParameter("credentialsId") String credentialsId)
-			throws IOException, ServletException {
+	public FormValidation doCheckCredentialsId(@QueryParameter("credentialsId") String credentialsId,
+			@QueryParameter("secretCredentialId") String secretCredentialId) throws IOException, ServletException {
+		
+		List<DomainRequirement> drl = null;
+		ItemGroup itemGroup = null;
+		Authentication authentication = null;
+		if (GenericUtils.isEmpty(credentialsId) && !GenericUtils.isEmpty(this.credentialsId)) {
+			credentialsId = this.credentialsId;
+		}
+		if (GenericUtils.isEmptyOrDefault(credentialsId) && GenericUtils.isEmptyOrDefault(secretCredentialId))
+			return FormValidation.error("Please choose a credential!");
+		if (!GenericUtils.isEmptyOrDefault(credentialsId) && CredentialsProvider.listCredentials(StandardUsernamePasswordCredentials.class, itemGroup, authentication,
+				drl, CredentialsMatchers.withId(credentialsId)).isEmpty())
+			return FormValidation.error("Cannot find currently selected credentials");
+		return FormValidation.ok();
+	} 
+	
+	public FormValidation doCheckSecretCredentialId(@QueryParameter("secretCredentialId") String secretCredentialId,
+			@QueryParameter("credentialsId") String credentialsId) throws IOException, ServletException {
+
 
 		List<DomainRequirement> drl = null;
 		ItemGroup itemGroup = null;
 		Authentication authentication = null;
-		if (GenericUtils.isEmpty(credentialsId))
-			return FormValidation.error("Please choose a credential!");
-		if (CredentialsProvider.listCredentials(StandardUsernamePasswordCredentials.class, itemGroup, authentication,
-				drl, CredentialsMatchers.withId(credentialsId)).isEmpty())
+		if (GenericUtils.isEmpty(credentialsId) && !GenericUtils.isEmpty(this.credentialsId)) {
+			credentialsId = this.credentialsId;
+		}
+		if (GenericUtils.isEmptyOrDefault(secretCredentialId) && GenericUtils.isEmptyOrDefault(credentialsId))
+			return FormValidation.error("Please choose a secret credential!");
+		if (!GenericUtils.isEmptyOrDefault(secretCredentialId) && CredentialsProvider.listCredentials(StringCredentials.class, itemGroup, authentication, drl,
+				CredentialsMatchers.withId(secretCredentialId)).isEmpty())
 			return FormValidation.error("Cannot find currently selected credentials");
 		return FormValidation.ok();
 	}
@@ -232,8 +287,8 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	// Skipping validation for Artifact tool Id as it is an optional parameter.
 	@POST
 	public FormValidation doTestConnection(@QueryParameter("instanceUrl") String instanceUrl,
-			@QueryParameter("apiVersion") String apiVersion, @QueryParameter("toolId") String toolId,
-			@QueryParameter("credentialsId") String credentialsId) throws IOException, ServletException {
+			@QueryParameter("toolId") String toolId, @QueryParameter("credentialsId") String credentialsId,
+			@QueryParameter("secretCredentialId") String secretCredentialId) throws IOException, ServletException {
 
 		List<DomainRequirement> drl = null;
 		ItemGroup itemGroup = null;
@@ -242,53 +297,106 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		if (GenericUtils.isEmpty(instanceUrl))
 			return FormValidation.error("Please provide the url!");
 
-		if (GenericUtils.isEmpty(credentialsId))
-			return FormValidation.error("Please choose a credential!");
-
-		if (CredentialsProvider.listCredentials(StandardUsernamePasswordCredentials.class, itemGroup, authentication,
-				drl, CredentialsMatchers.withId(credentialsId)).isEmpty())
-			return FormValidation.error("Cannot find currently selected credentials");
-
 		if (GenericUtils.isEmpty(toolId))
 			return FormValidation.error("Invalid tool id!");
-
-		if (GenericUtils.isEmpty(apiVersion))
-			return FormValidation.error("Invalid API Version!");
-
-		String changeControlUrl = getChangeControlUrl(instanceUrl, apiVersion);
-
-		LOGGER.log(Level.INFO, "changeControlUrl ->" + changeControlUrl);
-
+		
+		if(GenericUtils.isEmptyOrDefault(secretCredentialId) && GenericUtils.isEmptyOrDefault(credentialsId)) {
+			return FormValidation.error("Invalid Credential id!");
+		}
+		String changeControlUrl = getChangeInfoUrl();
 		if (GenericUtils.isEmpty(changeControlUrl) || !GenericUtils.checkUrlValid(changeControlUrl)) {
 			return FormValidation.error("Invalid URL");
 		}
-
-		StandardUsernamePasswordCredentials credentials = getCredentials(credentialsId);
+		
+		JSONObject params = new JSONObject();
 		String user = null;
 		String pwd = null;
-		if (credentials != null) {
-			user = credentials.getUsername();
-			if (credentials.getPassword() != null) {
-				pwd = credentials.getPassword().getPlainText();
-			}
-		}
+		String tokenValue = null;
+		boolean basicTest = false;
+		boolean tokenTest = false;
 
-		JSONObject params = new JSONObject();
 		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
 		params.put(DevOpsConstants.TEST_CONNECTION_ATTR.toString(), "true");
 		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(), DevOpsConstants.TOOL_TYPE.toString());
-		try {
-			String result = GenericUtils.parseResponseResult(
-					CommUtils.call("GET", changeControlUrl, params, null, user, pwd, null, null),
-					DevOpsConstants.TEST_CONNECTION_RESPONSE_ATTR.toString());
-			if (result != null && result.equalsIgnoreCase("OK"))
-				return FormValidation.ok("Connection successful!");
-			else
-				throw new Exception("Connection failed!");
-		} catch (Exception e) {
-			return FormValidation.error("Client error : " + e.getMessage());
+
+		Map<String, String> tokenDetails = new HashMap<String, String>();
+		
+		if (!GenericUtils.isEmptyOrDefault(credentialsId)) {
+			if (CredentialsProvider.listCredentials(StandardUsernamePasswordCredentials.class, itemGroup,
+					authentication, drl, CredentialsMatchers.withId(credentialsId)).isEmpty())
+				return FormValidation.error("Cannot find currently selected credentials");
+
+			StandardUsernamePasswordCredentials credentials = getCredentials(credentialsId);
+			if (credentials != null) {
+				user = credentials.getUsername();
+				if (credentials.getPassword() != null) {
+					pwd = credentials.getPassword().getPlainText();
+				}
+			}
+			try {
+				basicTest = callConnectionApi(DevOpsConstants.VERSION_V1.toString(), params, user, pwd, null, instanceUrl);
+			} catch (Exception e) {
+				return FormValidation.error("Client error : " + e.getMessage());
+			}
+
 		}
 
+		if (!GenericUtils.isEmptyOrDefault(secretCredentialId)) {
+			if (CredentialsProvider.listCredentials(StringCredentials.class, itemGroup, authentication, drl,
+					CredentialsMatchers.withId(secretCredentialId)).isEmpty())
+				return FormValidation.error("Cannot find currently selected credentials");
+
+			tokenValue = getTokenText(secretCredentialId);
+			tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(), tokenValue);
+			try {
+				tokenTest = callConnectionApi(DevOpsConstants.VERSION_V2.toString(), params, user, pwd, tokenDetails, instanceUrl);
+			} catch (Exception e) {
+				return FormValidation.error("Client error : " + e.getMessage());
+			}
+		}
+		
+		if (!GenericUtils.isEmptyOrDefault(secretCredentialId)
+				&& !GenericUtils.isEmptyOrDefault(credentialsId)) {
+			if (basicTest && tokenTest) {
+				return FormValidation.ok(DevOpsConstants.BASIC_AUTHENCIATION_SUCCUSS.toString() + "\n"
+						+ DevOpsConstants.TOKEN_AUTHENTICATION_SUCCUSS.toString());
+			} else if (basicTest) {
+				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_SUCCUSS.toString() + "\n"
+						+ DevOpsConstants.TOKEN_AUTHENTICATION_FAILURE.toString());
+			} else if (tokenTest) {
+				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_FAILURE.toString() + "\n"
+						+ DevOpsConstants.TOKEN_AUTHENTICATION_SUCCUSS.toString());
+			} else {
+				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_FAILURE.toString() + "\n"
+						+ DevOpsConstants.TOKEN_AUTHENTICATION_FAILURE.toString());
+			}
+		} else if (!GenericUtils.isEmptyOrDefault(secretCredentialId)) {
+			if (tokenTest) {
+				return FormValidation.ok(DevOpsConstants.TOKEN_AUTHENTICATION_SUCCUSS.toString());
+			} else {
+				return FormValidation.error(DevOpsConstants.TOKEN_AUTHENTICATION_FAILURE.toString());
+			}
+
+		} else {
+			if (basicTest) {
+				return FormValidation.ok(DevOpsConstants.BASIC_AUTHENCIATION_SUCCUSS.toString());
+			} else {
+				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_FAILURE.toString());
+			}
+		}
+		
+	}
+	
+	private boolean callConnectionApi(String apiVersion, JSONObject params, String userId, String password,
+			Map<String, String> tokenDetails, String instanceUrl) {
+		String changeControlUrl = getChangeControlUrl(instanceUrl, apiVersion);
+		LOGGER.log(Level.INFO, "changeControlUrl ->" + changeControlUrl);
+		String result = GenericUtils.parseResponseResult(CommUtils.callV2Support("GET", changeControlUrl, params, null,
+				userId, password, null, null, tokenDetails), DevOpsConstants.TEST_CONNECTION_RESPONSE_ATTR.toString());
+		if (result != null && result.equalsIgnoreCase("OK"))
+			return true;
+		else
+			return false;
 	}
 
 	private String getTrimmedUrl(String url) {
@@ -381,23 +489,58 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				: null;
 	}
 
-	public ListBoxModel doFillCredentialsIdItems(@QueryParameter String credentialsId) {
+	public ListBoxModel doFillCredentialsIdItems(@QueryParameter String credentialsId) {		
 		if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
 			return new StandardListBoxModel().includeCurrentValue(credentialsId);
 		}
 
 		credentialsId = GenericUtils.isEmpty(credentialsId) ? this.credentialsId : credentialsId;
 		AbstractIdCredentialsListBoxModel<StandardListBoxModel, StandardCredentials> options = new StandardListBoxModel()
-				.includeEmptyValue().includeAs(ACL.SYSTEM, Jenkins.get(), StandardUsernamePasswordCredentials.class)
+				.includeAs(ACL.SYSTEM, Jenkins.get(), StandardUsernamePasswordCredentials.class)
 				.includeCurrentValue(credentialsId);
-		for (ListBoxModel.Option option : options) {
-			if (option.value.equals(credentialsId)) {
-				option.selected = true;
+		Option defOption = new Option(DevOpsConstants.SN_DEFAULT_KEY.toString(), DevOpsConstants.SN_DEFUALT.toString());
+		options.add(0, defOption);
+		if (DevOpsConstants.SN_DEFUALT.toString().equals(credentialsId)) {
+			options.get(0).selected = true;
+		} else {
+			for (ListBoxModel.Option option : options) {
+				if (option.value.equals(credentialsId)) {
+					option.selected = true;
+				}
 			}
 		}
 		return options;
 	}
 
+	
+	public ListBoxModel doFillSecretCredentialIdItems(@QueryParameter String secretCredentialId) {
+		if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
+			return new StandardListBoxModel().includeCurrentValue(secretCredentialId);
+		}
+		
+		DomainRequirement dr = null;
+		ItemGroup itemGroup = null;
+		Authentication authentication = null;
+		secretCredentialId = GenericUtils.isEmpty(secretCredentialId) ? this.secretCredentialId : secretCredentialId;
+
+		AbstractIdCredentialsListBoxModel<StandardListBoxModel, StandardCredentials> options = new StandardListBoxModel()
+				.includeAs(ACL.SYSTEM, Jenkins.get(), StringCredentials.class)
+				.includeCurrentValue(secretCredentialId);
+
+		Option defOption = new Option(DevOpsConstants.SN_DEFAULT_KEY.toString(), DevOpsConstants.SN_DEFUALT.toString());
+		options.add(0, defOption);
+		if (DevOpsConstants.SN_DEFUALT.toString().equals(secretCredentialId)) {
+			options.get(0).selected = true;
+		} else {
+			for (ListBoxModel.Option option : options) {
+				if (option.value.equals(secretCredentialId)) {
+					option.selected = true;
+				}
+			}
+		}
+		return options;
+	}
+	
 	public String getCDMChangeSetCreationURL() {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
 				? String.format("%s/api/sn_cdm/changesets/create", getTrimmedUrl(getInstanceUrl()))
@@ -469,7 +612,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 	public String getPipelineRegisterURL() {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
 				? String.format("%s/api/sn_devops/%s/devops/config/updatePipeline", getTrimmedUrl(getInstanceUrl()),
-						getApiVersion())
+						DevOpsConstants.VERSION_V1.toString())
 				: null;
 	}
 	
@@ -517,4 +660,17 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 				? String.format("%s/api/now/table/sn_cdm_policy_validation_result", getTrimmedUrl(getInstanceUrl()))
 				: null;
 	}
+
+
+	public String getSecretCredentialId() {
+		return secretCredentialId;
+  }
+  
+	public String getSecurityResultRegistrationURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/sn_devops/%s/devops/tool/security", getTrimmedUrl(getInstanceUrl()),
+				getApiVersion())
+				: null;
+	}
+
 }
