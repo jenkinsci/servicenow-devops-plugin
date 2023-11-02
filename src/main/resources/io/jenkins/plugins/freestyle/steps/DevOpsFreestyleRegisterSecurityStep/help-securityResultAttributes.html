@@ -1,14 +1,43 @@
 <div>
-    Enter the security result attributes.<br/>
-    scanner // Scanning tool and is required e.g. Veracode.<br/>
-    applicationName // Name of your Veracode application and is required. This attribute is applicable only for Veracode.<br/>
-    buildVersion // Veracode Scan name / build version and is optional. This attribute is applicable only for Veracode.<br/>
-    securityToolId // Security tool onboarded in ServiceNow (sys_id of the onboarded security tool).<br/>
-    <br/>
-    <br/>
-    Example:<br/>
+    <h3>Enter the security result attributes.</h3>
 
-    {"scanner":"Veracode", "applicationName": "", "buildVersion": ${BUILD_TAG}, "securityToolId": ""}
+    <h4>Jenkins-Veracode:</h4>
 
+    '{"scanner": "Veracode", "applicationName": "", "buildVersion": "", "securityToolId": ""}'
+    <br/><br/>
+    scanner:  Scanning tool and is required e.g. Veracode.<br/>
+    applicationName: Name of your Veracode application and is required. This attribute is applicable only for Veracode.<br/>
+    buildVersion: Veracode Scan name / build version and is optional. This attribute is applicable only for Veracode.<br/>
+    securityToolId: Security tool onboarded in ServiceNow (sys_id of the onboarded security tool) and is optional.<br/>
+    <br/>
+
+    <h4>Jenkins-Checkmarx One:</h4>
+
+    '{"scanner": "Checkmarx One", "projectName": "", "projectId": "", "scanId": "", "securityToolId": ""}'
+    <br/><br/>
+    scanner:  Scanning tool and is required e.g. Checkmarx One.<br/>
+    projectName/ProjectId: Name/Id of your Checkmarx One project and is required. This attribute is applicable only for Checkmarx One.<br/>
+    scanId: Checkmarx One scan id and is optional. This attribute is applicable only for Checkmarx One.<br/>
+    securityToolId: Security tool onboarded in ServiceNow (sys_id of the onboarded security tool) and is optional.<br/>
+    <br/>
+
+    <h4>Jenkins-CheckMarx SAST:</h4>
+
+    '{"scanner": "Checkmarx SAST", "projectId": "", "securityToolId": ""}'
+    <br/><br/>
+    scanner:  Scanning tool and is required e.g. Checkmarx SAST.<br/>
+    ProjectId: Id of your Checkmarx SAST project and is required. This attribute is applicable only for Checkmarx SAST.<br/>
+    securityToolId: Security tool onboarded in ServiceNow (sys_id of the onboarded security tool) and is optional.<br/>
+    <br/>
+
+    <h4>Jenkins-Others:</h4>
+    You can use this snippet if you are using any other security tool that ServiceNow doesn't support in the base system.
+    In addition to "scanner" and "securityToolId" you must provide the required project information (e.g. scanId or ProjectId or ProjectName or any other attribute that is applicable) for us to retrieve the security scan results from your custom security tool.
+
+    <br/><br/>
+    '{"scanner": "", "securityToolId": ""}'
+    <br/><br/>
+    scanner:  Scanning tool and is required e.g. Custom security tool.<br/>
+    securityToolId: Security tool onboarded in ServiceNow (sys_id of the onboarded security tool) and is optional.<br/>
 
 </div>

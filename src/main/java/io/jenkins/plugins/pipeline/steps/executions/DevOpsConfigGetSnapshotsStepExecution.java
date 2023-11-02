@@ -83,6 +83,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 		List<CDMSnapshot> result = new ArrayList<>();
 		boolean noDeployablesImpacted = false;
 		int noOfDeployablesImpacted = 0;
+		boolean noDeployablesAssociatedWithApp = false;
 
 		try {
 			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Config status step execution starts");
@@ -192,31 +193,53 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 				List<String> deployableNames = getDeployableNames(model, changesetSysId, listener);
 				noOfDeployablesImpacted = deployableNames.size();
 				if (noOfDeployablesImpacted == 0) {
-					GenericUtils.printConsoleLog(listener,
-							"snDevOpsConfigGetSnapshots - No deployables are impacted. Ignoring polling for snapshot");
-					noDeployablesImpacted = true;
-					throw new AbortException("No deployables are impacted. Ignoring polling for snapshot");
-				}
-
-				if (!StringUtils.isEmpty(this.step.getDeployableName())) {
-					if (!deployableNames.contains(this.step.getDeployableName().toLowerCase())) {
+					if(!this.step.getContinueWithLatest()) {
 						GenericUtils.printConsoleLog(listener,
-								"snDevOpsConfigGetSnapshots - Deployable provided is not impacted under given changeset. Ignoring polling for snapshot");
+								"snDevOpsConfigGetSnapshots - No deployables are impacted. Ignoring polling for snapshot");
 						noDeployablesImpacted = true;
-						throw new AbortException("Deployable provided is not impacted under given changeset");
-					} else {
-						deployableNames.clear();
-						deployableNames.add(this.step.getDeployableName());
+						throw new AbortException("No deployables are impacted. Ignoring polling for snapshot");
+					}
+					else {
+						GenericUtils.printConsoleLog(listener,
+								"snDevOpsConfigGetSnapshots - No snapshots created. Returning the latest snapshots that have passed validation instead.");
+						List<String> deployables = new ArrayList<>();
+						if(this.step.getDeployableName() == null || this.step.getDeployableName().equals("")) {
+							deployables = fetchDeployablesAssociatedWithApplication(appSysId, listener);
+							if(deployables.size() == 0) {
+								GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - No deployables found for given application");
+								noDeployablesImpacted = true;
+								noDeployablesAssociatedWithApp = true;
+								throw new AbortException("No deployables found for given application");
+							}
+						}
+						else 
+							deployables.add(this.step.getDeployableName());
+						
+						result = fetchLatestSnapshots(appSysId, deployables, this.step.getIsValidated());
 					}
 				}
+				else {
+					if (!StringUtils.isEmpty(this.step.getDeployableName())) {
+						if (!deployableNames.contains(this.step.getDeployableName().toLowerCase())) {
+							GenericUtils.printConsoleLog(listener,
+									"snDevOpsConfigGetSnapshots - Deployable provided is not impacted under given changeset. Ignoring polling for snapshot");
+							noDeployablesImpacted = true;
+							throw new AbortException("Deployable provided is not impacted under given changeset");
+						} else {
+							deployableNames.clear();
+							deployableNames.add(this.step.getDeployableName());
+						}
+					}
 
-				if (StringUtils.isEmpty(step.getChangesetNumber())) {
-					result = processSnapshotsByPollingValidationStatus(appSysId, deployableNames, listener);
-				} else {
-					result = processSnapshotsByPollingCreationAndValidationStatus(appSysId, deployableNames,
-							step.getChangesetNumber());
+					if (StringUtils.isEmpty(step.getChangesetNumber())) {
+						result = processSnapshotsByPollingValidationStatus(appSysId, deployableNames, listener);
+					} else {
+						result = processSnapshotsByPollingCreationAndValidationStatus(appSysId, deployableNames,
+								step.getChangesetNumber());
+					}
+					run.setResult(Result.SUCCESS);
 				}
-				run.setResult(Result.SUCCESS);
 			} else {
 				if (!jobProperties.isIgnoreSNErrors() || this.step.getMarkFailed()) {
 					run.setResult(Result.FAILURE);
@@ -235,14 +258,16 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 				}
 				GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Exception in run method");
 			} else {
-				if ((StringUtils.isEmpty(this.step.getDeployableName()) && noOfDeployablesImpacted == 0)
-						|| (!StringUtils.isEmpty(this.step.getDeployableName()) && noOfDeployablesImpacted == 0))
-					GenericUtils.printConsoleLog(listener,
-							"snDevOpsConfigGetSnapshots - No snapshots got generated as no deployables are impacted");
-				else
-					GenericUtils.printConsoleLog(listener,
-							"snDevOpsConfigGetSnapshots - No snapshot was generated because the specified deployable was not impacted or"
-									+ " the deployable provided was invalid");
+				if(!noDeployablesAssociatedWithApp) {
+					if ((StringUtils.isEmpty(this.step.getDeployableName()) && noOfDeployablesImpacted == 0)
+							|| (!StringUtils.isEmpty(this.step.getDeployableName()) && noOfDeployablesImpacted == 0))
+						GenericUtils.printConsoleLog(listener,
+								"snDevOpsConfigGetSnapshots - No snapshots got generated as no deployables are impacted");
+					else
+						GenericUtils.printConsoleLog(listener,
+								"snDevOpsConfigGetSnapshots - No snapshot was generated because the specified deployable was not impacted or"
+										+ " the deployable provided was invalid");
+				}
 				return mapper.writeValueAsString(result);
 			}
 		}
@@ -279,6 +304,29 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Exception in run method");
 			return mapper.writeValueAsString("[]");
 		}
+	}
+
+	public List<String> fetchDeployablesAssociatedWithApplication(String appId, TaskListener listener) throws IOException, InterruptedException,
+			JSONException, IndexOutOfBoundsException, ParserConfigurationException, TransformerException {
+		DevOpsModel model = new DevOpsModel();
+		List<String> deployableNames = new ArrayList<>();
+		JSONObject response = model.fetchDeployables(appId);
+		JSONArray result = response.getJSONArray("result");
+		if(!result.isEmpty()) {
+			for(int i =0; i<result.size(); i++) {
+				deployableNames.add((result.getJSONObject(i)).getString("node.name"));
+			}
+		}
+		return deployableNames;
+	}
+
+	public List<CDMSnapshot> fetchLatestSnapshots(String appId, List<String> deployables, boolean isValidated) throws IOException, InterruptedException,
+			JSONException, IndexOutOfBoundsException, ParserConfigurationException, TransformerException{
+		DevOpsModel model = new DevOpsModel();
+		List<CDMSnapshot> snapshotList = new ArrayList<>();
+
+		getSnapShotListAfterQuery(appId, deployables, model, snapshotList, null, isValidated, true);
+		return snapshotList;
 	}
 
 	public List<CDMSnapshot> addDeployableDetails(List<CDMSnapshot> snapshots) throws IOException, InterruptedException,
@@ -404,7 +452,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 					decision = outputJson.getString("decision");
 					policyName = policyOutput.getString("policy.name");
 
-					if (decision.equals("compliant_with_exception")) {
+					if (decision.equals("passed_with_exception")) {
 						policyName=policyName+" (EXCEPTION)";
 					}
 					impactedNode = policyOutput.getString("impacted_node.name");
@@ -422,7 +470,6 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 						processedResults.add(dummyJSON);
 				}
 			}
-			GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots - Generating test results");
 			generateTestResults(processedResults, policyNames, impactedNodes, nodePaths, snapshotName, appName,
 					snapshotSysId, format, validationState, workspace, envVars, listener);
 		} else {
@@ -488,7 +535,6 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 			String validationState, FilePath workspace, EnvVars envVars, TaskListener listener)
 			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException,
 			ParserConfigurationException, TransformerException {
-
 		DevOpsModel model = new DevOpsModel();
 		String path = workspace.getRemote();
 		String pipeline = envVars.get(DevOpsConstants.PIPELINE_JOB_NAME.toString());
@@ -499,15 +545,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 				+ envVars.get(DevOpsConstants.PIPELINE_BUILD_NUMBER.toString());
 		String fileName = "";
 
-		StringBuilder filePath = new StringBuilder();
-
 		if (!(format.equalsIgnoreCase("json"))) {
-
-			fileName = fName + ".xml";
-
-			filePath.append(path);
-			filePath.append(File.separator);
-			filePath.append(fileName);
 
 			int noOfPolicies = validationResults.size();
 			int failureCount = 0;
@@ -523,118 +561,144 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 						nonComplaintDecisions++;
 				}
 			}
-
-			DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
-			DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
-			Document document = documentBuilder.newDocument();
-
-			String test = noOfPolicies + "";
-			String noOfFailure = nonComplaintDecisions + "";
-
-			Element root = document.createElement("testsuites");
-			Attr tests = document.createAttribute("tests");
-			tests.setValue(test);
-			root.setAttributeNode(tests);
-			Attr failures = document.createAttribute("failures");
-
-			failures.setValue(noOfFailure);
-			root.setAttributeNode(failures);
-			document.appendChild(root);
-
-			Element testsuite = document.createElement("testsuite");
-			root.appendChild(testsuite);
-			String name1 = applicationName + "/" + snapshotName;
-			Attr name = document.createAttribute("name");
-			name.setValue(name1);
-			testsuite.setAttributeNode(name);
-
-			Element[] testcases = new Element[noOfPolicies];
-			Attr[] decisions = new Attr[noOfPolicies];
-			Attr[] policyNames = new Attr[noOfPolicies];
-
-			for (int pc = 0; pc < noOfPolicies; pc++) {
-				testcases[pc] = document.createElement("testcase");
-				decisions[pc] = document.createAttribute("decision");
-				policyNames[pc] = document.createAttribute("name");
-			}
-
-			Element[] failure = new Element[failureCount + noOfPolicies];
-
-			for (int f = 0; f < (failureCount + noOfPolicies); f++) {
-				failure[f] = document.createElement("failure");
-			}
-
-			int failureIndex = 0;
+			String test = 1 + "";
+			String noOfFailure = 1 + "";
 			for (int j = 0; j < noOfPolicies; j++) {
 				JSONObject policyResult = validationResults.get(j);
 				String message = "";
-
 				if (policyResult.toString().equals("{}") && (validationState.equalsIgnoreCase("execution_error")
 						|| validationState.equalsIgnoreCase("failed"))) {
-					decisions[j].setValue("non_complaint");
-					policyNames[j].setValue(pNames.get(j));
+					DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
+					DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
+					Document document = documentBuilder.newDocument();
+					Element root = document.createElement("testsuites");
+					Attr tests = document.createAttribute("tests");
+					tests.setValue(test);
+					root.setAttributeNode(tests);
+					Attr failures = document.createAttribute("failures");
+					failures.setValue(noOfFailure);
+					root.setAttributeNode(failures);
+					document.appendChild(root);
+					Element testcase = document.createElement("testcase");
+					Attr decision = document.createAttribute("decision");
+					Attr policyName = document.createAttribute("name");
+					Element failure = document.createElement("failure");
+					decision.setValue("non_complaint");
+					policyName.setValue(pNames.get(j));
 
-					testcases[j].setAttributeNode(decisions[j]);
-					testcases[j].setAttributeNode(policyNames[j]);
-					testcases[j].appendChild(failure[failureIndex]);
-					testsuite.appendChild(testcases[j]);
-					failureIndex++;
+					testcase.setAttributeNode(decision);
+					testcase.setAttributeNode(policyName);
+					testcase.appendChild(failure);
+					Element testsuite = document.createElement("testsuite");
+					root.appendChild(testsuite);
+					String name1 = applicationName + "/" + snapshotName;
+					Attr name = document.createAttribute("name");
+					name.setValue(name1);
+					testsuite.setAttributeNode(name);
+					testsuite.appendChild(testcase);
 				} else {
 					JSONObject r = model.getValidationResults(snapshotSysId, pNames.get(j), "xml");
 					JSONArray info = r.getJSONArray("result");
 					if (!info.isEmpty()) {
 						for (int b = 0; b < info.size(); b++) {
-							message = message.concat(info.get(b).toString()) + "  ";
-						}
-					}
-					String decision = policyResult.getString("decision");
-
-					decisions[j].setValue(decision);
-					policyNames[j].setValue(pNames.get(j));
-					testcases[j].setAttributeNode(decisions[j]);
-					testcases[j].setAttributeNode(policyNames[j]);
-
-					JSONArray failuresArray = policyResult.getJSONArray("failures");
-					if (failuresArray.size() == 0) {
-						if (decision.equalsIgnoreCase("non_complaint")) {
-							testcases[j].appendChild(failure[failureIndex]);
-							testsuite.appendChild(testcases[j]);
-							failureIndex++;
-						} else
-							testsuite.appendChild(testcases[j]);
-					} else {
-						if (message.length() != 0) {
-							failure[failureIndex].appendChild(document.createTextNode(message));
-							testcases[j].appendChild(failure[failureIndex]);
-							testsuite.appendChild(testcases[j]);
-							failureIndex++;
-						} else {
-							testsuite.appendChild(testcases[j]);
+							message = info.get(b).toString();
+							String validationDecision = policyResult.getString("decision");
+							DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
+							DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
+							Document document = documentBuilder.newDocument();
+							Element root = document.createElement("testsuites");
+							Attr tests = document.createAttribute("tests");
+							tests.setValue(test);
+							root.setAttributeNode(tests);
+							Attr failures = document.createAttribute("failures");
+							
+							root.setAttributeNode(failures);
+							document.appendChild(root);
+							Element testcase = document.createElement("testcase");
+							Attr decision = document.createAttribute("decision");
+							Attr policyName = document.createAttribute("name");
+							Element failure = document.createElement("failure");
+							decision.setValue(validationDecision);
+							if (validationDecision.equalsIgnoreCase("compliant_with_exception")) {
+								policyName.setValue(pNames.get(j) + " (EXCEPTION)");
+							} else {
+								policyName.setValue(pNames.get(j));
+							}
+							testcase.setAttributeNode(decision);
+							testcase.setAttributeNode(policyName);
+							JSONArray failuresArray = policyResult.getJSONArray("failures");
+							if (failuresArray.size() == 0) {
+								Element testsuite = document.createElement("testsuite");
+								if (validationDecision.equalsIgnoreCase("non_complaint")) {
+									failures.setValue(noOfFailure);
+									testcase.appendChild(failure);
+									root.appendChild(testsuite);
+									String name1 = applicationName + "/" + snapshotName;
+									Attr name = document.createAttribute("name");
+									name.setValue(name1);
+									testsuite.setAttributeNode(name);
+									testsuite.appendChild(testcase);
+								} else {
+									failures.setValue("0");
+									root.appendChild(testsuite);
+									String name1 = applicationName + "/" + snapshotName;
+									Attr name = document.createAttribute("name");
+									name.setValue(name1);
+									testsuite.setAttributeNode(name);
+									testsuite.appendChild(testcase);
+								}
+							} else {
+								if (message.length() != 0) {
+									failures.setValue(noOfFailure);
+									failure.appendChild(document.createTextNode(message));
+									testcase.appendChild(failure);
+									Element testsuite = document.createElement("testsuite");
+									root.appendChild(testsuite);
+									String name1 = applicationName + "/" + snapshotName;
+									Attr name = document.createAttribute("name");
+									name.setValue(name1);
+									testsuite.setAttributeNode(name);
+									testsuite.appendChild(testcase);
+								} else {
+									failures.setValue("0");
+									Element testsuite = document.createElement("testsuite");
+									root.appendChild(testsuite);
+									String name1 = applicationName + "/" + snapshotName;
+									Attr name = document.createAttribute("name");
+									name.setValue(name1);
+									testsuite.setAttributeNode(name);
+									testsuite.appendChild(testcase);
+								}
+							}
+							TransformerFactory transformerFactory = TransformerFactory.newInstance();
+							transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+							transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+							transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+							Transformer transformer = transformerFactory.newTransformer();
+							transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+							transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+							DOMSource source = new DOMSource(document);
+							StringWriter stringWriter = new StringWriter();
+							StreamResult result = new StreamResult(stringWriter);
+							transformer.transform(source, result);
+							String outputData = stringWriter.toString();
+							fileName = fName+ "_" + pNames.get(j) + "_" + String.valueOf(b) + ".xml";
+							StringBuilder filePath = new StringBuilder();
+							filePath.append(path);
+							filePath.append(File.separator);
+							filePath.append(fileName);
+							writeToFile(workspace, outputData, filePath.toString());
 						}
 					}
 				}
 			}
-			TransformerFactory transformerFactory = TransformerFactory.newInstance();
-			transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-			transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-			transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-			Transformer transformer = transformerFactory.newTransformer();
-			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-			DOMSource source = new DOMSource(document);
-			StringWriter stringWriter = new StringWriter();
-			StreamResult result = new StreamResult(stringWriter);
-			transformer.transform(source, result);
-			String outputData = stringWriter.toString();
-			writeToFile(workspace, outputData, filePath.toString());
 
 		} else {
 			fileName = fName + ".json";
-
+			StringBuilder filePath = new StringBuilder();
 			filePath.append(path);
 			filePath.append(File.separator);
 			filePath.append(fileName);
-
 			List<JSONObject> modifiedList = new ArrayList<>();
 			for (int p = 0; p < validationResults.size(); p++) {
 				JSONObject newObj = new JSONObject();
@@ -664,19 +728,17 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 					newObj.put("Decision", "compliant");
 				else
 					newObj.put("Decision", "non_compliant");
-
 				newObj.put("Results", results);
 				newObj.put("Warnings", warnings);
 				newObj.put("Failures", failures);
-
 				modifiedList.add(newObj);
-
 			}
 			JSONObject jsonResult = new JSONObject();
 			jsonResult.put("Application", applicationName);
 			jsonResult.put("Snapshot", snapshotName);
 			jsonResult.put("ValidationResults", modifiedList);
 			writeToFile(workspace, jsonResult.toString(), filePath.toString());
+
 		}
 	}
 
@@ -721,7 +783,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 		pollForSnapshotValidation(appSysId, deployableNames, snapshotListAfterpoll, model);
 		// querying db again to get latest status of the snapshots.
 		List<CDMSnapshot> snapshotList = new ArrayList<>();
-		getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, changesetNumber, false);
+		getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, changesetNumber, false, false);
 		return snapshotList;
 	}
 
@@ -732,7 +794,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 		boolean isValidated = this.step.getIsValidated();
 
 		// get latest published and validated snapshot for each app, deployable
-		getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null, isValidated);
+		getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null, isValidated, false);
 		// change
 		if (snapshotList.size() == 0) {
 			return snapshotList;
@@ -768,7 +830,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 																									// for 15 minutes.
 			// querying db again to get latest status of the snapshots.
 			snapshotList = new ArrayList<>();
-			getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null, isValidated);
+			getSnapShotListAfterQuery(appSysId, deployableNames, devOpsModel, snapshotList, null, isValidated, false);
 			return snapshotList;
 		}
 	}
@@ -786,7 +848,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 			pollForSnapshotValidation(appSysId, deployableNames, snapshotList, model);
 
 			snapshotList = new ArrayList<>();
-			getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, null, isValidated);
+			getSnapShotListAfterQuery(appSysId, deployableNames, model, snapshotList, null, isValidated, false);
 			if (snapshotList.get(0).getValidation().equals("passed")
 					|| snapshotList.get(0).getValidation().equals("passed_with_exception")) {
 				if (snapshotList.size() == 2)
@@ -807,7 +869,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 	}
 
 	private void getSnapShotListAfterQuery(String appSysId, List<String> deployableNames, DevOpsModel devOpsModel,
-			List<CDMSnapshot> snapshotList, String changesetNumber, boolean isValidated)
+			List<CDMSnapshot> snapshotList, String changesetNumber, boolean isValidated, boolean noImapactedDeployable)
 			throws IOException, InterruptedException, JSONException, IndexOutOfBoundsException {
 		TaskListener listener = getContext().get(TaskListener.class);
 
@@ -830,7 +892,7 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 
 		deployableNames.forEach(deployableName -> {
 			JSONObject snapshots = devOpsModel.getSnapshotsByDeployables(appSysId, deployableName, changesetNumber,
-					isValidated, transactionSource);
+					isValidated, transactionSource, noImapactedDeployable);
 			try {
 				checkErrorInResponse(snapshots,
 						"Unable to fetch snapshots for " + step.getApplicationName() + ":" + step.getDeployableName());

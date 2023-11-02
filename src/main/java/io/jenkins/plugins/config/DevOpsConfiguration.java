@@ -101,7 +101,11 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 			this.apiVersion = DevOpsConstants.VERSION_V1.toString();
 		}
 		this.save();
-		return super.configure(req, formData);
+		if(null != req) {
+			return super.configure(req, formData);
+		}
+		return true;
+		
 	}
 
 	private void reIntialize() {
@@ -229,8 +233,12 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 			return FormValidation.error("Please provide a valid instance URL");
 		if (snInstanceUrl.length() > 0 && !snInstanceUrl.startsWith("http"))
 			return FormValidation.error("URL must start with http/https");
-		if (snInstanceUrl.length() > 9 && !GenericUtils.checkUrlValid(snInstanceUrl))
+		if (snInstanceUrl.length() > 9 && !GenericUtils.checkUrlValid(snInstanceUrl)) {
+			if (snInstanceUrl.substring(0, 5).equalsIgnoreCase("http:")) {
+				return FormValidation.error("HTTP URLs are not allowed");
+			}
 			return FormValidation.error("Invalid URL");
+		}
 		return FormValidation.ok();
 	}
 
@@ -303,8 +311,8 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		if(GenericUtils.isEmptyOrDefault(secretCredentialId) && GenericUtils.isEmptyOrDefault(credentialsId)) {
 			return FormValidation.error("Invalid Credential id!");
 		}
-		String changeControlUrl = getChangeInfoUrl();
-		if (GenericUtils.isEmpty(changeControlUrl) || !GenericUtils.checkUrlValid(changeControlUrl)) {
+		
+		if (GenericUtils.isEmpty(instanceUrl) || !GenericUtils.checkUrlValid(instanceUrl)) {
 			return FormValidation.error("Invalid URL");
 		}
 		
@@ -387,7 +395,7 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		
 	}
 	
-	private boolean callConnectionApi(String apiVersion, JSONObject params, String userId, String password,
+	public boolean callConnectionApi(String apiVersion, JSONObject params, String userId, String password,
 			Map<String, String> tokenDetails, String instanceUrl) {
 		String changeControlUrl = getChangeControlUrl(instanceUrl, apiVersion);
 		LOGGER.log(Level.INFO, "changeControlUrl ->" + changeControlUrl);
@@ -670,6 +678,12 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 		return GenericUtils.isNotEmpty(getInstanceUrl())
 				? String.format("%s/api/sn_devops/%s/devops/tool/security", getTrimmedUrl(getInstanceUrl()),
 				getApiVersion())
+				: null;
+	}
+
+	public String getDeployablesURL() {
+		return GenericUtils.isNotEmpty(getInstanceUrl())
+				? String.format("%s/api/now/table/sn_cdm_deployable", getTrimmedUrl(getInstanceUrl()))
 				: null;
 	}
 

@@ -8,14 +8,23 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.kohsuke.stapler.HttpResponses;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
+
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import hudson.Extension;
 import hudson.model.RootAction;
 import hudson.security.csrf.CrumbExclusion;
+import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.model.DevOpsModel;
+import io.jenkins.plugins.model.DevOpsRunStatusJobModel;
+import io.jenkins.plugins.model.DevOpsRunStatusModel;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExecution;
+import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 
@@ -33,6 +42,8 @@ import hudson.FilePath;
 import java.io.UnsupportedEncodingException;  
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.ArrayList;
 
 
@@ -102,6 +113,41 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
         } 
         return false;
     }
+    
+	private JSONObject _sendDummyNotification(String reqestedToolId, DevOpsConfiguration devopsConfig) {
+
+		JSONObject params = new JSONObject();
+		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(), DevOpsConstants.TOOL_TYPE.toString());
+		String toolId = devopsConfig.getToolId();
+		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
+		String user = devopsConfig.getUser();
+		String pwd = devopsConfig.getPwd();
+
+		DevOpsRunStatusModel model = new DevOpsRunStatusModel();
+		DevOpsRunStatusJobModel jobModel = new DevOpsRunStatusJobModel();
+
+		UUID uuid = UUID.randomUUID();
+		jobModel.setName(uuid.toString() + "_dummyWebhookPipeline");
+		model.setJobModel(jobModel);
+		model.setNumber(0);
+		model.setUrl(uuid.toString());
+		model.setPronoun(DevOpsConstants.JENKINS_DUMMY_EVENT_PRONOUN.toString());
+
+		Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.IDENTITY).setPrettyPrinting().create();
+		String data = gson.toJson(model);
+		JSONObject jsonResult = null;
+
+		if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
+			Map<String, String> tokenDetails = new HashMap<String, String>();
+			tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+					devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+			jsonResult = CommUtils.callV2Support("POST", devopsConfig.getNotificationUrl(), params, data, user, pwd,
+					null, null, tokenDetails);
+		} else {
+			jsonResult = CommUtils.call("POST", devopsConfig.getNotificationUrl(), params, data, user, pwd, null, null);
+		}
+		return jsonResult;
+	}
 
     private boolean _displayPipelineChangeRequestInfo(String token, StringBuffer content) {
         GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_displayPipelineChangeRequestInfo", new String[]{"token"}, new String[]{token}, Level.INFO);
@@ -220,7 +266,41 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
             }
             response.setStatus(400);
             return;
-        }
+		} else if (token.startsWith(DevOpsConstants.CHECK_CONFIGURATION.toString())) {
+
+			String toolIdValue = request.getParameter("toolId");
+			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+			if (!toolIdValue.equalsIgnoreCase(devopsConfig.getToolId())) {
+				response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+				response.setContentType("text/plain");
+				try {
+					response.getWriter().print("ToolId is incorrect");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return;
+			}
+			JSONObject jsonResult = _sendDummyNotification(toolIdValue, devopsConfig);
+			if (null == jsonResult) {
+				response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+				response.setContentType("text/plain");
+				try {
+					response.getWriter().print("Internal server error");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return;
+			} else {
+				response.setStatus(HttpServletResponse.SC_OK);
+				response.setContentType("text/plain");
+				try {
+					response.getWriter().print("Success");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return;
+			}
+		}
 
         GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", new String[]{"message"}, new String[]{"Callback handler called with token: " + token + " / content: " + content.toString()}, Level.INFO);
 
