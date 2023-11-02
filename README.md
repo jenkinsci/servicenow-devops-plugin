@@ -41,7 +41,7 @@ The following plugin dependencies are required. Depending on your Jenkins config
 - org.jenkins-ci.plugins.workflow.workflow-job 2.40
 - org.jenkins-ci.plugins.workflow.workflow-step-api 2.23
 - com.evanlennickom.retry4j 0.15.0
-- com.google.code.gson.gson 2.8.5
+- com.google.code.gson.gson 2.8.9
 - org.apache.commons.commons-lang 3 3.7
 
 

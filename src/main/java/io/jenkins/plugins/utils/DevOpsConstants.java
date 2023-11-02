@@ -90,6 +90,7 @@ public enum DevOpsConstants {
 	CONFIG_NAME_PATH,
 	CONFIG_DATA_FORMAT,
 	CONFIG_AUTO_COMMIT,
+	CONFIG_AUTO_DELETE,
 	CONFIG_AUTO_VALIDATE,
 	CONFIG_DEPLOYABLE_NAME,
 	CONFIG_COLLECTION_NAME,
@@ -246,6 +247,7 @@ public enum DevOpsConstants {
 	SEC_TOOL_JOB_NAME,
 	SEC_TOOL_BUILD_NUMBER,
 	SEC_TOOL_TASK_EXEC_URL,
+	SEC_TOOL_TASK_URL,
 	SEC_TOOL_JSON_ATTR_TOOL_ID,
 	SEC_TOOL_JSON_ATTR_RESULT_META_DATA,
 	SEC_TOOL_JSON_ATTR_TASK_INFO,
@@ -254,6 +256,9 @@ public enum DevOpsConstants {
 	VERACODE_APP_ID,
 	VERACODE_BUILD_ID,
 	VERACODE,
+	CHECKMARX_ONE,
+	CHECKMARX_SCAN_ID,
+	CHECKMARX_PROJECT_ID,
 	CREATE_IBE,
 
 	TOKEN_VALUE,
@@ -262,10 +267,13 @@ public enum DevOpsConstants {
 	TOKEN_AUTHENTICATION_SUCCUSS,
 	BASIC_AUTHENCIATION_FAILURE,
 	TOKEN_AUTHENTICATION_FAILURE,
-	SN_DEFUALT;
-	
-
-
+	SN_DEFUALT,
+	CHECK_CONFIGURATION,
+	JENKINS_CONFIGURATION_SAVE_FAILURE,
+	JENKINS_CONFIGURATION_TEST_CONNECTION_FAILURE,
+	JENKINS_CONFIGURATION_CRED_CREATION_FAILURE,
+	JENKINS_CONFIGURATION_SUCCESS,
+	JENKINS_DUMMY_EVENT_PRONOUN;
 
 
 	@Override
@@ -371,6 +379,7 @@ public enum DevOpsConstants {
 			case CONFIG_NAME_PATH: return "namePath";
 			case CONFIG_DATA_FORMAT: return "dataFormat";
 			case CONFIG_AUTO_COMMIT: return "autoCommit";
+			case CONFIG_AUTO_DELETE: return "autoDelete";
 			case CONFIG_AUTO_VALIDATE: return "autoValidate";
 			case CONFIG_FILE_CONTENT: return "dataStream";
 			case CONFIG_COMPONENT_TYPE: return "component";
@@ -492,9 +501,9 @@ public enum DevOpsConstants {
 
 			case CR_ATTRS: return "changeRequestDetails";
 
-			case PATH_SEPARATOR: return "/";
-			case JOBS_PATH: return "/jobs/";
-			case MULTIBRANCH_PATH_SEPARATOR: return "/branches/";
+			case PATH_SEPARATOR: return GenericUtils.isWindows() ? "\\" : "/";
+			case JOBS_PATH: return GenericUtils.isWindows() ? "\\jobs\\" : "/jobs/";
+			case MULTIBRANCH_PATH_SEPARATOR: return GenericUtils.isWindows() ? "\\branches\\" : "/branches/";
 			case JOBNAME_ATTR: return "jobName";
 			case STAGENAME_ATTR: return "stageName";
 			case SERVICENOW_PIPELINE_INFO_FILE_NAME: return "snPipelineInfo.json";
@@ -513,6 +522,7 @@ public enum DevOpsConstants {
 			case SEC_TOOL_JOB_NAME: return "pipelineName";
 			case SEC_TOOL_BUILD_NUMBER: return "buildNumber";
 			case SEC_TOOL_TASK_EXEC_URL: return "taskExecutionUrl";
+			case SEC_TOOL_TASK_URL: return "taskUrl";
 			case SEC_TOOL_JSON_ATTR_TOOL_ID: return "securityToolId";
 			case SEC_TOOL_JSON_ATTR_RESULT_META_DATA: return "securityResultAttributes";
 			case SEC_TOOL_JSON_ATTR_TASK_INFO: return "pipelineInfo";
@@ -521,6 +531,9 @@ public enum DevOpsConstants {
 			case VERACODE_APP_ID: return "applicationId";
 			case VERACODE_BUILD_ID: return "buildId";
 			case VERACODE: return "Veracode";
+			case CHECKMARX_ONE: return "Checkmarx One";
+			case CHECKMARX_SCAN_ID: return "scanId";
+			case CHECKMARX_PROJECT_ID: return "projectId";
 			case CREATE_IBE: return "CREATE_IBE";
 
 			case BASIC: return "Basic";
@@ -537,10 +550,13 @@ public enum DevOpsConstants {
 			case SN_DEFUALT:
 				return "SNDefualt";
 			case SN_DEFAULT_KEY: return "- none -";
+			case CHECK_CONFIGURATION: return "checkconfiguration";
+			case JENKINS_CONFIGURATION_SAVE_FAILURE: return "Jenkins configuration failed while saving";
+			case JENKINS_CONFIGURATION_TEST_CONNECTION_FAILURE: return "Jenkins configuration failed due to test connection failure";
+			case JENKINS_CONFIGURATION_CRED_CREATION_FAILURE: return "Jenkins configuration failed due to secret credential creation issue";
+			case JENKINS_CONFIGURATION_SUCCESS: return "Jenkins configured successfully";
+			case JENKINS_DUMMY_EVENT_PRONOUN: return "SnDevopsDummyEventPronoun";
 			
-
-
-
 			default: throw new IllegalArgumentException();
 		}
 	}

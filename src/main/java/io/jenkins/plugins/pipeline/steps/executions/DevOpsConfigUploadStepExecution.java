@@ -39,6 +39,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 
 	private int retryFrequency = 220;
 	private int maxRetryCount = 20;
+	private String validFormatRegex = ".{json,xml,yml,ini,properties,yaml}";
 
 	public DevOpsConfigUploadStepExecution(StepContext context, DevOpsConfigUploadStep step) {
 		super(context);
@@ -65,10 +66,6 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 			return handleException("Target cannot be empty. Upload failed");
 		}
 
-		if (this.step.getDataFormat() == null || this.step.getDataFormat().isEmpty()) {
-			return handleException("Data format is empty. Upload failed");
-		}
-
 //Fetching files from regex pattern
 
 		try {
@@ -82,9 +79,23 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 
 			if (allFilesInWorkspace.isEmpty())
 				return handleException("No files found inside workspace");
+			
+			String configFile = this.step.getConfigFile();
+			boolean isFolder = false;
+			if(configFile.indexOf('.') == -1)
+				isFolder = true;
+	
+			StringBuilder updatedRegex = new StringBuilder(configFile);
+	
+			if(isFolder) {
+				if(this.step.getDataFormat() == null)
+					updatedRegex.append(validFormatRegex);
+				else
+					updatedRegex.append("."+this.step.getDataFormat());
+			}
 
 			final PathMatcher maskMatcher = FileSystems.getDefault()
-					.getPathMatcher("glob:" + this.step.getConfigFile());
+					.getPathMatcher("glob:" + updatedRegex);
 			List<FilePath> filteredList = allFilesInWorkspace.stream().filter(c -> {
 
 				Path fileRelativePath = Paths.get(c.getRemote().replace(workspace.getRemote() + "/", ""));
@@ -145,13 +156,31 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 
 //Reading File content.
 			boolean commitFlag = false;
+			boolean deleteFlag = false;
 			String changesetId = "";
 			JSONObject responseStatus = null;
-			String transactionSource = "system_information=jenkins,interface_type="+step.getTarget()+",interface="+step.getAutoValidate()+",interface_version="+step.getDataFormat()+",session_type="+step.getAutoCommit();
 			
+			if (this.step.getAutoDelete() == null || this.step.getAutoDelete() == true)
+			   deleteFlag = true;
+			   
 			for (FilePath fileToUpload : filteredList) {
 
 				String fileContent = fileToUpload.readToString();
+				String fileName = "";
+				String format = "";
+				String dataFormat = "";
+				String transactionSource = "system_information=jenkins,interface_type="+step.getTarget()+",interface="+step.getAutoValidate()+",session_type="+step.getAutoCommit()+",interface_version=";
+				if(this.step.getDataFormat() == null) {
+					fileName = fileToUpload.getName();
+					format = fileName.substring(fileName.lastIndexOf('.')+1);
+					if(format.equals("yml"))
+						dataFormat = dataFormat+"yaml";
+					else
+						dataFormat= dataFormat+format;
+				}
+				else
+					dataFormat = dataFormat+this.step.getDataFormat().toLowerCase();
+				transactionSource = transactionSource+dataFormat;
 
 				// Setting namePath
 				Path relativePath = Paths.get(fileToUpload.getRemote().replace(workspace.getRemote() + "/", ""));
@@ -171,7 +200,7 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 				JSONObject uploadRequest = null;
 				try {
 					uploadRequest = model.uploadData(this.step.getApplicationName().trim(), changesetNumber,
-							this.step.getDataFormat().toLowerCase(), modifiedNamePath, commitFlag,
+							dataFormat, modifiedNamePath, commitFlag, deleteFlag,
 							this.step.getAutoValidate(), fileContent, this.step.getTarget(),
 							this.step.getDeployableName(), this.step.getCollectionName(), this.step.getAutoPublish(), transactionSource);
 				} catch (Exception e) {
@@ -277,7 +306,8 @@ public class DevOpsConfigUploadStepExecution extends SynchronousNonBlockingStepE
 			} catch (JSONException j) {
 				return handleException("Upload step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
 			}
-
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString() + 
+				" - Upload completed successfully ("+filteredList.size()+" files uploaded to changeset: "+changesetId+")");
 			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_UPLOAD_STEP_FUNCTION_NAME.toString()
 					+ " - Files got uploaded under the changeset : " + changesetId);
 			return changesetId;

@@ -1946,7 +1946,7 @@ public class DevOpsModel {
 	}
 
 	public JSONObject uploadData(String applicationName, String changesetNumber, String dataFormat, String path,
-								 boolean autoCommit, boolean autoValidate, String fileContent, String target, String deployableName,
+								 boolean autoCommit, boolean autoDelete, boolean autoValidate, String fileContent, String target, String deployableName,
 								 String collectionName, boolean autoPublish, String transactionSource) {
 		JSONObject queryParams = new JSONObject();
 
@@ -1955,6 +1955,7 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.CONFIG_NAME_PATH.toString(), path);
 		queryParams.put(DevOpsConstants.CONFIG_DATA_FORMAT.toString(), dataFormat);
 		queryParams.put(DevOpsConstants.CONFIG_AUTO_COMMIT.toString(), autoCommit);
+		queryParams.put(DevOpsConstants.CONFIG_AUTO_DELETE.toString(), autoDelete);
 		queryParams.put(DevOpsConstants.CONFIG_AUTO_VALIDATE.toString(), autoValidate);
 		queryParams.put(DevOpsConstants.CONFIG_DEPLOYABLE_NAME.toString(), deployableName);
 		queryParams.put(DevOpsConstants.CONFIG_COLLECTION_NAME.toString(), collectionName);
@@ -2067,7 +2068,7 @@ public class DevOpsModel {
 		return response;
 	}
 
-	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changesetNumber, boolean isValidated, String transactionSource) {
+	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changesetNumber, boolean isValidated, String transactionSource, boolean noImapactedDeployable) {
 		JSONObject queryParams = new JSONObject();
 		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		String query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName;
@@ -2078,9 +2079,15 @@ public class DevOpsModel {
 				query = query +"^ORDERBYDESCsys_created_on";
 				queryLimit = "1";
 			}
-			else {
-				query = query +"^validationINpassed,in_progress,passed_with_exception,requested^ORDERBYDESCsys_created_on";
-				queryLimit = "2";
+			else { 
+				if(!noImapactedDeployable) {
+					query = query +"^validationINpassed,in_progress,passed_with_exception,requested^ORDERBYDESCsys_created_on";
+					queryLimit = "2";
+				}
+				else {
+					query = query +"^validationINpassed,passed_with_exception^ORDERBYDESCsys_created_on";
+					queryLimit = "1";
+				}
 			}
 		}
 		else {
@@ -2098,6 +2105,7 @@ public class DevOpsModel {
 
 		return response;
 	}
+
 
 	public JSONObject snapShotExists(String applicationName, List<String> deployableNames, String changesetNumber) {
 
@@ -2338,7 +2346,7 @@ public class DevOpsModel {
 		}
 		else {
 			if(format.equalsIgnoreCase("xml")) {
-				query = baseQuery+"^policy.name="+policy+"^type=failure";
+				query = baseQuery+"^policy.name="+policy;
 				queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
 				queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "description,impacted_node.name,node_path");
 			}
@@ -2388,6 +2396,24 @@ public class DevOpsModel {
 					devopsConfig.getPwd(), null, null);
 		}
 		
+
+		return response;
+	}
+
+	public JSONObject fetchDeployables(String appSysId) {
+		JSONObject queryParams = new JSONObject();
+		JSONObject filePayloadJSON = new JSONObject();
+
+		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+
+		String query = "cdm_app="+appSysId;
+
+		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
+		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "node.name");
+
+		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+				devopsConfig.getDeployablesURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
+				devopsConfig.getPwd(), null, null);
 
 		return response;
 	}

@@ -41,16 +41,17 @@ public class DevOpsConfigStep extends Step implements Serializable {
     private String autoPublish;
     private String autoValidate;
     private String autoCommit;
-
+    private boolean continueWithLatest;
+    private String autoDelete;
+  
     @DataBoundConstructor
-    public DevOpsConfigStep(String applicationName, String target, String namePath, String configFile, String dataFormat) {
+    public DevOpsConfigStep(String applicationName, String target, String namePath, String configFile) {
         m_enabled  =true;
         m_ignoreErrors = false;
         this.applicationName = applicationName;
         this.target = target;
         this.namePath = namePath;
         this.configFile = configFile;
-        this.dataFormat = dataFormat;
     }
 
     @Override
@@ -174,8 +175,12 @@ public class DevOpsConfigStep extends Step implements Serializable {
         return namePath;
     }
 
+    @DataBoundSetter
     public void setDataFormat(String dataFormat) {
-        this.dataFormat = dataFormat;
+        if(dataFormat == null || dataFormat.isEmpty())
+            this.dataFormat = null;
+        else
+            this.dataFormat = dataFormat;
     }
 
     public String getDataFormat() {
@@ -237,6 +242,27 @@ public class DevOpsConfigStep extends Step implements Serializable {
             this.autoCommit = "true";
         else
             this.autoCommit = autoCommit;
+    }
+
+    @DataBoundSetter
+    public void setContinueWithLatest(boolean continueWithLatest) {
+          this.continueWithLatest = continueWithLatest;
+    }
+
+    public boolean getContinueWithLatest() {
+        return continueWithLatest;
+    }
+      
+    public String getAutoDelete() {
+        return autoDelete;
+    }
+
+    @DataBoundSetter
+    public void setAutoDelete(String autoDelete) {
+        if(autoDelete == null || autoDelete.isEmpty())
+            this.autoDelete = "true";
+        else
+            this.autoDelete = autoDelete;
     }
 
     @Extension

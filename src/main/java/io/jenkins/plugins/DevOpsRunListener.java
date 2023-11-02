@@ -421,17 +421,22 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 				String _result = model.removeCallbackResult(jobId);
 				// Valid result available
 				if (jobId != null && _result != null && _result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
-					result = true;
-					// There is error in sending the request
-					String msg = "There was error in sending callback request";
-					if (_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
-						msg = _result;
+					DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
+					if (jobProperties.isIgnoreSNErrors()) 
+						GenericUtils.printConsoleLog(listener, "IGNORED: Change creation error ignored as the Ignore ServiceNow DevOps errors option is enabled.");
+					else {
+						result = true;
+						// There is error in sending the request
+						String msg = "There was error in sending callback request";
+						if (_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
+							msg = _result;
+						}
+						printDebug("shouldStop", new String[]{"message"},
+								new String[]{msg},
+								Level.FINE);
+						listener.getLogger().println(
+								"[ServiceNow DevOps]" + msg);
 					}
-					printDebug("shouldStop", new String[]{"message"},
-							new String[]{msg},
-							Level.FINE);
-					listener.getLogger().println(
-							"[ServiceNow DevOps]" + msg);
 				}
 			}
 		}

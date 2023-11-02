@@ -3,6 +3,8 @@ package io.jenkins.plugins.pipeline.steps;
 import java.io.Serializable;
 import java.util.Set;
 
+import hudson.util.ListBoxModel;
+import io.jenkins.plugins.utils.GenericUtils;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -17,6 +19,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineRegisterSecurityStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import org.kohsuke.stapler.QueryParameter;
 
 public class DevOpsPipelineRegisterSecurityStep extends Step implements Serializable {
 	private String securityResultAttributes;
@@ -60,6 +63,24 @@ public class DevOpsPipelineRegisterSecurityStep extends Step implements Serializ
 		@Override
 		public Set<? extends Class<?>> getRequiredContext() {
 			return ImmutableSet.of(Run.class, TaskListener.class, EnvVars.class);
+		}
+
+		public ListBoxModel doFillSecurityToolItems(@QueryParameter String securityTool) {
+			ListBoxModel options = new ListBoxModel();
+			options.add("Veracode");
+			options.add("Checkmarx One");
+			options.add("Checkmarx SAST");
+			options.add("Others");
+			for (ListBoxModel.Option option : options) {
+				if(GenericUtils.isEmpty(securityTool)){
+					option.selected = true;
+					break;
+				}
+				if (option.value.equals(securityTool)) {
+					option.selected = true;
+				}
+			}
+			return options;
 		}
 	}
 }

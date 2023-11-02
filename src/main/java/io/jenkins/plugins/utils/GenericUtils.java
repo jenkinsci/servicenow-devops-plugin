@@ -14,6 +14,7 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Job;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.Functions;
 import io.jenkins.plugins.config.DevOpsConfiguration;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
@@ -24,11 +25,18 @@ public final class GenericUtils {
 	}
 
 	public static final Pattern urlPatt = Pattern.compile(
-			"^(https?):\\/\\/[-a-zA-Z0-9+&@#\\/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#\\/%=~_|]");
+			"^(https:\\/\\/[-a-zA-Z0-9+&@#\\/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#\\/%=~_|]|http:\\/\\/localhost:\\d{2,5}\\/?)$");
 
 	public static boolean checkUrlValid(String url) {
 		Matcher m = urlPatt.matcher(url);
 		return m.matches();
+	}
+
+	public static boolean isWindows() {
+		if (Functions.isWindows()) {
+			return true;
+		}
+		return false;
 	}
 
 	public static boolean checkParameters(JSONObject formData) {

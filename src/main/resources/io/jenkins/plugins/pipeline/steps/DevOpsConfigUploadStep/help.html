@@ -29,6 +29,7 @@
             <span class="hljs-attr">configFile</span>: <span class="hljs-string">"k8s/helm/values.yml"</span>,
             <span class="hljs-attr">dataFormat</span>: <span class="hljs-string">"json"</span>,
             <span class="hljs-attr">autoCommit</span>: <span class="hljs-string">'true'</span>,
+            <span class="hljs-attr">autoDelete</span>: <span class="hljs-string">'true'</span>,
             <span class="hljs-attr">autoValidate</span>: <span class="hljs-string">'true'</span>
         )
 
@@ -51,6 +52,7 @@
       <span class="hljs-attr">configFile</span>: <span class="hljs-string">'k8s/helm/values.yml'</span>,
       <span class="hljs-attr">dataFormat</span>: <span class="hljs-string">'yaml'</span>,
       <span class="hljs-attr">autoCommit</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attr">autoDelete</span>: <span class="hljs-string">'false'</span>,
       <span class="hljs-attr">autoValidate</span>: <span class="hljs-string">'false'</span>
  )</pre>
                             </div>
@@ -66,6 +68,7 @@
       <span class="hljs-attribute">configFile</span>: <span class="hljs-string">'infra/*.json'</span>,
       <span class="hljs-attribute">dataFormat</span>: <span class="hljs-string">'json'</span>,
       <span class="hljs-attribute">autoCommit</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attribute">autoDelete</span>: <span class="hljs-string">'false'</span>,
       <span class="hljs-attribute">autoValidate</span>: <span class="hljs-string">'false'</span>,
       <span class="hljs-attribute">changesetNumber</span>: ”${<span class="hljs-selector-tag">changeset</span>}”
  )</pre>
@@ -74,7 +77,7 @@
                     </li>
                     <li class="li">In the final call, in addition to referencing the changesetNumber output variable
                         from
-                        the first upload as an input variable, set autoCommit and autoValidate to
+                        the first upload as an input variable, set autoCommit, autoDelete, and autoValidate to
                         <kbd class="ph userinput">true</kbd>.<div class="p">INI file upload:<div class="code-toolbar">
                                 <pre class="prettyprint language-less hljs" tabindex="0">
  <span class="hljs-selector-tag">snDevOpsConfigUpload</span>(
@@ -84,6 +87,7 @@
       <span class="hljs-attribute">configFile</span>: <span class="hljs-string">'featureToggles/set1.ini'</span>,
       <span class="hljs-attribute">dataFormat</span>: <span class="hljs-string">'ini'</span>,
       <span class="hljs-attribute">autoCommit</span>: <span class="hljs-string">'true'</span>,
+      <span class="hljs-attribute">autoDelete</span>: <span class="hljs-string">'true'</span>,
       <span class="hljs-attribute">autoValidate</span>: <span class="hljs-string">'true'</span>,
       <span class="hljs-attribute">changesetNumber</span>: ”${<span class="hljs-selector-tag">changeset</span>}”
  )</pre>
@@ -109,6 +113,7 @@
       <span class="hljs-attr">configFile</span>: <span class="hljs-string">'infra/v1/config.xml'</span>,
       <span class="hljs-attr">dataFormat</span>: <span class="hljs-string">'xml'</span>,
       <span class="hljs-attr">autoCommit</span>: <span class="hljs-string">'false'</span>,
+      <span class="hljs-attr">autoDelete</span>: <span class="hljs-string">'false'</span>,
       <span class="hljs-attr">autoValidate</span>: <span class="hljs-string">'false'</span>
  )</pre>
                             </div>
@@ -125,6 +130,7 @@
       <span class="hljs-attribute">configFile</span>: <span class="hljs-string">'infra/prod/dbConfig.json'</span>,
       <span class="hljs-attribute">dataFormat</span>: <span class="hljs-string">'json'</span>,
       <span class="hljs-attribute">autoCommit</span>: <span class="hljs-string">'true'</span>,
+      <span class="hljs-attribute">autoDelete</span>: <span class="hljs-string">'true'</span>,
       <span class="hljs-attribute">autoValidate</span>: <span class="hljs-string">'true'</span>,
       <span class="hljs-attribute">changesetNumber</span>: ”${<span class="hljs-selector-tag">changeset</span>}”
  )</pre>

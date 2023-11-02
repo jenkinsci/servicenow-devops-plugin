@@ -5,6 +5,7 @@ import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -25,6 +26,7 @@ import io.jenkins.plugins.utils.GenericUtils;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
+import org.kohsuke.stapler.QueryParameter;
 
 public class DevOpsFreestyleRegisterSecurityStep extends Builder implements SimpleBuildStep, Serializable {
 
@@ -66,6 +68,7 @@ public class DevOpsFreestyleRegisterSecurityStep extends Builder implements Simp
 		JSONObject freeStyleInfo = new JSONObject();
 		freeStyleInfo.put(DevOpsConstants.SEC_TOOL_BUILD_NUMBER.toString(), env.get("BUILD_NUMBER"));
 		freeStyleInfo.put(DevOpsConstants.SEC_TOOL_TASK_EXEC_URL.toString(), env.get("BUILD_URL"));
+		freeStyleInfo.put(DevOpsConstants.SEC_TOOL_TASK_URL.toString(), env.get("JOB_URL"));
 		JSONObject securityParams = null;
 		try {
 			securityParams = JSONObject.fromObject(this.securityResultAttributes);
@@ -107,6 +110,24 @@ public class DevOpsFreestyleRegisterSecurityStep extends Builder implements Simp
 		@Override
 		public String getDisplayName() {
 			return DevOpsConstants.SECURITY_RESULT_STEP_FUNCTION_NAME.toString();
+		}
+
+		public ListBoxModel doFillSecurityToolItems(@QueryParameter String securityTool) {
+			ListBoxModel options = new ListBoxModel();
+			options.add("Veracode");
+			options.add("Checkmarx One");
+			options.add("Checkmarx SAST");
+			options.add("Others");
+			for (ListBoxModel.Option option : options) {
+				if(GenericUtils.isEmpty(securityTool)){
+					option.selected = true;
+					break;
+				}
+				if (option.value.equals(securityTool)) {
+					option.selected = true;
+				}
+			}
+			return options;
 		}
 	}
 

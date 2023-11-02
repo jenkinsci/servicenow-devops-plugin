@@ -1,9 +1,38 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
 		 xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+
 	<f:section>
-		<f:entry title="securityResultAttributes" field="securityResultAttributes">
-			<f:textarea placeholder="securityResultAttributes" default='{"scanner":"Veracode", "applicationName": "", "buildVersion": "${BUILD_TAG}"}'/>
-		</f:entry>
+
+      <f:entry title="Security Tool" field="securityTool">
+           <f:select onchange = "updateContent(event.target.value)"/>
+       </f:entry>
+
+        <f:entry title="securityResultAttributes" field="securityResultAttributes">
+            <f:textarea id="securityAttributeJson" placeholder="securityResultAttributes" default='{"scanner": "", "securityToolId": ""}'/>
+        </f:entry>
+
 	</f:section>
+
+	<!-- JavaScript to Handle Dropdown Selection -->
+    <script type="text/javascript">
+      // Function to update the textarea content based on dropdown selection
+      function updateContent(selectedOption) {
+        var contentArea = document.getElementById("securityAttributeJson");
+        if(!contentArea || !(contentArea instanceof Element))
+            return;
+        // Update content based on selected option
+        if (selectedOption === "Veracode") {
+          contentArea.value = '{"scanner": "Veracode", "applicationName": "", "buildVersion": "", "securityToolId": ""}';
+        } else if (selectedOption === "Checkmarx One") {
+          contentArea.value = '{"scanner": "Checkmarx One", "projectName": "", "projectId": "", "scanId": "", "securityToolId": ""}';
+        } else if (selectedOption === "Checkmarx SAST") {
+          contentArea.value = '{"scanner": "Checkmarx SAST", "projectId": "", "securityToolId": ""}';
+        } else if (selectedOption === "Others") {
+          contentArea.value = '{"scanner": "", "securityToolId": ""}';
+        }
+      }
+      updateContent("Veracode");
+    </script>
+
 </j:jelly>

@@ -31,6 +31,7 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
     private boolean showResults;
     private String outputFormat;
     private boolean isValidated;
+    private boolean continueWithLatest;
 
     @DataBoundConstructor
     public DevOpsConfigGetSnapshotsStep(String applicationName, String deployableName, String changesetNumber) {
@@ -128,6 +129,15 @@ public class DevOpsConfigGetSnapshotsStep extends Step implements Serializable {
 	public void setChangesetNumber(String changesetNumber) {
 		this.changesetNumber = changesetNumber;
 	}
+
+    @DataBoundSetter
+    public void setContinueWithLatest(boolean continueWithLatest) {
+          this.continueWithLatest = continueWithLatest;
+    }
+
+    public boolean getContinueWithLatest() {
+        return continueWithLatest;
+    }
 
     @Extension
 	public static class DescriptorImpl extends StepDescriptor {

@@ -63,6 +63,7 @@ public class DevOpsConfigStepExecution extends SynchronousNonBlockingStepExecuti
 			boolean publishFlag = false;
 			boolean valiateFlag = false;
 			boolean commitFlag = false;
+			boolean deleteFlag = false;
 
 			if (this.step.getAutoPublish() == null || this.step.getAutoPublish().equalsIgnoreCase("true"))
 				publishFlag = true;
@@ -72,16 +73,20 @@ public class DevOpsConfigStepExecution extends SynchronousNonBlockingStepExecuti
 
 			if (this.step.getAutoCommit() == null || this.step.getAutoCommit().equalsIgnoreCase("true"))
 				commitFlag = true;
+			
+			if (this.step.getAutoDelete() == null || this.step.getAutoDelete().equalsIgnoreCase("true"))
+				deleteFlag = true;
 
 			DevOpsConfigUploadStep uploadStep = new DevOpsConfigUploadStep(this.step.getApplicationName(),
-					this.step.getTarget(), this.step.getNamePath(), this.step.getConfigFile(), commitFlag, valiateFlag,
-					this.step.getDataFormat(), publishFlag);
+					this.step.getTarget(), this.step.getNamePath(), this.step.getConfigFile(), commitFlag, deleteFlag, valiateFlag,
+					 publishFlag);
 			uploadStep.setChangesetNumber(this.step.getChangesetNumber());
 			uploadStep.setDeployableName(this.step.getDeployableName());
 			uploadStep.setCollectionName(this.step.getCollectionName());
 			uploadStep.setConvertPath(this.step.getConvertPath());
 			uploadStep.setMarkFailed(this.step.getMarkFailed());
 			uploadStep.setShowResults(this.step.getShowResults());
+			uploadStep.setDataFormat(this.step.getDataFormat());
 
 			DevOpsConfigUploadStepExecution uploadExec = new DevOpsConfigUploadStepExecution(uploadContext, uploadStep);
 			changesetId = uploadExec.run();
@@ -129,6 +134,7 @@ public class DevOpsConfigStepExecution extends SynchronousNonBlockingStepExecuti
 						getStep.setShowResults(this.step.getShowResults());
 						getStep.setOutputFormat(this.step.getTestResultFormat());
 						getStep.setIsValidated(this.step.getIsValidated());
+						getStep.setContinueWithLatest(this.step.getContinueWithLatest());
 
 						DevOpsConfigGetSnapshotsStepExecution getExec = new DevOpsConfigGetSnapshotsStepExecution(
 								getSnapshotContext, getStep);

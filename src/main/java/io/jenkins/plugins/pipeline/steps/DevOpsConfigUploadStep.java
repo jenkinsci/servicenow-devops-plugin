@@ -31,6 +31,7 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
     private String configFile;
     private String namePath;
     private boolean autoCommit;
+    private Boolean autoDelete;
     private boolean autoValidate;
     private String deployableName;
     private String collectionName;
@@ -42,7 +43,7 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
    
 
     @DataBoundConstructor
-    public DevOpsConfigUploadStep(String applicationName, String target, String namePath, String configFile, boolean autoCommit, boolean autoValidate, String dataFormat, boolean autoPublish) {
+    public DevOpsConfigUploadStep(String applicationName, String target, String namePath, String configFile, boolean autoCommit, Boolean autoDelete, boolean autoValidate, boolean autoPublish) {
         m_enabled  =true;
         m_ignoreErrors = false;
         this.applicationName = applicationName;
@@ -50,8 +51,8 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         this.namePath = namePath;
         this.configFile = configFile;
         this.autoCommit = autoCommit;
+        this.autoDelete = autoDelete;
         this.autoValidate = autoValidate;
-        this.dataFormat = dataFormat;
         this.autoPublish = autoPublish;
     }
 
@@ -176,8 +177,13 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
         return namePath;
     }
 
+    @DataBoundSetter
     public void setDataFormat(String dataFormat) {
         this.dataFormat = dataFormat;
+        if(dataFormat == null || dataFormat.isEmpty())
+            this.dataFormat = null;
+        else
+            this.dataFormat = dataFormat;
     }
 
     public String getDataFormat() {
@@ -190,6 +196,14 @@ public class DevOpsConfigUploadStep extends Step implements Serializable {
 
     public boolean getAutoCommit() {
         return autoCommit;
+    }
+
+    public void setAutoDelete(Boolean autoDelete) {
+        this.autoDelete = autoDelete;
+    }
+
+    public Boolean getAutoDelete() {
+        return autoDelete;
     }
 
     public boolean getAutoValidate() {
