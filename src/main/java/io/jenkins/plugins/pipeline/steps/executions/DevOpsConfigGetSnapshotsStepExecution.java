@@ -3,7 +3,7 @@ package io.jenkins.plugins.pipeline.steps.executions;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.ConnectException;
-import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -11,13 +11,10 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.evanlennick.retry4j.CallExecutorBuilder;
-import com.evanlennick.retry4j.config.RetryConfig;
-import com.evanlennick.retry4j.config.RetryConfigBuilder;
-import com.evanlennick.retry4j.exception.RetriesExhaustedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import hudson.AbortException;
 import hudson.FilePath;
 import hudson.EnvVars;
@@ -55,11 +52,11 @@ import org.w3c.dom.Element;
 import java.io.File;
 
 public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockingStepExecution<String> {
-
 	private static final long serialVersionUID = 1L;
 	private static final String RETRY = "retry";
-	private static final long durationBetweenRetries = 85l;
-	private int maxNumberOfRetries = 20;
+	private static final long startDelayInMilliseconds = 114l;
+	private static final long maxDelayInMilliseconds = 466944;
+	private static final int maxNumberOfRetries = 14;
 	private int notValidatedRetryCount = 60;
 	private boolean checkForNotValidated = true;
 
@@ -971,30 +968,40 @@ public class DevOpsConfigGetSnapshotsStepExecution extends SynchronousNonBlockin
 
 	private void pollWithCallable(TaskListener listener, Callable<String> callable, DevOpsModel model)
 			throws AbortException {
-		// total 15 mins retry
-		try {
-			RetryConfig config = new RetryConfigBuilder().retryOnSpecificExceptions(ConnectException.class)
-					.retryOnReturnValue(RETRY).withDelayBetweenTries(Duration.ofMillis(durationBetweenRetries))
-					.withFibonacciBackoff().withMaxNumberOfTries(maxNumberOfRetries).build();
-			new CallExecutorBuilder<String>().config(config).onSuccessListener(s -> {
-				GenericUtils.printConsoleLog(listener, "snDevOpsConfigGetSnapshots Poll Success ");
-			}).build().execute(callable);
-		} catch (RetriesExhaustedException e) {
-			try {
-				Run<?, ?> run = getContext().get(Run.class);
-				;
-				DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
-				if (jobProperties.isIgnoreSNErrors() && !this.step.getMarkFailed()) {
+		//retry for 15 minutes. start at 110ms delay and increase exponentially with 14 retries
+		RetryPolicy<Object> retryPolicy = RetryPolicy.builder()
+				.handle(ConnectException.class)
+				.handleResultIf(result -> result == RETRY)
+				.withBackoff(startDelayInMilliseconds, maxDelayInMilliseconds, ChronoUnit.MILLIS)
+				.withMaxAttempts(maxNumberOfRetries)
+				.build();
+
+		Failsafe.with(retryPolicy)
+		.get(ctx -> {
+			String result = callable.call();
+
+			// full execution has not completed so initial attemptCount is 0. Dealing with this issue here because no exception is thrown when retries exceeded
+			if(ctx.getAttemptCount() == maxNumberOfRetries -1 && result == RETRY) {
+				// Retries have been exceeded and the callable signalled to retry again
+				try {
+					String retryExhaustedMessage = "snDevOpsConfigGetSnapshots - Failed after " + maxNumberOfRetries + " tries!";
+					GenericUtils.printConsoleLog(listener, retryExhaustedMessage);
+
+					Run<?, ?> run = getContext().get(Run.class);
+					DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
+					if (jobProperties.isIgnoreSNErrors() && !this.step.getMarkFailed()) {
+						GenericUtils.printConsoleLog(listener, "Job Ignore Error && Not Mark Failed");
+					} else {
+						throw new AbortException(retryExhaustedMessage);
+					}
+				} catch (InterruptedException | IOException io) {
 					GenericUtils.printConsoleLog(listener,
-							"snDevOpsConfigGetSnapshots - Retry exhausted  " + e.getMessage());
-				} else {
-					throw new AbortException(e.getMessage());
+							"snDevOpsConfigGetSnapshots - Exception in pollWithCallable");
 				}
-			} catch (InterruptedException | IOException io) {
-				GenericUtils.printConsoleLog(listener,
-						"snDevOpsConfigGetSnapshots - Exception in pollWithCallable " + e.getMessage());
 			}
-		}
+
+			return result;
+		});
 	}
 
 	public List<CDMSnapshot> getSnapshotList(JSONArray result) throws IOException {
