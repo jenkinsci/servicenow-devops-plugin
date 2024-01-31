@@ -245,6 +245,7 @@ public enum DevOpsConstants {
 	SEC_TOOL_STAGE_NAME,
 	SEC_TOOL_BRANCH_NAME,
 	SEC_TOOL_JOB_NAME,
+	SEC_TOOL_JOB_FULL_NAME,
 	SEC_TOOL_BUILD_NUMBER,
 	SEC_TOOL_TASK_EXEC_URL,
 	SEC_TOOL_TASK_URL,
@@ -273,7 +274,15 @@ public enum DevOpsConstants {
 	JENKINS_CONFIGURATION_TEST_CONNECTION_FAILURE,
 	JENKINS_CONFIGURATION_CRED_CREATION_FAILURE,
 	JENKINS_CONFIGURATION_SUCCESS,
-	JENKINS_DUMMY_EVENT_PRONOUN;
+	JENKINS_DUMMY_EVENT_PRONOUN,
+	ARTIFACT_REGISTER_REQUESTS,
+	CREATE,
+	UPDATE,
+	FOUND,
+	DESCRIPTION,
+	LINK,
+	STAGING_TYPE,
+	CREATE_PACKAGE_ASSOCIATION;
 
 
 	@Override
@@ -520,6 +529,7 @@ public enum DevOpsConstants {
 			case SEC_TOOL_STAGE_NAME: return "stageName";
 			case SEC_TOOL_BRANCH_NAME: return "branch";
 			case SEC_TOOL_JOB_NAME: return "pipelineName";
+			case SEC_TOOL_JOB_FULL_NAME: return "pipelineFullName";
 			case SEC_TOOL_BUILD_NUMBER: return "buildNumber";
 			case SEC_TOOL_TASK_EXEC_URL: return "taskExecutionUrl";
 			case SEC_TOOL_TASK_URL: return "taskUrl";
@@ -556,7 +566,15 @@ public enum DevOpsConstants {
 			case JENKINS_CONFIGURATION_CRED_CREATION_FAILURE: return "Jenkins configuration failed due to secret credential creation issue";
 			case JENKINS_CONFIGURATION_SUCCESS: return "Jenkins configured successfully";
 			case JENKINS_DUMMY_EVENT_PRONOUN: return "SnDevopsDummyEventPronoun";
-			
+			case ARTIFACT_REGISTER_REQUESTS: return "artifact_register_requests";
+			case CREATE: return "create";
+			case UPDATE: return "update";
+			case FOUND: return "found";
+			case DESCRIPTION: return "description";
+			case LINK: return "link";
+			case STAGING_TYPE: return "stagingType";
+			case CREATE_PACKAGE_ASSOCIATION: return "create_package_association";
+
 			default: throw new IllegalArgumentException();
 		}
 	}

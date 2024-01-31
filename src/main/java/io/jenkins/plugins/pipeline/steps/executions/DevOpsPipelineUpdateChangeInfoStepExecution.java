@@ -33,18 +33,23 @@ public class DevOpsPipelineUpdateChangeInfoStepExecution extends SynchronousStep
 
 	@Override
 	protected Boolean run() throws Exception {
-		Run<?, ?> run = getContext().get(Run.class);
-		String pronoun = run.getParent().getPronoun();
-		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
-		DevOpsModel model = new DevOpsModel();
-		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
-		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
-		TaskListener listener = getContext().get(TaskListener.class);
-		return updateChangeRequestDetails(run,isPullRequestPipeline,pipelineTrack,listener,devopsConfig);
-
+		try {
+			Run<?, ?> run = getContext().get(Run.class);
+			String pronoun = run.getParent().getPronoun();
+			boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+			DevOpsModel model = new DevOpsModel();
+			boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+			DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+			TaskListener listener = getContext().get(TaskListener.class);
+			return updateChangeRequestDetails(run, isPullRequestPipeline, pipelineTrack, listener, devopsConfig);
+		} catch (Exception e) {
+			TaskListener listener = getContext().get(TaskListener.class);
+			listener.getLogger().println("[ServiceNow DevOps] Error occurred while updating the change request,Exception: " + e.getMessage());
+			throw e;
+		}
 	}
 
-	private boolean updateChangeRequestDetails(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfiguration devopsConfig){
+	private boolean updateChangeRequestDetails(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfiguration devopsConfig) {
 		String changeRequestNumber = this.step.getChangeRequestNumber();
 		JSONObject changeRequestDetailsJSON;
 		JSONObject params = new JSONObject();
@@ -60,8 +65,8 @@ public class DevOpsPipelineUpdateChangeInfoStepExecution extends SynchronousStep
 				changeRequestDetailsJSON = JSONObject.fromObject(this.step.getChangeRequestDetails());
 			}
 			params.put("changeRequestNumber", changeRequestNumber);
-			JSONObject responseJSON=null;
-			
+			JSONObject responseJSON = null;
+
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
@@ -74,17 +79,17 @@ public class DevOpsPipelineUpdateChangeInfoStepExecution extends SynchronousStep
 				responseJSON = CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(), devopsConfig.getChangeInfoUrl(), params, changeRequestDetailsJSON.toString(),
 						devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
 			}
-			
+
 			String parsedResponse = GenericUtils.parseResponseResult(responseJSON, DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
-			if (parsedResponse!=null && parsedResponse.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_SUCCESS.toString())) {
+			if (parsedResponse != null && parsedResponse.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_SUCCESS.toString())) {
 				listener.getLogger().println(currentJenkinsStepName + " Update Successful for 'Change Request Number' => " + changeRequestNumber + ", with given 'Change Request Details'");
 				return true;
 			} else {
 				String errorMessage = GenericUtils.parseResponseResult(responseJSON, "");//To fetch Error message from response.
-				listener.getLogger().println(currentJenkinsStepName + " Couldn't Update 'Change Request' with provided details, " + errorMessage +". Please provide Valid inputs");
+				listener.getLogger().println(currentJenkinsStepName + " Couldn't Update 'Change Request' with provided details, " + errorMessage + ". Please provide Valid inputs");
 			}
-		}catch(Exception exception){
-			listener.getLogger().println(currentJenkinsStepName + " Couldn't Update 'Change Request' with provided details, " + exception +". Please provide Valid inputs");
+		} catch (Exception exception) {
+			listener.getLogger().println(currentJenkinsStepName + " Couldn't Update 'Change Request' with provided details, " + exception + ". Please provide Valid inputs");
 		}
 		return false;
 	}

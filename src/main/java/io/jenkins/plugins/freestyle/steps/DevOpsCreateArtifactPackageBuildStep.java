@@ -86,7 +86,7 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 				new String[]{"handleArtifactCreatePackage responded with: " + _result}, Level.INFO);
 
 		if (null != _result && !_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
-			GenericUtils.printConsoleLog(listener, "SUCCESS: Register package request was successful.");
+			//GenericUtils.printConsoleLog(listener, "SUCCESS: Register package request was successful.");
 			printDebug("perform", new String[]{"message"},
 					new String[]{"SUCCESS : Register package request was successful."},
 					Level.INFO);

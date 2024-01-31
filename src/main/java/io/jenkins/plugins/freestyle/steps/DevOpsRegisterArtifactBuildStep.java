@@ -72,7 +72,7 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 				Level.INFO);
 
 		if (null != _result && !_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
-			GenericUtils.printConsoleLog(listener, "SUCCESS: Register Artifact request was successful.");
+			// GenericUtils.printConsoleLog(listener, "SUCCESS: Register Artifact request was successful.");
 			printDebug("perform", new String[]{"message"}, new String[]{"SUCCESS: Register Artifact request was successful."},
 					Level.INFO);
 		} else {
