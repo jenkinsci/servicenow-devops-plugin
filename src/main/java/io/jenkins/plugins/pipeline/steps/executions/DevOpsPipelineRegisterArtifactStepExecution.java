@@ -31,27 +31,33 @@ public class DevOpsPipelineRegisterArtifactStepExecution extends SynchronousStep
 
 	@Override
 	protected Boolean run() throws Exception {
+		try {
 
-		Run<?, ?> run = getContext().get(Run.class);
-		TaskListener listener = getContext().get(TaskListener.class);
-		FilePath workspace = getContext().get(FilePath.class);
-		Launcher launcher = getContext().get(Launcher.class);
-		EnvVars envVars = getContext().get(EnvVars.class);
-		DevOpsModel model = new DevOpsModel();
-		String pronoun = run.getParent().getPronoun();
-		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
-		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
-		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
-		if (step.isEnabled() && pipelineTrack &&
-				((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) ||
-						(!isPullRequestPipeline))) {
-			DevOpsRegisterArtifactBuildStep registerArtifactBuildStep = new DevOpsRegisterArtifactBuildStep();
-			registerArtifactBuildStep.setArtifactsPayload(this.step.getArtifactsPayload());
+			Run<?, ?> run = getContext().get(Run.class);
+			TaskListener listener = getContext().get(TaskListener.class);
+			FilePath workspace = getContext().get(FilePath.class);
+			Launcher launcher = getContext().get(Launcher.class);
+			EnvVars envVars = getContext().get(EnvVars.class);
+			DevOpsModel model = new DevOpsModel();
+			String pronoun = run.getParent().getPronoun();
+			boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+			boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+			DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+			if (step.isEnabled() && pipelineTrack &&
+					((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) ||
+							(!isPullRequestPipeline))) {
+				DevOpsRegisterArtifactBuildStep registerArtifactBuildStep = new DevOpsRegisterArtifactBuildStep();
+				registerArtifactBuildStep.setArtifactsPayload(this.step.getArtifactsPayload());
 
-			registerArtifactBuildStep.perform(getContext(), run, workspace, launcher, listener, envVars, step.isIgnoreErrors());
+				registerArtifactBuildStep.perform(getContext(), run, workspace, launcher, listener, envVars, step.isIgnoreErrors());
+			}
+
+			return Boolean.valueOf(true);
+		} catch (Exception e) {
+			TaskListener listener = getContext().get(TaskListener.class);
+			listener.getLogger().println("[ServiceNow DevOps] Error occurred while registering the artifact, Exception: " + e.getMessage());
+			throw e;
 		}
-
-		return Boolean.valueOf(true);
 	}
 
 }

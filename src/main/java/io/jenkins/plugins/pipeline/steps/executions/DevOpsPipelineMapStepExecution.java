@@ -36,61 +36,68 @@ public class DevOpsPipelineMapStepExecution extends SynchronousStepExecution<Boo
 
 	@Override
 	protected Boolean run() throws Exception {
-		printDebug("run", null, null, Level.FINE);
-		DevOpsModel model = new DevOpsModel();
-		Run<?, ?> run = getContext().get(Run.class);
-		TaskListener listener = getContext().get(TaskListener.class);
-		Boolean result = Boolean.valueOf(false);
+		try {
+			printDebug("run", null, null, Level.FINE);
+			DevOpsModel model = new DevOpsModel();
+			Run<?, ?> run = getContext().get(Run.class);
+			TaskListener listener = getContext().get(TaskListener.class);
+			Boolean result = Boolean.valueOf(false);
 
-		if (!this.step.isEnabled()) {
-			String message = "[ServiceNow DevOps] Step association is disabled.";
-			listener.getLogger().println(message);
-			printDebug("run", new String[]{"step mapping disabled"},
-					new String[]{message}, Level.FINE);
-			return true;
-		}
-
-		String pronoun = run.getParent().getPronoun();
-		boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
-		boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
-		DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
-		if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
-			DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
-
-			StepContext ctx = this.getContext();
-			EnvVars vars = null;
-			try {
-				vars = ctx.get(EnvVars.class);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			boolean _result = model.handleStepMapping(run, run.getParent(), this, vars);
-
-			printDebug("run", new String[]{"_result"},
-					new String[]{String.valueOf(_result)}, Level.FINE);
-			result = Boolean.valueOf(_result);
-
-			if (_result) {
-				listener.getLogger()
-						.println("[ServiceNow DevOps] Step associated successfully");
-				printDebug("run", new String[]{"message"},
-						new String[]{"Step associated successfully"}, Level.FINE);
-			} else {
-				printDebug("run", new String[]{"message"},
-						new String[]{"Step could not be associated"}, Level.FINE);
-				String message = "[ServiceNow DevOps] Step could not be associated, perhaps you need to "
-						+ "set the Orchestration pipeline on the Pipeline and Orchestration stage on the Pipeline Steps";
+			if (!this.step.isEnabled()) {
+				String message = "[ServiceNow DevOps] Step association is disabled.";
 				listener.getLogger().println(message);
-				if (jobProperties.isIgnoreSNErrors() || this.step.isIgnoreErrors()) {
+				printDebug("run", new String[]{"step mapping disabled"},
+						new String[]{message}, Level.FINE);
+				return true;
+			}
+
+			String pronoun = run.getParent().getPronoun();
+			boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+			boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
+			DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+			if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
+				DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
+
+				StepContext ctx = this.getContext();
+				EnvVars vars = null;
+				try {
+					vars = ctx.get(EnvVars.class);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				boolean _result = model.handleStepMapping(run, run.getParent(), this, vars);
+
+				printDebug("run", new String[]{"_result"},
+						new String[]{String.valueOf(_result)}, Level.FINE);
+				result = Boolean.valueOf(_result);
+
+				if (_result) {
 					listener.getLogger()
-							.println("[ServiceNow DevOps] Step association error ignored.");
+							.println("[ServiceNow DevOps] Step associated successfully");
+					printDebug("run", new String[]{"message"},
+							new String[]{"Step associated successfully"}, Level.FINE);
 				} else {
-					run.setResult(Result.FAILURE);
-					throw new AbortException(message);
+					printDebug("run", new String[]{"message"},
+							new String[]{"Step could not be associated"}, Level.FINE);
+					String message = "[ServiceNow DevOps] Step could not be associated, perhaps you need to "
+							+ "set the Orchestration pipeline on the Pipeline and Orchestration stage on the Pipeline Steps";
+					listener.getLogger().println(message);
+					if (jobProperties.isIgnoreSNErrors() || this.step.isIgnoreErrors()) {
+						listener.getLogger()
+								.println("[ServiceNow DevOps] Step association error ignored.");
+					} else {
+						run.setResult(Result.FAILURE);
+						throw new AbortException(message);
+					}
 				}
 			}
+			return result;
+		} catch (Exception e) {
+			TaskListener listener = getContext().get(TaskListener.class);
+			listener.getLogger().println("[ServiceNow DevOps] Error occured while step mapping,Exception: " + e.getMessage());
+			e.printStackTrace();
+			throw e;
 		}
-		return result;
 	}
 
 	public DevOpsPipelineMapStep getStep() {

@@ -52,78 +52,87 @@ public class DevOpsPipelineRegisterSecurityStepExecution extends SynchronousStep
 
 	@Override
 	protected String run() throws Exception {
-		EnvVars envVars = getContext().get(EnvVars.class);
-		Run<?, ?> run = getContext().get(Run.class);
-		TaskListener listener = getContext().get(TaskListener.class);
-		String attributes = this.step.getSecurityResultAttributes();
-		JSONObject registerResponse;
 		try {
-			DevOpsModel model = new DevOpsModel();
-			boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
-			if (!pipelineTrack) {
-				LOGGER.log(Level.INFO, "Pipeline not tracked");
-				return null;
-			}
-
-			JSONObject pipelineInfo = new JSONObject();
-			String stageName = envVars.get("STAGE_NAME");
-
-			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
-			if (action != null) {
-				stageName = getCurrentStageName(getContext(), action.getPipelineGraph());
-			}
-
-			pipelineInfo.put(DevOpsConstants.SEC_TOOL_BUILD_NUMBER.toString(), envVars.get("BUILD_NUMBER"));
-			pipelineInfo.put(DevOpsConstants.SEC_TOOL_STAGE_NAME.toString(), stageName);
-			String jobName = envVars.get("JOB_NAME");
-			if(jobName == null || jobName.equals("")) {
-				jobName = envVars.get("JOB_BASE_NAME");
-			}
-			pipelineInfo.put(DevOpsConstants.SEC_TOOL_JOB_NAME.toString(), jobName);
-			if(null != envVars.get("BRANCH_NAME")){
-				pipelineInfo.put(DevOpsConstants.SEC_TOOL_BRANCH_NAME.toString(), envVars.get("BRANCH_NAME"));
-			}
-
-			JSONObject securityParams = null;
-
-			securityParams = JSONObject.fromObject(attributes);
-			JSONObject payload = new JSONObject();
-
-			payload.put(DevOpsConstants.SEC_TOOL_JSON_ATTR_RESULT_META_DATA.toString(), securityParams);
-			payload.put(DevOpsConstants.SEC_TOOL_JSON_ATTR_TASK_INFO.toString(), pipelineInfo);
-
-			RegisterSecurityAction rs = new RegisterSecurityAction(securityParams.toString());
-			run.addAction(rs);
-
-			registerResponse = model.registerSecurityResult(payload);
-
-		} catch(JSONException jsonException){
-			return handleException("securityResultAttributes should be in stringified JSON format : " + jsonException.getMessage());
-		} catch(Exception exception) {
-			return handleException("Error while registering security result to ServiceNow DevOps : " + exception.getMessage());
-		}
-
-		JSONObject resultStatus = registerResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-		String status = "";
-		try {
-			status = resultStatus.getString(DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
-		} catch (JSONException j) {
-			return handleException("Register step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
-		}
-
-		String errorMessage = "";
-		if (status.equalsIgnoreCase("Failure")) {
+			EnvVars envVars = getContext().get(EnvVars.class);
+			Run<?, ?> run = getContext().get(Run.class);
+			TaskListener listener = getContext().get(TaskListener.class);
+			String attributes = this.step.getSecurityResultAttributes();
+			JSONObject registerResponse;
 			try {
-				errorMessage = resultStatus.getString(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
-			} catch (JSONException j) {
-				return handleException(
-						"Register step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				DevOpsModel model = new DevOpsModel();
+				boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
+				if (!pipelineTrack) {
+					LOGGER.log(Level.INFO, "Pipeline not tracked");
+					return null;
+				}
+
+				JSONObject pipelineInfo = new JSONObject();
+				String stageName = envVars.get("STAGE_NAME");
+
+				DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
+				if (action != null) {
+					stageName = getCurrentStageName(getContext(), action.getPipelineGraph());
+				}
+
+				pipelineInfo.put(DevOpsConstants.SEC_TOOL_BUILD_NUMBER.toString(), envVars.get("BUILD_NUMBER"));
+				pipelineInfo.put(DevOpsConstants.SEC_TOOL_STAGE_NAME.toString(), stageName);
+				String jobName = envVars.get("JOB_BASE_NAME");
+				String jobFullName = envVars.get("JOB_NAME");
+				if (jobFullName == null || jobFullName.equals("")) {
+					jobFullName = jobName;
+				}
+				pipelineInfo.put(DevOpsConstants.SEC_TOOL_JOB_FULL_NAME.toString(), jobFullName);
+				pipelineInfo.put(DevOpsConstants.SEC_TOOL_JOB_NAME.toString(), jobName);
+				if (null != envVars.get("BRANCH_NAME")) {
+					pipelineInfo.put(DevOpsConstants.SEC_TOOL_BRANCH_NAME.toString(), envVars.get("BRANCH_NAME"));
+				}
+
+				JSONObject securityParams = null;
+
+				securityParams = JSONObject.fromObject(attributes);
+				JSONObject payload = new JSONObject();
+
+				payload.put(DevOpsConstants.SEC_TOOL_JSON_ATTR_RESULT_META_DATA.toString(), securityParams);
+				payload.put(DevOpsConstants.SEC_TOOL_JSON_ATTR_TASK_INFO.toString(), pipelineInfo);
+
+				RegisterSecurityAction rs = new RegisterSecurityAction(securityParams.toString());
+				run.addAction(rs);
+
+				registerResponse = model.registerSecurityResult(payload);
+
+			} catch (JSONException jsonException) {
+				return handleException("securityResultAttributes should be in stringified JSON format : " + jsonException.getMessage());
+			} catch (Exception exception) {
+				return handleException("Error while registering security result to ServiceNow DevOps : " + exception.getMessage());
 			}
-			return handleException(errorMessage);
+
+			JSONObject resultStatus = registerResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+			String status = "";
+			try {
+				status = resultStatus.getString(DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
+			} catch (JSONException j) {
+				return handleException("Register step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+			}
+
+			String errorMessage = "";
+			if (status.equalsIgnoreCase("Failure")) {
+				try {
+					errorMessage = resultStatus.getString(DevOpsConstants.COMMON_RESPONSE_MESSAGE.toString());
+				} catch (JSONException j) {
+					return handleException(
+							"Register step failed : " + DevOpsConstants.FAILURE_REASON_CONN_ISSUE.toString());
+				}
+				return handleException(errorMessage);
+			}
+			GenericUtils.printConsoleLog(listener, DevOpsConstants.SECURITY_RESULT_STEP_DISPLAY_NAME.toString()
+					+ " - Security step information is successfully sent to ServiceNow");
+			return DevOpsConstants.COMMON_RESPONSE_SUCCESS.toString();
+		} catch (Exception e) {
+			TaskListener listener = getContext().get(TaskListener.class);
+			listener.getLogger().println("[ServiceNow DevOps] Error occurred while registering the Security scan results,Exception: " + e.getMessage());
+			e.printStackTrace();
+			throw e;
 		}
-		GenericUtils.printConsoleLog(listener, DevOpsConstants.SECURITY_RESULT_STEP_DISPLAY_NAME.toString()
-				+ " - Security step information is successfully sent to ServiceNow");
-		return DevOpsConstants.COMMON_RESPONSE_SUCCESS.toString();
 	}
 
 	private String handleException(String exceptionMessage) throws Exception {
