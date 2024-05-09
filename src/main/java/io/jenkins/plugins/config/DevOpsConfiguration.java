@@ -1,629 +1,275 @@
 package io.jenkins.plugins.config;
 
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.common.AbstractIdCredentialsListBoxModel;
-import com.cloudbees.plugins.credentials.common.StandardCredentials;
-import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.cloudbees.plugins.credentials.domains.DomainRequirement;
+import java.io.IOException;
+import java.io.StringReader;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.jenkinsci.Symbol;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
-import hudson.model.ItemGroup;
-import hudson.security.ACL;
-import hudson.util.FormValidation;
+import hudson.XmlFile;
 import hudson.util.ListBoxModel;
-import hudson.util.ListBoxModel.Option;
-import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 import jenkins.model.GlobalConfiguration;
-import jenkins.model.Jenkins;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.acegisecurity.Authentication;
-import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.verb.POST;
-
-import javax.annotation.Nonnull;
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @Extension
 @Symbol("snDevOpsConfig")
 public class DevOpsConfiguration extends GlobalConfiguration {
-
 	private static final Logger LOGGER = Logger.getLogger(DevOpsConfiguration.class.getName());
 
-	private boolean snDevopsEnabled;
-	private String instanceUrl;
-	private String apiVersion;
-	private String toolId;
-	private String snArtifactToolId; // Skipping validation for Artifact tool Id as it is an optional parameter.
-	private boolean debug;
 	private String logLevel;
-	private String credentialsId;
-	private String user;
-	private String pwd;
-	private boolean trackCheck;
-	private boolean trackPullRequestPipelinesCheck;
-	private String secretCredentialId;
+
+	public XmlFile getConfigXml() {
+		return getConfigFile();
+	}
+
+	private List<DevOpsConfigurationEntry> entries = new ArrayList<>();
+
+	public Boolean isThresholdReached() {
+		return this.entries.size() >= Integer.parseInt(DevOpsConstants.MAX_ALLOWED_DEVOPS_CONFIGURATIONS.toString());
+	}
+
+	public static @NonNull
+	DevOpsConfiguration get() {
+		DevOpsConfiguration instance = GlobalConfiguration.all().get(DevOpsConfiguration.class);
+		if (instance == null) {
+			throw new IllegalStateException();
+		}
+		return instance;
+	}
 
 	public DevOpsConfiguration() {
 		load();
-		// To handle upgrade case
-		if (this.logLevel == null)
-			this.logLevel = (this.debug) ? "info" : "off";
-		GenericUtils.configureLogger(this.logLevel);
-		if (GenericUtils.isEmpty(this.credentialsId)) {
-			this.credentialsId = DevOpsConstants.SN_DEFUALT.toString();
-		}
-		if (GenericUtils.isEmpty(this.secretCredentialId)) {
-			this.secretCredentialId = DevOpsConstants.SN_DEFUALT.toString();
-		}
-		
 	}
 
 	@Override
-	public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-		final JSONObject snDevOpsJSON = formData.getJSONObject("snDevopsEnabled");
-		if ((snDevOpsJSON != null) && !(snDevOpsJSON.isNullObject())) {
-			if (snDevOpsJSON.isEmpty()) {
-				reIntialize();
+	public synchronized void load() {
+		XmlFile xmlFile = this.getConfigFile();
+		try {
+			if (elementExists(xmlFile, "snDevopsEnabled") && !elementExists(xmlFile, "entries") && !elementExists(xmlFile, "entries/")) {
+				DevOpsConfigurationEntry entry = parse(xmlFile);
+				String logLevel = parseLogLevel(xmlFile);
+				List<DevOpsConfigurationEntry> entries = getEntries();
+				entries.add(entry);
+				setLogLevel(logLevel);
+				setEntries(entries);
 			} else {
-				this.snDevopsEnabled = true;
-				this.instanceUrl = snDevOpsJSON.getString("instanceUrl");
-				this.toolId = snDevOpsJSON.getString("toolId");
-				this.snArtifactToolId = snDevOpsJSON.getString("snArtifactToolId");
-				this.credentialsId = snDevOpsJSON.getString("credentialsId");
-				this.logLevel = snDevOpsJSON.getString("logLevel");
-				GenericUtils.configureLogger(this.logLevel);
-				this.user = null;
-				this.pwd = null;
-				this.trackCheck = snDevOpsJSON.getBoolean("trackCheck");
-				this.trackPullRequestPipelinesCheck = snDevOpsJSON.getBoolean("trackPullRequestPipelinesCheck");
-				this.secretCredentialId = snDevOpsJSON.getString("secretCredentialId");
+				super.load();
 			}
-		} else {
-			this.snDevopsEnabled = false;
+		} catch (IOException ex) {
+			LOGGER.log(Level.SEVERE, "Exception occurred while parsing the stored configuration", ex);
 		}
-		if (!GenericUtils.isEmptyOrDefault(this.secretCredentialId)) {
-			this.apiVersion = DevOpsConstants.VERSION_V2.toString();
-		} else if (!GenericUtils.isEmptyOrDefault(this.credentialsId)) {
-			this.apiVersion = DevOpsConstants.VERSION_V1.toString();
-		}
-		this.save();
-		if(null != req) {
-			return super.configure(req, formData);
-		}
-		return true;
-		
 	}
 
-	private void reIntialize() {
-		this.snDevopsEnabled = false;
-		this.instanceUrl = null;
-		this.toolId = null;
-		this.snArtifactToolId = null;
-		this.apiVersion = null;
-		this.debug = false;
-		this.logLevel = "off";
-		this.user = null;
-		this.pwd = null;
-		this.credentialsId = null;
-		this.trackCheck = false;
-		this.trackPullRequestPipelinesCheck = false;
-		this.secretCredentialId = null;
+	public List<DevOpsConfigurationEntry> getEntries() {
+		return entries;
 	}
 
-	@Nonnull
-	public static DevOpsConfiguration get() {
-		return (DevOpsConfiguration) GlobalConfiguration.all().getInstance(DevOpsConfiguration.class);
-	}
-
-	@Restricted(NoExternalUse.class)
-	public static @Nonnull DevOpsConfiguration getOrDie() {
-		DevOpsConfiguration config = DevOpsConfiguration.get();
-		if (config == null) {
-			throw new IllegalStateException(
-					"DevOpsConfiguration instance is missing. Probably the Jenkins instance is not fully loaded at this time.");
-		}
-		return config;
-	}
-
-	public boolean isSnDevopsEnabled() {
-		return snDevopsEnabled;
-	}
-
-	public String getInstanceUrl() {
-		return instanceUrl;
-	}
-
-	public String getApiVersion() {
-		return apiVersion;
-	}
-
-	public boolean isTrackCheck() {
-		return trackCheck;
-	}
-
-	public boolean isTrackPullRequestPipelinesCheck() {
-		return trackPullRequestPipelinesCheck;
-	}
-
-	public String getUser() {
-		// To ensure backward compatibility we are using saved user details
-		if (!GenericUtils.isEmpty(this.user)) {
-			return this.user;
-		}
-		StandardUsernamePasswordCredentials sc = getCredentials(this.credentialsId);
-		if (sc != null) {
-			return sc.getUsername();
-		}
-		return null;
-	}
-
-	public String getPwd() {
-		// To ensure backward compatibility we are using saved user details
-		if (!GenericUtils.isEmpty(this.pwd)) {
-			return this.pwd;
-		}
-		StandardUsernamePasswordCredentials sc = getCredentials(this.credentialsId);
-		if (sc != null && sc.getPassword() != null) {
-			return sc.getPassword().getPlainText();
-		}
-		return null;
-	}
-
-	public StandardUsernamePasswordCredentials getCredentials(String credentialsId) {
-		DomainRequirement dr = null;
-		ItemGroup itemGroup = null;
-		Authentication authentication = null;
-		List<StandardUsernamePasswordCredentials> lc = CredentialsProvider
-				.lookupCredentials(StandardUsernamePasswordCredentials.class, itemGroup, authentication, dr);
-
-		for (int i = 0; i < lc.size(); i++) {
-			StandardUsernamePasswordCredentials sc = lc.get(i);
-			if (sc.getId().equals(credentialsId)) {
-				return sc;
-			}
-		}
-		return null;
-	}
-	
-	public String getTokenText(String credentialsId) {
-		DomainRequirement dr = null;
-		ItemGroup itemGroup = null;
-		Authentication authentication = null;
-		List<StringCredentials> lc = CredentialsProvider.lookupCredentials(StringCredentials.class, itemGroup,
-				authentication, dr);
-
-		for (int i = 0; i < lc.size(); i++) {
-			StringCredentials sc = lc.get(i);
-			if (sc.getId().equals(credentialsId)) {
-				return sc.getSecret().getPlainText();
-			}
-		}
-		return null;
-	}
-
-	public String getToolId() {
-		return toolId;
-	}
-
-	public String getSnArtifactToolId() {
-		return snArtifactToolId;
+	@DataBoundSetter
+	public void setEntries(List<DevOpsConfigurationEntry> entries) {
+		this.entries = entries;
+		save();
 	}
 
 	public String getLogLevel() {
 		return logLevel;
 	}
 
-	public FormValidation doCheckInstanceUrl(@QueryParameter("instanceUrl") String snInstanceUrl)
-			throws IOException, ServletException {
-		if (GenericUtils.isEmpty(snInstanceUrl))
-			return FormValidation.error("Please provide a valid instance URL");
-		if (snInstanceUrl.length() > 0 && !snInstanceUrl.startsWith("http"))
-			return FormValidation.error("URL must start with http/https");
-		if (snInstanceUrl.length() > 9 && !GenericUtils.checkUrlValid(snInstanceUrl)) {
-			if (snInstanceUrl.substring(0, 5).equalsIgnoreCase("http:")) {
-				return FormValidation.error("HTTP URLs are not allowed");
-			}
-			return FormValidation.error("Invalid URL");
-		}
-		return FormValidation.ok();
+	@DataBoundSetter
+	public void setLogLevel(String logLevel) {
+		this.logLevel = logLevel;
+		save();
 	}
 
-	
-    public FormValidation doCheckAuthType(@QueryParameter("authType") String authType)
-            throws IOException, ServletException {
-        if (GenericUtils.isEmpty(authType))
-            return FormValidation.error("Please provide an auth Type");
-        return FormValidation.ok();
-    }
-
-	public FormValidation doCheckCredentialsId(@QueryParameter("credentialsId") String credentialsId,
-			@QueryParameter("secretCredentialId") String secretCredentialId) throws IOException, ServletException {
-		
-		List<DomainRequirement> drl = null;
-		ItemGroup itemGroup = null;
-		Authentication authentication = null;
-		if (GenericUtils.isEmpty(credentialsId) && !GenericUtils.isEmpty(this.credentialsId)) {
-			credentialsId = this.credentialsId;
+	@Override
+	public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+		Integer allowedConfigurations = Integer.parseInt(DevOpsConstants.MAX_ALLOWED_DEVOPS_CONFIGURATIONS.toString());
+		if (formData.get("entries") instanceof JSONArray && ((JSONArray) formData.get("entries")).size() > allowedConfigurations) {
+			throw new FormException(String.format("You can add only %d ServiceNow configurations. Remove the unused configuration or use a different Jenkins server to configure.", allowedConfigurations), "configuration");
 		}
-		if (GenericUtils.isEmptyOrDefault(credentialsId) && GenericUtils.isEmptyOrDefault(secretCredentialId))
-			return FormValidation.error("Please choose a credential!");
-		if (!GenericUtils.isEmptyOrDefault(credentialsId) && CredentialsProvider.listCredentials(StandardUsernamePasswordCredentials.class, itemGroup, authentication,
-				drl, CredentialsMatchers.withId(credentialsId)).isEmpty())
-			return FormValidation.error("Cannot find currently selected credentials");
-		return FormValidation.ok();
-	} 
-	
-	public FormValidation doCheckSecretCredentialId(@QueryParameter("secretCredentialId") String secretCredentialId,
-			@QueryParameter("credentialsId") String credentialsId) throws IOException, ServletException {
-
-
-		List<DomainRequirement> drl = null;
-		ItemGroup itemGroup = null;
-		Authentication authentication = null;
-		if (GenericUtils.isEmpty(credentialsId) && !GenericUtils.isEmpty(this.credentialsId)) {
-			credentialsId = this.credentialsId;
-		}
-		if (GenericUtils.isEmptyOrDefault(secretCredentialId) && GenericUtils.isEmptyOrDefault(credentialsId))
-			return FormValidation.error("Please choose a secret credential!");
-		if (!GenericUtils.isEmptyOrDefault(secretCredentialId) && CredentialsProvider.listCredentials(StringCredentials.class, itemGroup, authentication, drl,
-				CredentialsMatchers.withId(secretCredentialId)).isEmpty())
-			return FormValidation.error("Cannot find currently selected credentials");
-		return FormValidation.ok();
-	}
-
-	public FormValidation doCheckToolId(@QueryParameter("toolId") String snToolId)
-			throws IOException, ServletException {
-		if (GenericUtils.isEmpty(snToolId))
-			return FormValidation.error("Please provide a valid tool ID");
-		return FormValidation.ok();
-	}
-
-	// Skipping validation for Artifact tool Id as it is an optional parameter.
-	@POST
-	public FormValidation doTestConnection(@QueryParameter("instanceUrl") String instanceUrl,
-			@QueryParameter("toolId") String toolId, @QueryParameter("credentialsId") String credentialsId,
-			@QueryParameter("secretCredentialId") String secretCredentialId) throws IOException, ServletException {
-
-		List<DomainRequirement> drl = null;
-		ItemGroup itemGroup = null;
-		Authentication authentication = null;
-		Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-		if (GenericUtils.isEmpty(instanceUrl))
-			return FormValidation.error("Please provide the url!");
-
-		if (GenericUtils.isEmpty(toolId))
-			return FormValidation.error("Invalid tool id!");
-		
-		if(GenericUtils.isEmptyOrDefault(secretCredentialId) && GenericUtils.isEmptyOrDefault(credentialsId)) {
-			return FormValidation.error("Invalid Credential id!");
-		}
-		
-		if (GenericUtils.isEmpty(instanceUrl) || !GenericUtils.checkUrlValid(instanceUrl)) {
-			return FormValidation.error("Invalid URL");
-		}
-		
-		JSONObject params = new JSONObject();
-		String user = null;
-		String pwd = null;
-		String tokenValue = null;
-		boolean basicTest = false;
-		boolean tokenTest = false;
-
-		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
-		params.put(DevOpsConstants.TEST_CONNECTION_ATTR.toString(), "true");
-		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(), DevOpsConstants.TOOL_TYPE.toString());
-
-		Map<String, String> tokenDetails = new HashMap<String, String>();
-		
-		if (!GenericUtils.isEmptyOrDefault(credentialsId)) {
-			if (CredentialsProvider.listCredentials(StandardUsernamePasswordCredentials.class, itemGroup,
-					authentication, drl, CredentialsMatchers.withId(credentialsId)).isEmpty())
-				return FormValidation.error("Cannot find currently selected credentials");
-
-			StandardUsernamePasswordCredentials credentials = getCredentials(credentialsId);
-			if (credentials != null) {
-				user = credentials.getUsername();
-				if (credentials.getPassword() != null) {
-					pwd = credentials.getPassword().getPlainText();
-				}
-			}
-			try {
-				basicTest = callConnectionApi(DevOpsConstants.VERSION_V1.toString(), params, user, pwd, null, instanceUrl);
-			} catch (Exception e) {
-				return FormValidation.error("Client error : " + e.getMessage());
-			}
-
-		}
-
-		if (!GenericUtils.isEmptyOrDefault(secretCredentialId)) {
-			if (CredentialsProvider.listCredentials(StringCredentials.class, itemGroup, authentication, drl,
-					CredentialsMatchers.withId(secretCredentialId)).isEmpty())
-				return FormValidation.error("Cannot find currently selected credentials");
-
-			tokenValue = getTokenText(secretCredentialId);
-			tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(), tokenValue);
-			try {
-				tokenTest = callConnectionApi(DevOpsConstants.VERSION_V2.toString(), params, user, pwd, tokenDetails, instanceUrl);
-			} catch (Exception e) {
-				return FormValidation.error("Client error : " + e.getMessage());
-			}
-		}
-		
-		if (!GenericUtils.isEmptyOrDefault(secretCredentialId)
-				&& !GenericUtils.isEmptyOrDefault(credentialsId)) {
-			if (basicTest && tokenTest) {
-				return FormValidation.ok(DevOpsConstants.BASIC_AUTHENCIATION_SUCCUSS.toString() + "\n"
-						+ DevOpsConstants.TOKEN_AUTHENTICATION_SUCCUSS.toString());
-			} else if (basicTest) {
-				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_SUCCUSS.toString() + "\n"
-						+ DevOpsConstants.TOKEN_AUTHENTICATION_FAILURE.toString());
-			} else if (tokenTest) {
-				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_FAILURE.toString() + "\n"
-						+ DevOpsConstants.TOKEN_AUTHENTICATION_SUCCUSS.toString());
-			} else {
-				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_FAILURE.toString() + "\n"
-						+ DevOpsConstants.TOKEN_AUTHENTICATION_FAILURE.toString());
-			}
-		} else if (!GenericUtils.isEmptyOrDefault(secretCredentialId)) {
-			if (tokenTest) {
-				return FormValidation.ok(DevOpsConstants.TOKEN_AUTHENTICATION_SUCCUSS.toString());
-			} else {
-				return FormValidation.error(DevOpsConstants.TOKEN_AUTHENTICATION_FAILURE.toString());
-			}
-
-		} else {
-			if (basicTest) {
-				return FormValidation.ok(DevOpsConstants.BASIC_AUTHENCIATION_SUCCUSS.toString());
-			} else {
-				return FormValidation.error(DevOpsConstants.BASIC_AUTHENCIATION_FAILURE.toString());
-			}
-		}
-		
-	}
-	
-	public boolean callConnectionApi(String apiVersion, JSONObject params, String userId, String password,
-			Map<String, String> tokenDetails, String instanceUrl) {
-		String changeControlUrl = getChangeControlUrl(instanceUrl, apiVersion);
-		LOGGER.log(Level.INFO, "changeControlUrl ->" + changeControlUrl);
-		String result = GenericUtils.parseResponseResult(CommUtils.callV2Support("GET", changeControlUrl, params, null,
-				userId, password, null, null, tokenDetails), DevOpsConstants.TEST_CONNECTION_RESPONSE_ATTR.toString());
-		if (result != null && result.equalsIgnoreCase("OK"))
+		String errorMessage = findErrors(formData);
+		if (errorMessage != null)
+			throw new FormException(errorMessage, "name");
+		else {
+			String logLevel = getLogLevel(formData);
+			if (logLevel != null)
+				GenericUtils.configureLogger(logLevel);
+			setEntries(new ArrayList<>());
+			req.bindJSON(this, formData);
 			return true;
-		else
+		}
+	}
+
+	private String emptyRequiredFields(JSONObject entry) {
+		if (entry == null)
+			return null;
+		if (entry.isEmpty())
+			return null;
+		if (entry.isNullObject())
+			return null;
+		StringBuilder errorMessage;
+		String name = entry.getString("name");
+		String instanceUrl = entry.getString("instanceUrl");
+		String toolId = entry.getString("toolId");
+		if (name.isEmpty() || instanceUrl.isEmpty() || toolId.isEmpty()) {
+			errorMessage = new StringBuilder("The following fields are required, but were not provided for a ServiceNow DevOps configuration - ");
+			if (name.isEmpty())
+				errorMessage.append("Name, ");
+			if (instanceUrl.isEmpty())
+				errorMessage.append("Instance URL, ");
+			if (toolId.isEmpty())
+				errorMessage.append("Orchestration Tool ID");
+			return errorMessage.toString().trim().replaceAll(",+$", "");
+		}
+		return null;
+	}
+
+	private String getLogLevel(JSONObject formData) {
+		if (formData.isEmpty())
+			return null;
+		if (!formData.has("logLevel"))
+			return null;
+		return formData.getString("logLevel");
+	}
+
+	private String findErrors(JSONObject formData) {
+		String prefix = "Changes not saved for the following reason: ";
+		// Empty form is valid (no configurations)
+		if (formData.isEmpty())
+			return null;
+		if (formData.has("logLevel") && !formData.has("entries"))
+			return null;
+		Object entries = formData.get("entries");
+		// If we have a list of configurations
+		if (entries instanceof JSONArray) {
+			JSONArray entriesArray = (JSONArray) entries;
+			Set<String> namesSet = new HashSet<>();
+			Set<String> instanceUrlToolIdSet = new HashSet<>();
+			int numDefaultConnections = 0;
+
+			for (int i = 0; i < entriesArray.size(); i++) {
+				JSONObject entry = entriesArray.getJSONObject(i);
+				if (entry.getBoolean("defaultConnection"))
+					numDefaultConnections++;
+				// Validate required fields
+				String errorMessage = emptyRequiredFields(entry);
+				if (errorMessage != null)
+					return prefix + errorMessage;
+				// Validate unique name and combination of instanceUrl + toolId
+				String name = entry.getString("name");
+				String instanceUrlToolId = GenericUtils.removeTrailingSlashes(entry.getString("instanceUrl")) + entry.getString("toolId");
+				if (namesSet.contains(name))
+					return prefix + "Each ServiceNow DevOps configuration must have a unique Name";
+				else
+					namesSet.add(name);
+				if (instanceUrlToolIdSet.contains(instanceUrlToolId))
+					return prefix + "Each ServiceNow DevOps configuration must have a unique combination of Instance URL and Orchestration Tool ID";
+				else
+					instanceUrlToolIdSet.add(instanceUrlToolId);
+			}
+
+			// Validate exactly one connection set to Default
+			if (numDefaultConnections != 1)
+				return prefix + "There should be exactly one ServiceNow DevOps configuration set to Default";
+		}
+		// If we have a single configuration
+		else if (entries instanceof JSONObject) {
+			JSONObject entry = (JSONObject) entries;
+			if (!entry.getBoolean("defaultConnection"))
+				return prefix + "This ServiceNow DevOps configuration must be set to Default";
+			// Validate required fields
+			String errorMessage = emptyRequiredFields(entry);
+			if (errorMessage != null)
+				return prefix + errorMessage;
+		}
+		return null;
+	}
+
+	private boolean elementExists(XmlFile xmlFile, String element) throws IOException {
+		if (!xmlFile.exists()) {
 			return false;
-	}
-
-	private String getTrimmedUrl(String url) {
-		return GenericUtils.isNotEmpty(url) ? url.endsWith("/") ? url.substring(0, url.length() - 1) : url : null;
-	}
-
-	private String getChangeControlUrl(String instanceUrl, String apiVersion) {
-
-		return GenericUtils.isNotEmpty(instanceUrl)
-				? String.format("%s/api/sn_devops/%s/devops/orchestration" + "/changeControl",
-						getTrimmedUrl(instanceUrl), apiVersion)
-				: null;
-	}
-
-	private String getChangeInfoUrl(String instanceUrl, String apiVersion) {
-
-		return GenericUtils.isNotEmpty(instanceUrl)
-				? String.format("%s/api/sn_devops/%s/devops/orchestration/changeInfo",
-				getTrimmedUrl(instanceUrl), apiVersion)
-				: null;
-	}
-
-	private String getTrackingUrl(String instanceUrl, String apiVersion) {
-
-		return GenericUtils.isNotEmpty(instanceUrl)
-				? String.format("%s/api/sn_devops/%s/devops/orchestration" + "/pipelineInfo",
-						getTrimmedUrl(instanceUrl), apiVersion)
-				: null;
-	}
-
-	public String getTrackingUrl() {
-		return getTrackingUrl(getInstanceUrl(), getApiVersion());
-	}
-
-	// change control url
-	public String getChangeControlUrl() {
-		return getChangeControlUrl(getInstanceUrl(), getApiVersion());
-	}
-
-	// change Info url
-	public String getChangeInfoUrl() {
-		return getChangeInfoUrl(getInstanceUrl(), getApiVersion());
-	}
-
-	public String getCallbackUrl() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/orchestration" + "/callback",
-						getTrimmedUrl(getInstanceUrl()), getApiVersion())
-				: null;
-	}
-
-	// mapping url
-	public String getMappingUrl() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/orchestration" + "/stepMapping",
-						getTrimmedUrl(getInstanceUrl()), getApiVersion())
-				: null;
-	}
-
-	// notification url
-	public String getNotificationUrl() {
-
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/tool/orchestration", getTrimmedUrl(getInstanceUrl()),
-						getApiVersion())
-				: null;
-	}
-
-	public String getTestUrl() {
-
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/tool/test", getTrimmedUrl(getInstanceUrl()),
-						getApiVersion())
-				: null;
-	}
-
-	// artifact registration url
-	public String getArtifactRegistrationUrl() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/artifact/registration", getTrimmedUrl(getInstanceUrl()),
-						getApiVersion())
-				: null;
-	}
-
-	// artifact create package url
-	public String getArtifactCreatePackageUrl() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/package/registration", getTrimmedUrl(getInstanceUrl()),
-						getApiVersion())
-				: null;
-	}
-
-	public ListBoxModel doFillCredentialsIdItems(@QueryParameter String credentialsId) {		
-		if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-			return new StandardListBoxModel().includeCurrentValue(credentialsId);
 		}
+		String xmlContent = xmlFile.asString();
+		return xmlContent.contains(String.format("<%s>", element));
+	}
 
-		credentialsId = GenericUtils.isEmpty(credentialsId) ? this.credentialsId : credentialsId;
-		AbstractIdCredentialsListBoxModel<StandardListBoxModel, StandardCredentials> options = new StandardListBoxModel()
-				.includeAs(ACL.SYSTEM, Jenkins.get(), StandardUsernamePasswordCredentials.class)
-				.includeCurrentValue(credentialsId);
-		Option defOption = new Option(DevOpsConstants.SN_DEFAULT_KEY.toString(), DevOpsConstants.SN_DEFUALT.toString());
-		options.add(0, defOption);
-		if (DevOpsConstants.SN_DEFUALT.toString().equals(credentialsId)) {
-			options.get(0).selected = true;
-		} else {
-			for (ListBoxModel.Option option : options) {
-				if (option.value.equals(credentialsId)) {
-					option.selected = true;
-				}
+	private String parseLogLevel(XmlFile xmlFile) {
+		try {
+			if (!xmlFile.exists()) {
+				return null;
+			}
+			DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+			InputSource src = new InputSource();
+			src.setCharacterStream(new StringReader(xmlFile.asString()));
+			Document document = builder.parse(src);
+			return getElementValue(document, "logLevel");
+		} catch (ParserConfigurationException | IOException | SAXException ex) {
+			LOGGER.log(Level.SEVERE, "Exception occurred while parsing the stored configuration", ex);
+		}
+		return null;
+	}
+
+	private DevOpsConfigurationEntry parse(XmlFile xmlFile) {
+		try {
+			if (!xmlFile.exists()) {
+				return null;
+			}
+			DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+			InputSource src = new InputSource();
+			src.setCharacterStream(new StringReader(xmlFile.asString()));
+			Document document = builder.parse(src);
+			String credentialsId = getElementValue(document, "credentialsId");
+			boolean trackCheck = Boolean.valueOf(getElementValue(document, "trackCheck"));
+			String secretCredentialId = getElementValue(document, "secretCredentialId");
+			String snArtifactToolId = getElementValue(document, "snArtifactToolId");
+			String toolId = getElementValue(document, "toolId");
+			String apiVersion = getElementValue(document, "apiVersion");
+			String instanceUrl = getElementValue(document, "instanceUrl");
+			String configName = GenericUtils.getAutoGeneratedConfigName(instanceUrl);
+			boolean trackPullRequestPipelinesCheck = Boolean.valueOf(getElementValue(document, "trackPullRequestPipelinesCheck"));
+			boolean active = Boolean.valueOf(getElementValue(document, "snDevopsEnabled"));
+			return new DevOpsConfigurationEntry(configName, active, true, instanceUrl, toolId, snArtifactToolId, apiVersion, credentialsId, trackCheck, trackPullRequestPipelinesCheck, secretCredentialId);
+		} catch (ParserConfigurationException | IOException | SAXException | URISyntaxException ex) {
+			LOGGER.log(Level.SEVERE, "Exception occurred while parsing the stored configuration", ex);
+		}
+		return null;
+	}
+
+	private static String getElementValue(Document doc, String fieldName) {
+		NodeList nodeList = doc.getElementsByTagName(fieldName);
+		if (nodeList.getLength() > 0) {
+			Node node = nodeList.item(0);
+			if (node.getNodeType() == Node.ELEMENT_NODE) {
+				Element element = (Element) node;
+				return element.getTextContent();
 			}
 		}
-		return options;
+		return null;
 	}
 
-	
-	public ListBoxModel doFillSecretCredentialIdItems(@QueryParameter String secretCredentialId) {
-		if (!Jenkins.get().hasPermission(Jenkins.ADMINISTER)) {
-			return new StandardListBoxModel().includeCurrentValue(secretCredentialId);
-		}
-		
-		DomainRequirement dr = null;
-		ItemGroup itemGroup = null;
-		Authentication authentication = null;
-		secretCredentialId = GenericUtils.isEmpty(secretCredentialId) ? this.secretCredentialId : secretCredentialId;
-
-		AbstractIdCredentialsListBoxModel<StandardListBoxModel, StandardCredentials> options = new StandardListBoxModel()
-				.includeAs(ACL.SYSTEM, Jenkins.get(), StringCredentials.class)
-				.includeCurrentValue(secretCredentialId);
-
-		Option defOption = new Option(DevOpsConstants.SN_DEFAULT_KEY.toString(), DevOpsConstants.SN_DEFUALT.toString());
-		options.add(0, defOption);
-		if (DevOpsConstants.SN_DEFUALT.toString().equals(secretCredentialId)) {
-			options.get(0).selected = true;
-		} else {
-			for (ListBoxModel.Option option : options) {
-				if (option.value.equals(secretCredentialId)) {
-					option.selected = true;
-				}
-			}
-		}
-		return options;
-	}
-	
-	public String getCDMChangeSetCreationURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/changesets/create", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getCDMUploadToComponentURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/uploads/components", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getCDMUploadToDeployableURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/uploads/deployables", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getCDMUploadToCollectionURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/uploads/collections", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getUploadStatusURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/upload-status/", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getSnapshotStatusURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sn_cdm_snapshot", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getPublishSnapshotURL(String snapshotId) {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/snapshots/%s/publish", getTrimmedUrl(getInstanceUrl()),
-						snapshotId)
-				: null;
-	}
-	
-	public String getExportRequestURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/deployables/exports", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getExportConfigStatusURL(String exportId) {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/deployables/exports/"+exportId+"/status", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getExportConfigDataURL(String exportId) {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/applications/deployables/exports/"+exportId+"/content", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-	
-	public String getImpactedDeployableURL(String changesetId) {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/changesets/%s/impacted-deployables", getTrimmedUrl(getInstanceUrl()),
-						changesetId)
-				: null;
-	}
-
-	public String getPipelineRegisterURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/config/updatePipeline", getTrimmedUrl(getInstanceUrl()),
-						DevOpsConstants.VERSION_V1.toString())
-				: null;
-	}
-	
 	public ListBoxModel doFillLogLevelItems(@QueryParameter String logLevel) {
 		ListBoxModel options = new ListBoxModel();
 		options.add("inherit");
@@ -642,49 +288,6 @@ public class DevOpsConfiguration extends GlobalConfiguration {
 			}
 		}
 		return options;
-	}
-
-	public String getValidateSnapshotURL(String snapshotId) {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_cdm/snapshots/%s/validate", getTrimmedUrl(getInstanceUrl()),
-						snapshotId)
-				: null;
-	}
-
-	public String getChangesetURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sn_cdm_changeset", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getValidAppURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sn_cdm_application", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-	public String getPolicyValidationURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sn_cdm_policy_validation_result", getTrimmedUrl(getInstanceUrl()))
-				: null;
-	}
-
-
-	public String getSecretCredentialId() {
-		return secretCredentialId;
-  }
-  
-	public String getSecurityResultRegistrationURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/sn_devops/%s/devops/tool/security", getTrimmedUrl(getInstanceUrl()),
-				getApiVersion())
-				: null;
-	}
-
-	public String getDeployablesURL() {
-		return GenericUtils.isNotEmpty(getInstanceUrl())
-				? String.format("%s/api/now/table/sn_cdm_deployable", getTrimmedUrl(getInstanceUrl()))
-				: null;
 	}
 
 }

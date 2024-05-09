@@ -7,14 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 
-import io.jenkins.plugins.DevOpsRunListener;
-import io.jenkins.plugins.DevOpsRunStatusAction;
-import io.jenkins.plugins.config.DevOpsConfiguration;
-import io.jenkins.plugins.model.*;
-import io.jenkins.plugins.utils.CommUtils;
-import io.jenkins.plugins.utils.DevOpsConstants;
-import net.sf.json.JSONObject;
-
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -28,9 +20,21 @@ import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.DevOpsRootAction;
+import io.jenkins.plugins.DevOpsRunListener;
+import io.jenkins.plugins.DevOpsRunStatusAction;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.config.DevOpsJobProperty;
+import io.jenkins.plugins.model.DevOpsChangePollingModel;
+import io.jenkins.plugins.model.DevOpsModel;
+import io.jenkins.plugins.model.DevOpsNotificationModel;
+import io.jenkins.plugins.model.DevOpsPipelineGraph;
+import io.jenkins.plugins.model.DevOpsPipelineInfoConfig;
+import io.jenkins.plugins.model.DevOpsPipelineNode;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineChangeStep;
+import io.jenkins.plugins.utils.CommUtils;
+import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
+import net.sf.json.JSONObject;
 
 public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl {
 
@@ -83,7 +87,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			DevOpsModel model = new DevOpsModel();
 			Run<?, ?> run = getContext().get(Run.class);
 			TaskListener listener = getContext().get(TaskListener.class);
-			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.getPipelineInfo(run.getParent(), run.getId());
+			EnvVars vars = getContext().get(EnvVars.class);
 			DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 
 			if (!this.step.isEnabled()) {
@@ -91,6 +95,13 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				return true;
 			}
 
+			DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(this.step.getConfigurationName());
+			if (devopsConfig == null)
+				return GenericUtils.handleConfigurationNotFound(this.step, jobProperties, listener, getContext(), true, this.step.isIgnoreErrors());
+
+			String devopsConfigMessage = String.format("[ServiceNow DevOps] Using DevOps configuration %s", devopsConfig.getName());
+			listener.getLogger().println(devopsConfigMessage);
+			GenericUtils.printDebug(DevOpsPipelineChangeStepExecution.class.getName(), "start", new String[] { "configurationName" }, new String[] { devopsConfig.getName() }, Level.FINE);
 			//Validating config parameters
 			if ((this.step.getApplicationName() != null && this.step.getSnapshotName() == null) ||
 					(this.step.getApplicationName() == null && this.step.getSnapshotName() != null)) {
@@ -108,8 +119,11 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			String pronoun = run.getParent().getPronoun();
 			boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
 			boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
-			DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
-			if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
+			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.checkIsTracking(run.getParent(), run.getId(),
+					vars.get("BRANCH_NAME"));
+			DevOpsPipelineInfoConfig pipelineInfoConfig = GenericUtils.getPipelineInfoConfigFromConfigEntry(pipelineInfo, devopsConfig);
+
+			if (pipelineTrack && pipelineInfoConfig != null && pipelineInfoConfig.isTrack() && ((isPullRequestPipeline && devopsConfig.getTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
 
 				// check if this step is already under change control
 				DevOpsPipelineGraph graph = run.getAction(DevOpsRunStatusAction.class).getPipelineGraph();
@@ -123,7 +137,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				// mark change begin status
 				model.markChangeStepToProgress(run, currentStageId);
 
-				DevOpsModel.PipelineChangeResponse changeResponse = model.handlePipeline(run, run.getParent(), this, listener);
+				DevOpsModel.PipelineChangeResponse changeResponse = model.handlePipeline(run, run.getParent(), this, listener, pipelineInfoConfig);
 				// boolean[] result = changeResponse.getResult();
 
 				// result[0]: shouldAbort, result[1]: shouldWait
@@ -150,7 +164,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 							getContext().onSuccess("[ServiceNow DevOps] Error registering the job. Ignoring " + "error");
 						}
 					} else {
-						evaluateResultForPipeline(null, model.getAbortResult(), pipelineInfo,
+						evaluateResultForPipeline(null, model.getAbortResult(), pipelineInfoConfig,
 								changeResponse.getErrorMessage());
 					}
 				} else {
@@ -160,17 +174,21 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 				return true;
 			}
 
-			// ServiceNow is unrecheable
-			else if (pipelineInfo != null && pipelineInfo.isUnreacheable()) {
+			// ServiceNow is unreachable
+			else if (pipelineInfoConfig != null && pipelineInfoConfig.isUnreachable()) {
 				if (this.step.isIgnoreErrors() || jobProperties.isIgnoreSNErrors()) {
 					listener.getLogger()
 							.println("[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
 					getContext().onSuccess("[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
 					return true;
 				} else
-					evaluateResultForPipeline(null, model.getCommFailureResult(), pipelineInfo, null);
+					evaluateResultForPipeline(null, model.getCommFailureResult(), pipelineInfoConfig, null);
+			} else if (pipelineInfoConfig != null && !pipelineInfoConfig.isTrack()) {
+				listener.getLogger()
+						.println("[ServiceNow DevOps] Pipeline is not tracked");
+				getContext().onSuccess("[ServiceNow DevOps] Pipeline is not tracked");
+				return true;
 			}
-
 			getContext().onSuccess("[ServiceNow DevOps] Change control check not needed");
 			return true;
 		} catch (Exception e) {
@@ -212,14 +230,14 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 						vars.get("BRANCH_NAME"));
 				if (pipelineInfo != null) {
 					model.addToPipelineInfoCache(run.getParent().getFullName(), run.getId(), pipelineInfo);
-					if (pipelineInfo.isTrack())
-						model.addToTrackingCache(run.getParent().getFullName(), run.getId(), pipelineInfo);
+					if (pipelineInfo.hasTrackedConfig())
+						model.addToTrackingCache(run.getParent().getFullName(), run.getId());
 				}
 				// Also need to re attach the GraphListener to the run, so we can get the
 				// failure event
 				FlowExecution ex = ((WorkflowRun) run).getExecution();
 				if (null != ex)
-					ex.addListener(new DevOpsRunListener.DevOpsStageListener(run, vars, new DevOpsNotificationModel()));
+					ex.addListener(new DevOpsRunListener.DevOpsStageListener(run, vars, new DevOpsNotificationModel(), pipelineInfo));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -236,97 +254,111 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			DevOpsPipelineNode stageNode = model.getStageNodeById(run, currentStageId);
 			String buildUrl = DevOpsPipelineGraph.getStageExecutionUrl(stageNode.getPipelineExecutionUrl(), stageNode.getId());
 
-			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 			DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
-			JSONObject params = new JSONObject();
-			params.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
-			JSONObject infoAPIResponse;
-			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
-				Map<String, String> tokenDetails = new HashMap<String, String>();
-				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
-				tokenDetails.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
+			DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(this.step.getConfigurationName());
+			if (devopsConfig != null) {
+				JSONObject params = new JSONObject();
+				params.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
+				JSONObject infoAPIResponse;
+				if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
+					Map<String, String> tokenDetails = new HashMap<String, String>();
+					tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+							DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
+					tokenDetails.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
 
-				infoAPIResponse = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
-						devopsConfig.getCallbackUrl(), params, null, devopsConfig.getUser(), devopsConfig.getPwd(),
-						null, null, tokenDetails);
-			} else {
-				infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-						devopsConfig.getCallbackUrl(), params, null, devopsConfig.getUser(), devopsConfig.getPwd(),
-						null, null);
-			}
-
-			JSONObject result = (null != infoAPIResponse && !infoAPIResponse.isNullObject()) ? infoAPIResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString()) : null;
-			if (null != result && !result.isNullObject()) {
-				String apiResult = result.getString("result");
-				String token = result.getString("token");
-				String changeComments = result.getString(DevOpsConstants.CALLBACK_RESULT_COMMENTS.toString());
-
-				if (DevOpsConstants.CALLBACK_RESULT_PENDING.toString().equals(apiResult)) {
-					this.setToken(token);
-					DevOpsRootAction.registerPipelineWebhook(this);
-					printDebug("onResume", new String[]{"message"},
-							new String[]{"Job waiting for change callback"}, Level.FINE);
-					this.log(listener, "[ServiceNow DevOps] Job waiting for change callback");
-					new DevOpsChangePollingModel().launchChangePollingThread(listener, run, run.getParent(), this);
+					infoAPIResponse = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
+							devopsConfig.getCallbackUrl(), params, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()),
+							null, null, tokenDetails);
 				} else {
-					Job<?, ?> job = run.getParent();
-					if (job != null) {
-						String jobUrl = job.getAbsoluteUrl();
-						String jobName = job.getName();
-						if (jobUrl != null && jenkinsUrl != null && jobName != null) {
-							model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl, jobName, stageNode.getName(), stageNode,
-									GenericUtils.isMultiBranch(job), vars != null ? vars.get("BRANCH_NAME") : null,
-									true);
-						}
+					infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+							devopsConfig.getCallbackUrl(), params, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()),
+							null, null);
+				}
 
-					}
-					if (!DevOpsConstants.CALLBACK_RESULT_SUCCESS.toString().equals(apiResult)) {
-						String message = "";
-						// Check if it was canceled by user
-						if (DevOpsConstants.CALLBACK_RESULT_CANCELED.toString().equals(apiResult)) {
-							message = "Canceled";
-							printDebug("onResume", new String[]{"message"},
-									new String[]{"Job was canceled"}, Level.FINE);
-							this.log(listener, "[ServiceNow DevOps] Job was canceled");
-							if (!GenericUtils.isEmpty(changeComments))
-								this.log(listener, "[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
-						}
+				JSONObject result = (null != infoAPIResponse && !infoAPIResponse.isNullObject()) ? infoAPIResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString()) : null;
+				if (null != result && !result.isNullObject()) {
+					String apiResult = result.getString("result");
+					String token = result.getString("token");
+					String changeComments = result.getString(DevOpsConstants.CALLBACK_RESULT_COMMENTS.toString());
 
-						// Not canceled and not approved
-						else {
-							message = "Not approved";
-							printDebug("onResume", new String[]{"message"},
-									new String[]{"Job was not approved for execution"},
-									Level.FINE);
-							this.log(listener,
-									"[ServiceNow DevOps] Job was not approved for execution");
-							if (!GenericUtils.isEmpty(changeComments))
-								this.log(listener, "[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
-						}
-						run.setResult(Result.FAILURE);
-						getContext().onFailure(new AbortException(message));
-
-					} else {
-
+					if (DevOpsConstants.CALLBACK_RESULT_PENDING.toString().equals(apiResult)) {
+						this.setToken(token);
+						DevOpsRootAction.registerPipelineWebhook(this);
 						printDebug("onResume", new String[]{"message"},
-								new String[]{"Job approved for execution"}, Level.FINE);
-						this.log(listener,
-								"[ServiceNow DevOps] Job has been approved for execution");
-						getContext().onSuccess(
-								"[ServiceNow DevOps] Job has been approved for execution");
-						if (!GenericUtils.isEmpty(changeComments))
-							this.log(listener, "[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
+								new String[]{"Job waiting for change callback"}, Level.FINE);
+						this.log(listener, "[ServiceNow DevOps] Job waiting for change callback");
+						new DevOpsChangePollingModel().launchChangePollingThread(listener, run, run.getParent(), this);
+					} else {
+						Job<?, ?> job = run.getParent();
+						if (job != null) {
+							String jobUrl = job.getAbsoluteUrl();
+							String jobName = job.getName();
+							if (jobUrl != null && jenkinsUrl != null && jobName != null) {
+								model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl, jobName, stageNode.getName(), stageNode,
+										GenericUtils.isMultiBranch(job), vars != null ? vars.get("BRANCH_NAME") : null,
+										true, devopsConfig);
+							}
+
+						}
+						if (!DevOpsConstants.CALLBACK_RESULT_SUCCESS.toString().equals(apiResult)) {
+							String message = "";
+							// Check if it was canceled by user
+							if (DevOpsConstants.CALLBACK_RESULT_CANCELED.toString().equals(apiResult)) {
+								message = "Canceled";
+								printDebug("onResume", new String[]{"message"},
+										new String[]{"Job was canceled"}, Level.FINE);
+								this.log(listener, "[ServiceNow DevOps] Job was canceled");
+								if (!GenericUtils.isEmpty(changeComments))
+									this.log(listener, "[ServiceNow DevOps] \nCancel comments:\n" + changeComments);
+							}
+
+							// Not canceled and not approved
+							else {
+								message = "Not approved";
+								printDebug("onResume", new String[]{"message"},
+										new String[]{"Job was not approved for execution"},
+										Level.FINE);
+								this.log(listener,
+										"[ServiceNow DevOps] Job was not approved for execution");
+								if (!GenericUtils.isEmpty(changeComments))
+									this.log(listener, "[ServiceNow DevOps] \nRejection comments:\n" + changeComments);
+							}
+							run.setResult(Result.FAILURE);
+							getContext().onFailure(new AbortException(message));
+
+						} else {
+
+							printDebug("onResume", new String[]{"message"},
+									new String[]{"Job approved for execution"}, Level.FINE);
+							this.log(listener,
+									"[ServiceNow DevOps] Job has been approved for execution");
+							getContext().onSuccess(
+									"[ServiceNow DevOps] Job has been approved for execution");
+							if (!GenericUtils.isEmpty(changeComments))
+								this.log(listener, "[ServiceNow DevOps] \nApproval comments:\n" + changeComments);
+						}
+					}
+				} else {
+					if (this.step.isIgnoreErrors() || jobProperties.isIgnoreSNErrors()) {
+						this.log(listener, "[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
+						getContext().onSuccess("[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
+					} else {
+						run.setResult(Result.FAILURE);
+						getContext()
+								.onFailure(new AbortException("[ServiceNow DevOps] ServiceNow instance not contactable"));
 					}
 				}
 			} else {
+				boolean hasConfigurationName = GenericUtils.isEmpty(this.step.getConfigurationName()) ? false : true;
+				String message = hasConfigurationName ? "[ServiceNow DevOps] Could not find an active configuration with name " + this.step.getConfigurationName() : "[ServiceNow DevOps] Could not find an active default configuration";
 				if (this.step.isIgnoreErrors() || jobProperties.isIgnoreSNErrors()) {
-					this.log(listener, "[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
-					getContext().onSuccess("[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
+					message = message.concat(", but will ignore");
+					this.log(listener, message);
+					getContext().onSuccess(message);
 				} else {
 					run.setResult(Result.FAILURE);
 					getContext()
-							.onFailure(new AbortException("[ServiceNow DevOps] ServiceNow instance not contactable"));
+							.onFailure(new AbortException(message));
 				}
 			}
 		} else {
@@ -341,7 +373,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 			listener.getLogger().println(message);
 	}
 
-	public void evaluateResultForPipeline(String token, String result, DevOpsModel.DevOpsPipelineInfo pipelineInfo,
+	public void evaluateResultForPipeline(String token, String result, DevOpsPipelineInfoConfig pipelineInfo,
 	                                      String errorMessage) {
 		DevOpsModel model = new DevOpsModel();
 		TaskListener listener = null;
@@ -378,7 +410,7 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 							DevOpsPipelineNode stageNode = model.getStageNodeById(run, stageId);
 							String buildUrl = DevOpsPipelineGraph.getStageExecutionUrl(stageNode.getPipelineExecutionUrl(), stageId);
 							model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl, jobName, stageNode.getName(), stageNode,
-									GenericUtils.isMultiBranch(job), vars != null ? vars.get("BRANCH_NAME") : null, true);
+									GenericUtils.isMultiBranch(job), vars != null ? vars.get("BRANCH_NAME") : null, true, pipelineInfo.getDevopsConfig());
 						}
 
 					}
@@ -445,11 +477,21 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 
 	// called from DevOpsRootAction _handlePipelineCallback
 	public void onTriggered(String token, String result) {
-		if (token != null && result != null) {
-			DevOpsRootAction.deregisterPipelineWebhook(this);
-			evaluateResultForPipeline(token, result, null, null);
-
+		try {
+			if (token != null && result != null) {
+				DevOpsRootAction.deregisterPipelineWebhook(this);
+				DevOpsModel model = new DevOpsModel();
+				Run<?, ?> run = getContext().get(Run.class);
+				EnvVars vars = getContext().get(EnvVars.class);
+				DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(this.step.getConfigurationName());
+				DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.checkIsTracking(run.getParent(), run.getId(), vars.get("BRANCH_NAME"));
+				DevOpsPipelineInfoConfig pipelineInfoConfig = GenericUtils.getPipelineInfoConfigFromConfigEntry(pipelineInfo, devopsConfig);
+				evaluateResultForPipeline(token, result, pipelineInfoConfig, null);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+
 	}
 
 	// called from DevOpsRootAction _displayPipelineChangeRequestInfo
@@ -478,6 +520,9 @@ public class DevOpsPipelineChangeStepExecution extends AbstractStepExecutionImpl
 						listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
 					else
 						listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + hudson.console.ModelHyperlinkNote.encodeTo(changeRequestUrl, changeRequestId));
+					String changeComments = model.getChangeComments(info);
+					if (!GenericUtils.isEmpty(changeComments))
+						listener.getLogger().println("[ServiceNow DevOps] Change details:\n" + changeComments);
 					try {
 						Run<?, ?> run = getContext().get(Run.class);
 						DevOpsRunStatusAction action =

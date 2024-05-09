@@ -1,31 +1,46 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-	<!--<f:section title="ServiceNow Devops Settings">-->
-		<f:block>
-			<hr/>
-			<h3>ServiceNow DevOps Settings</h3>
-			<p><f:checkbox title="Ignore ServiceNow DevOps errors" field="ignoreSNErrors" default="false"/></p>
-			<p>
-				<f:entry  title="Change Request Details (only used for freestyle/maven projects)"  field="changeRequestDetails">
-					<j:set var="changeRequestDetailsDefaultValue">{
-    "attributes": {
-         "short_description": "Test description",
-         "priority": "1",
-         "start_date": "2021-02-05 08:00:00",
-         "end_date": "2022-04-05 08:00:00",
-         "justification": "test justification",
-         "description": "test description",
-         "cab_required": true,
-         "comments": "This update for work notes is from jenkins file",
-         "work_notes": "test work notes",
-         "assignment_group": "a715cd759f2002002920bde8132e7018"
-    },
-    "setCloseCode": false,
-}
-					</j:set>
-					<f:textarea default="${changeRequestDetailsDefaultValue}"/>
-				</f:entry>
-			</p>
-		</f:block>
-	<!--</f:section> -->
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <f:block>
+        <hr />
+        <h3>ServiceNow DevOps Settings</h3>
+        <p>
+            <f:checkbox title="Ignore ServiceNow DevOps errors" field="ignoreSNErrors"
+                        default="false" />
+        </p>
+
+        <j:set var="isFreeStyle" value="${instance.isFreeStyle()}" />
+
+        <j:choose>
+            <j:when test="${isFreeStyle}">
+                <p>
+                    <f:entry title="Change Request Details (only used for freestyle/maven projects)"
+                             field="changeRequestDetails">
+                        <j:set var="changeRequestDetailsDefaultValue">{
+                        "attributes": {
+                        "short_description": "Test description",
+                        "priority": "1",
+                        "start_date": "2021-02-05 08:00:00",
+                        "end_date": "2022-04-05 08:00:00",
+                        "justification": "test justification",
+                        "description": "test description",
+                        "cab_required": true,
+                        "comments": "This update for work notes is from jenkins file",
+                        "work_notes": "test work notes",
+                        "assignment_group": "a715cd759f2002002920bde8132e7018"
+                        },
+                        "setCloseCode": false,
+                        }
+                        </j:set>
+                        <f:textarea default="${changeRequestDetailsDefaultValue}" />
+                    </f:entry>
+                    <f:entry field="configurationName"
+                             title="Configuration Name (only used for freestyle/maven projects)"
+                             default="">
+                        <f:select />
+                    </f:entry>
+                </p>
+            </j:when>
+        </j:choose>
+    </f:block>
 </j:jelly>

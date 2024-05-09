@@ -12,41 +12,52 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import com.google.common.collect.ImmutableSet;
-
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineCreateArtifactPackageStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import io.jenkins.plugins.utils.GenericUtils;
 
 /**
  * Artifact package create step, identified by step name 'snDevOpsPackage'
- * 
- * Usage: 
- * 	1. snDevOpsPackage(name: "packageName", artifactsPayload: "[ { "name": "artifact1","repositoryName": "repo1", "currentBuildInfo" : "true"}, 
- * 			{"name": "artifact2","repositoryName": "repo2", currentBuildInfo : true } ] ”")
- * 	2. snDevOpsPackage(packageName: "packageName", artifactsPayload: """{"artifacts": [{"name": "artifact1",
- * 			"repositoryName": "repo1","version": "3.1"}, {"name": "artifact2",
- * 				"repositoryName": "repo2","version": "9.2"}],"branchName":"master"}""")
- * 
- *
+ * <p>
+ * Usage:
+ * 1. snDevOpsPackage(name: "packageName", artifactsPayload: "[ { "name": "artifact1","repositoryName": "repo1", "currentBuildInfo" : "true"},
+ * {"name": "artifact2","repositoryName": "repo2", currentBuildInfo : true } ] ”")
+ * 2. snDevOpsPackage(packageName: "packageName", artifactsPayload: """{"artifacts": [{"name": "artifact1",
+ * "repositoryName": "repo1","version": "3.1"}, {"name": "artifact2",
+ * "repositoryName": "repo2","version": "9.2"}],"branchName":"master"}""")
  */
-public class DevOpsPipelineCreateArtifactPackageStep extends Step implements Serializable {
+public class DevOpsPipelineCreateArtifactPackageStep extends Step implements Serializable, DevOpsStep {
 
 	private static final long serialVersionUID = 1L;
 	private String artifactsPayload;
 	private String name;
+	private String configurationName;
 
 	@DataBoundConstructor
 	public DevOpsPipelineCreateArtifactPackageStep(String name, String artifactsPayload) {
 		this.name = name;
 		this.artifactsPayload = artifactsPayload;
+		configurationName = null;
 	}
-	
+
 	@Override
 	public StepExecution start(StepContext context) throws Exception {
 		return new DevOpsPipelineCreateArtifactPackageStepExecution(context, this);
+	}
+
+	@Override
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
+	@DataBoundSetter
+	public void setConfigurationName(String configurationName) {
+		if (!GenericUtils.isEmpty(configurationName))
+			this.configurationName = configurationName;
 	}
 
 	@Override
@@ -61,12 +72,12 @@ public class DevOpsPipelineCreateArtifactPackageStep extends Step implements Ser
 	public String getName() {
 		return name;
 	}
-	
+
 	@DataBoundSetter
 	public void setArtifactsPayload(String artifactsPayload) {
 		this.artifactsPayload = artifactsPayload;
 	}
-	
+
 	@DataBoundSetter
 	public void setName(String name) {
 		this.name = name;

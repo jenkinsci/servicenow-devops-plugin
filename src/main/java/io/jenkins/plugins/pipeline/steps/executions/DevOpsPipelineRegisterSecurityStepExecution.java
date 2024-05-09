@@ -18,8 +18,10 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.DevOpsRunStatusAction;
 import io.jenkins.plugins.actions.RegisterSecurityAction;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
+import io.jenkins.plugins.model.DevOpsPipelineInfoConfig;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineRegisterSecurityStep;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
@@ -61,7 +63,20 @@ public class DevOpsPipelineRegisterSecurityStepExecution extends SynchronousStep
 			try {
 				DevOpsModel model = new DevOpsModel();
 				boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
-				if (!pipelineTrack) {
+
+				DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(this.step.getConfigurationName());
+				if (devopsConfig == null)
+					return String.valueOf(GenericUtils.handleConfigurationNotFound(this.step, null, listener, getContext(), false, false));
+
+				String devopsConfigMessage = String.format("[ServiceNow DevOps] Using DevOps configuration %s", devopsConfig.getName());
+				listener.getLogger().println(devopsConfigMessage);
+				GenericUtils.printDebug(DevOpsPipelineRegisterSecurityStepExecution.class.getName(), "run", new String[] { "configurationName" }, new String[] { devopsConfig.getName() }, Level.FINE);
+
+				DevOpsModel.DevOpsPipelineInfo _pipelineInfo = model.checkIsTracking(run.getParent(), run.getId(), envVars.get("BRANCH_NAME"));
+				DevOpsPipelineInfoConfig pipelineInfoConfig = GenericUtils.getPipelineInfoConfigFromConfigEntry(_pipelineInfo, devopsConfig);
+
+				if (!pipelineTrack || (pipelineInfoConfig != null && !pipelineInfoConfig.isTrack())) {
+					listener.getLogger().println("[ServiceNow DevOps] Pipeline is not tracked");
 					LOGGER.log(Level.INFO, "Pipeline not tracked");
 					return null;
 				}
@@ -98,7 +113,7 @@ public class DevOpsPipelineRegisterSecurityStepExecution extends SynchronousStep
 				RegisterSecurityAction rs = new RegisterSecurityAction(securityParams.toString());
 				run.addAction(rs);
 
-				registerResponse = model.registerSecurityResult(payload);
+				registerResponse = model.registerSecurityResult(payload, this.step.getConfigurationName());
 
 			} catch (JSONException jsonException) {
 				return handleException("securityResultAttributes should be in stringified JSON format : " + jsonException.getMessage());

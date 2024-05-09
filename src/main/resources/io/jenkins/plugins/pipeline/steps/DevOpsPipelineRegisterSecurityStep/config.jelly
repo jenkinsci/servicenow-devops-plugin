@@ -3,7 +3,9 @@
 		 xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 
 	<f:section>
-
+		<f:entry title="Configuration Name" field="configurationName">
+			<f:textbox placeholder="Configuration Name"/>
+		</f:entry>
       <f:entry title="Security Tool" field="securityTool">
            <f:select onchange = "updateContent(event.target.value)"/>
        </f:entry>

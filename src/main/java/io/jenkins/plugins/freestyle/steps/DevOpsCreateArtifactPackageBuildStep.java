@@ -1,14 +1,5 @@
 package io.jenkins.plugins.freestyle.steps;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.logging.Level;
-
-import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-
 import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.Extension;
@@ -19,12 +10,24 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
+import hudson.util.ListBoxModel;
+import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineMapStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 import jenkins.tasks.SimpleBuildStep;
+import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
+import java.util.logging.Level;
 
 /**
  * Artifact package create build step.
@@ -35,6 +38,7 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 	private static final long serialVersionUID = 1L;
 	private String name;
 	private String artifactsPayload;
+	private String configurationName;
 
 	public DevOpsCreateArtifactPackageBuildStep() {
 		super();
@@ -64,6 +68,14 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 		this.name = name;
 	}
 
+	public void setConfigurationName(String configurationName) {
+		this.configurationName = configurationName;
+	}
+
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
 	public void perform(StepContext stepContext, Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener, EnvVars envVars)
 			throws InterruptedException, IOException {
 
@@ -79,8 +91,13 @@ public class DevOpsCreateArtifactPackageBuildStep extends Builder implements Sim
 
 		// Resolve package name
 		String expandedName = envVars.expand(this.name);
-
-		String _result = model.handleArtifactCreatePackage(stepContext, run, listener, expandedName, expandedPayload, envVars);
+		String configuration = null;
+		if(GenericUtils.isFreeStyleProject(run)) {
+			configuration = model.getJobProperty(run.getParent()).getConfigurationName();
+		} else {
+			configuration = this.configurationName;
+		}
+		String _result = model.handleArtifactCreatePackage(stepContext, run, listener, expandedName, expandedPayload, envVars, configuration);
 
 		printDebug("perform", new String[]{"message"},
 				new String[]{"handleArtifactCreatePackage responded with: " + _result}, Level.INFO);

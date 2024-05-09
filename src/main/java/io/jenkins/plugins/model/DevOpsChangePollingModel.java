@@ -9,6 +9,7 @@ import hudson.model.TaskListener;
 import io.jenkins.plugins.DevOpsRootAction;
 import io.jenkins.plugins.DevOpsRunStatusAction;
 import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExecution;
 import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
@@ -213,12 +214,12 @@ public class DevOpsChangePollingModel {
 
         JSONObject response = null;
 
-        if (run != null && controlledJob != null) {
+        if (run != null && controlledJob != null && stepExecution != null) {
             JSONObject queryParams = new JSONObject();
             String jobName = controlledJob.getName();
             DevOpsPipelineGraph graph = run.getAction(DevOpsRunStatusAction.class).getPipelineGraph();
-
-            if (jobName != null) {
+            DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(stepExecution.getStep().getConfigurationName());
+            if (jobName != null && devopsConfig != null) {
                 String stageId = getCurrentStageId(stepExecution.getContext(), graph);
                 DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
                 String stageName =  stageNode.getName();
@@ -227,8 +228,6 @@ public class DevOpsChangePollingModel {
                 EnvVars vars = stepExecution.getContext().get(EnvVars.class);
                 String branchName = vars.get(DevOpsConstants.PIPELINE_BRANCH_NAME.toString());
                 String pipelineName = vars.get(DevOpsConstants.PIPELINE_JOB_NAME.toString());
-
-                DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 
                 queryParams.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
                 queryParams.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(), DevOpsConstants.TOOL_TYPE.toString());
@@ -240,17 +239,15 @@ public class DevOpsChangePollingModel {
 
 					Map<String, String> tokenDetails = new HashMap<String, String>();
 					tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-							devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+							DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 					response = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
-							devopsConfig.getChangeInfoUrl(), queryParams, null, devopsConfig.getUser(),
-							devopsConfig.getPwd(), null, null, tokenDetails);
+							devopsConfig.getChangeInfoUrl(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+                            DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails);
 				} else {
-					response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-							devopsConfig.getChangeInfoUrl(), queryParams, null, devopsConfig.getUser(),
-							devopsConfig.getPwd(), null, null);
-				}
-                
-
+                    response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+                            devopsConfig.getChangeInfoUrl(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+                            DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
+                }
             }
         }
         return response;
