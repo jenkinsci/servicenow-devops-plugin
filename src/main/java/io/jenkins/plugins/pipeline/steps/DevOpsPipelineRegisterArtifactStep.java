@@ -22,6 +22,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineRegisterArtifactStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import io.jenkins.plugins.utils.GenericUtils;
 
 /**
  * Register Artifact Step, identified by step-name 'snDevopsArtifact'
@@ -37,18 +38,20 @@ import io.jenkins.plugins.utils.DevOpsConstants;
  * 
  *
  */
-public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializable {
+public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializable, DevOpsStep {
 
 	private static final long serialVersionUID = 1L;
 	private boolean m_enabled;
 	private boolean ignoreErrors;
 	private String artifactsPayload;
+	private String configurationName;
 	
 	@DataBoundConstructor
 	public DevOpsPipelineRegisterArtifactStep(String artifactsPayload) {
 		m_enabled = true;
 		this.ignoreErrors = false;
 		this.artifactsPayload = artifactsPayload;
+		configurationName = null;
 	}
 
 	@Override
@@ -63,6 +66,17 @@ public class DevOpsPipelineRegisterArtifactStep extends Step implements Serializ
 	@DataBoundSetter
 	public void setEnabled(boolean enabled) {
 		this.m_enabled = enabled;
+	}
+
+	@Override
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
+	@DataBoundSetter
+	public void setConfigurationName(String configurationName) {
+		if(!GenericUtils.isEmpty(configurationName))
+			this.configurationName = configurationName;
 	}
 
 	public boolean isIgnoreErrors() {

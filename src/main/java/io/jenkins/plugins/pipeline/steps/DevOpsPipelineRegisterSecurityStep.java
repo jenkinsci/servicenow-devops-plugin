@@ -21,9 +21,9 @@ import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineRegisterSecuri
 import io.jenkins.plugins.utils.DevOpsConstants;
 import org.kohsuke.stapler.QueryParameter;
 
-public class DevOpsPipelineRegisterSecurityStep extends Step implements Serializable {
+public class DevOpsPipelineRegisterSecurityStep extends Step implements Serializable, DevOpsStep {
 	private String securityResultAttributes;
-
+	private String configurationName;
 
 	public DevOpsPipelineRegisterSecurityStep() {
 	}
@@ -31,6 +31,18 @@ public class DevOpsPipelineRegisterSecurityStep extends Step implements Serializ
 	@DataBoundConstructor
 	public DevOpsPipelineRegisterSecurityStep(String securityResultAttributes) {
 		this.securityResultAttributes = securityResultAttributes;
+		configurationName = null;
+	}
+
+	@Override
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
+	@DataBoundSetter
+	public void setConfigurationName(String configurationName) {
+		if (!GenericUtils.isEmpty(configurationName))
+			this.configurationName = configurationName;
 	}
 
 	public String getSecurityResultAttributes() {

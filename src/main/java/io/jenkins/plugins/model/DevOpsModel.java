@@ -9,6 +9,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -34,7 +35,7 @@ import hudson.triggers.SCMTrigger;
 import io.jenkins.plugins.DevOpsRootAction;
 import io.jenkins.plugins.DevOpsRunListener;
 import io.jenkins.plugins.DevOpsRunStatusAction;
-import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineMapStep;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExecution;
@@ -173,16 +174,15 @@ public class DevOpsModel {
 	public DevOpsPipelineInfo checkIsTracking(Queue.Item item) {
 		printDebug("checkIsTracking(item)", null, null, Level.FINE);
 		if (item == null)
-			return new DevOpsPipelineInfo(false);
+			return null;
+
 		if (!(item.task instanceof Job<?, ?>))
-			return new DevOpsPipelineInfo(false);
+			return null;
+
 		Job<?, ?> job = (Job<?, ?>) item.task;
 		// check if global prop and supported job type
 		if (!checkIsValid(job))
-			return new DevOpsPipelineInfo(false);
-
-		if (GenericUtils.isDevOpsConfigurationEnabled() && !GenericUtils.isDevOpsConfigurationValid())
-			return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_INVALID_CONFIGURATION_UI.toString());
+			return null;
 
 		String jobUrl = job.getAbsoluteUrl();
 		String jobName = job.getFullName();
@@ -195,20 +195,20 @@ public class DevOpsModel {
 	public DevOpsPipelineInfo checkIsTracking(Job<?, ?> job, String runId, String branchName) {
 		printDebug("checkIsTracking(run)", new String[]{"runId", "branchName"}, new String[]{runId, branchName}, Level.FINE);
 		if (job == null)
-			return new DevOpsPipelineInfo(false);
+			return null;
+
 		// check if global prop and supported job type
 		if (!checkIsValid(job))
-			return new DevOpsPipelineInfo(false);
-
-		if (GenericUtils.isDevOpsConfigurationEnabled() && !GenericUtils.isDevOpsConfigurationValid())
-			return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_INVALID_CONFIGURATION_UI.toString());
-
+			return null;
 
 		String jobUrl = job.getAbsoluteUrl();
 		String jobName = job.getFullName();
 		// check on cache
-		if (isTrackingCache(jobName, runId))
-			return new DevOpsPipelineInfo(true);
+		if (isTrackingCache(jobName, runId)) {
+			DevOpsPipelineInfo pipelineInfo = getPipelineInfo(job, runId);
+			if (pipelineInfo != null)
+				return pipelineInfo;
+		}
 		// check on endpoint
 		return isTrackingEndpoint(job, jobUrl, jobName, job.getPronoun(), branchName,
 				GenericUtils.isMultiBranch(job));
@@ -216,13 +216,11 @@ public class DevOpsModel {
 
 	public DevOpsPipelineInfo getPipelineInfo(Job<?, ?> job, String runId) {
 		if (job == null)
-			return new DevOpsPipelineInfo(false);
+			return null;
+
 		// check if global prop and supported job type
 		if (!checkIsValid(job))
-			return new DevOpsPipelineInfo(false);
-
-		if (GenericUtils.isDevOpsConfigurationEnabled() && !GenericUtils.isDevOpsConfigurationValid())
-			return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_INVALID_CONFIGURATION_UI.toString());
+			return null;
 
 		String jobName = job.getFullName();
 		String key = getTrackingKey(jobName, runId);
@@ -285,7 +283,7 @@ public class DevOpsModel {
 		DevOpsRootAction.removeSnPipelineInfo(key);
 	}
 
-	public void addToTrackingCache(String jobName, String runId, DevOpsPipelineInfo pipelineInfo) {
+	public void addToTrackingCache(String jobName, String runId) {
 		printDebug("addToTrackingCache", new String[]{"runId", "jobName"}, new String[]{runId, jobName}, Level.FINE);
 		String key = getTrackingKey(jobName, runId);
 		printDebug("addToTrackingCache", new String[]{"key"}, new String[]{key}, Level.FINE);
@@ -314,20 +312,99 @@ public class DevOpsModel {
 		return tracking.booleanValue();
 	}
 
-	public JSONObject checkPipelineInfoInFile(String jobName, String path) {
-		printDebug("checkPipelineInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
-		if (jobName == null)
+	public JSONObject getTrackInfoForConfigKey(String jobName, String path, String key) {
+		printDebug("getTrackInfoForConfigKey", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
+		if (jobName == null || path == null || key == null)
 			return null;
-		printDebug("checkPipelineInfoInFile", new String[]{"path"}, new String[]{path}, Level.FINE);
-		return DevOpsRootAction.checkInfoInFile(jobName, path);
+		printDebug("getTrackInfoForConfigKey", new String[]{"path"}, new String[]{path}, Level.FINE);
+		return DevOpsRootAction.getTrackInfoForConfigKey(jobName, path, key);
 	}
 
-	public Boolean updatePipelineInfoInFile(String jobName, JSONObject infoAPIResponse, String path) {
+	public JSONObject getTrackingObjectFromFile(String path) {
+		printDebug("getTrackingObjectFromFile", new String[]{"path"}, new String[]{path}, Level.FINE);
+		if (path == null)
+			return null;
+		printDebug("getTrackingObjectFromFile", new String[]{"path"}, new String[]{path}, Level.FINE);
+		return DevOpsRootAction.getTrackingObjectFromFile(path);
+	}
+
+	public Boolean updatePipelineInfoInFile(String jobName, JSONObject configsTrackInfo, String path) {
 		printDebug("updatePipelineInfoInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
-		if (jobName == null)
+		if (jobName == null || path == null || configsTrackInfo == null)
 			return false;
-		printDebug("checkPipelineInfoInFile", new String[]{"path"}, new String[]{path}, Level.FINE);
-		return DevOpsRootAction.updateInfoInFile(jobName, infoAPIResponse, path);
+		printDebug("updatePipelineInfoInFile", new String[]{"path"}, new String[]{path}, Level.FINE);
+		return DevOpsRootAction.updateInfoInFile(jobName, configsTrackInfo, path);
+	}
+
+	public List<DevOpsConfigurationEntry> getDevOpsConfigEntriesFromTrackingObject(JSONObject trackingObject) {
+		// Loop over keys, for each key if the track=true, lookup config using GenericUtils.getDevOpsConfigurationEntryByInstanceUrlAndToolId()
+		if (trackingObject == null)
+			return null;
+		List<DevOpsConfigurationEntry> devopsConfigs = new ArrayList<>();
+		Iterator<String> keys = trackingObject.keys();
+		while (keys.hasNext()) {
+			String key = keys.next();
+			if (trackingObject.get(key) instanceof JSONObject) {
+				JSONObject configResult = trackingObject.getJSONObject(key);
+				if (configResult.containsKey(DevOpsConstants.COMMON_RESPONSE_RESULT.toString())) {
+					JSONObject result = configResult.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+					if (result.containsKey("track")) {
+						boolean resultValue = result.getBoolean("track");
+						if (resultValue) {
+							String[] _key = key.split("_");
+							if (_key.length == 2) {
+								String toolId = _key[0];
+								String instanceUrl = _key[1];
+								DevOpsConfigurationEntry entry = GenericUtils.getDevOpsConfigurationEntryByInstanceUrlAndToolId(instanceUrl, toolId);
+								if (entry != null)
+									devopsConfigs.add(entry);
+							}
+						}
+					}
+				}
+
+			}
+		}
+		if (devopsConfigs.size() > 0)
+			return devopsConfigs;
+		return null;
+	}
+
+	public String getInfoFilePath(Job<?, ?> job) {
+		if (job == null)
+			return null;
+		String jobDir = job.getRootDir().getAbsolutePath();
+		if (GenericUtils.isMultiBranch(job))
+			jobDir = jobDir.split(DevOpsConstants.MULTIBRANCH_PATH_SEPARATOR.toString())[0];
+		return jobDir + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+	}
+
+	public DevOpsPipelineInfoConfig getPipelineInfoConfig(String key, JSONObject configTrackInfo, String pronoun, DevOpsConfigurationEntry entry) {
+		if (key == null || configTrackInfo == null || entry == null)
+			return null;
+		String result = GenericUtils.parseResponseResult(configTrackInfo, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString());
+		if (result != null) {
+			if (result.equalsIgnoreCase("true")) {
+				JSONObject resultObj = configTrackInfo.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
+				if (resultObj.containsKey(DevOpsConstants.TEST_INFO_RESPONSE.toString())) {
+					JSONObject testInfo = resultObj.getJSONObject(DevOpsConstants.TEST_INFO_RESPONSE.toString());
+					return new DevOpsPipelineInfoConfig(true, entry, key, testInfo);
+				} else
+					return new DevOpsPipelineInfoConfig(true, entry, key);
+			} else if (result.equalsIgnoreCase("false")) {
+				return new DevOpsPipelineInfoConfig(false, entry, key);
+			} else if (result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
+				if (result.contains(DevOpsConstants.FAILURE_REASON_CONN_REFUSED.toString()))
+					return new DevOpsPipelineInfoConfig(false, entry, key, true, DevOpsConstants.FAILURE_REASON_CONN_REFUSED_UI.toString());
+				else if (result.contains(DevOpsConstants.FAILURE_REASON_USER_NOAUTH.toString()))
+					return new DevOpsPipelineInfoConfig(false, entry, key, true, DevOpsConstants.FAILURE_REASON_USER_NOAUTH_UI.toString());
+				else if (pronoun != null &&
+						result.contains(DevOpsConstants.FAILURE_REASON_PIPELINE_DETAILS_NOT_FOUND.toString()) &&
+						(pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) || pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())))
+					return new DevOpsPipelineInfoConfig(false, entry, key);
+			}
+		}
+		return new DevOpsPipelineInfoConfig(false, entry, key, true, DevOpsConstants.FAILURE_REASON_GENERIC_UI.toString());
 	}
 
 	/*
@@ -337,121 +414,102 @@ public class DevOpsModel {
 	 */
 	public DevOpsPipelineInfo isTrackingEndpoint(Job<?, ?> job, String jobUrl, String jobName, String pronoun, String branchName, boolean isMultiBranch) {
 		printDebug("isTrackingEndpoint", new String[]{"jobUrl", "jobName", "pronoun", "branchName", "isMultiBranch"}, new String[]{jobUrl, jobName, pronoun, branchName, String.valueOf(isMultiBranch)}, Level.FINE);
-		String result = null;
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-		String jobDir = job.getRootDir().getAbsolutePath();
-		if (isMultiBranch)
-			jobDir = jobDir.split(DevOpsConstants.MULTIBRANCH_PATH_SEPARATOR.toString())[0];
-		String infoFilePath = jobDir + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
-		JSONObject infoAPIResponse = checkPipelineInfoInFile(jobName, infoFilePath);
-		if (!(GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) || devopsConfig.isTrackCheck()) {
-			JSONObject params = new JSONObject();
-			params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
-			params.put("url", jobUrl);
-			params.put("name", jobName);
-			params.put("pronoun", pronoun);
-			if (branchName != null)
-				params.put("branchName", branchName);
-			params.put("isMultiBranch", isMultiBranch);
-			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
-				Map<String, String> tokenDetails = new HashMap<String, String>();
-				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
-				infoAPIResponse = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
-						devopsConfig.getTrackingUrl(), params, null,
-						devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails);
-			} else {
-				infoAPIResponse = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-						devopsConfig.getTrackingUrl(), params, null,
-						devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
-			}
+		// Get all active configurations
+		List<DevOpsConfigurationEntry> activeDevopsConfigEntries = GenericUtils.getActiveDevOpsConfigurationEntry();
+		String infoFilePath = getInfoFilePath(job);
+		// For each active configuration, check if an entry exists in snPipelineInfo.json for toolId_instanceUrl key
+		JSONObject configsTrackInfo = new JSONObject();
+		List<DevOpsPipelineInfoConfig> pipelineInfoConfigs = new ArrayList<>();
+		for (DevOpsConfigurationEntry entry : activeDevopsConfigEntries) {
 
-			if (GenericUtils.checkIfAttributeExist(infoAPIResponse, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) {
-				updatePipelineInfoInFile(jobName, infoAPIResponse, infoFilePath);
-			}
-		}
-		result = GenericUtils.parseResponseResult(infoAPIResponse,
-				DevOpsConstants.TRACKING_RESPONSE_ATTR.toString());
-		printDebug("isTrackingEndpoint", new String[]{DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()}, new String[]{result}, Level.FINE);
-		if (result != null) {
-			if (result.equalsIgnoreCase("true")) {
-				DevOpsPipelineInfo pipelineInfo = new DevOpsPipelineInfo(true);
-				JSONObject resultObj = infoAPIResponse.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-				if (resultObj.containsKey(DevOpsConstants.TEST_INFO_RESPONSE.toString())) {
-					pipelineInfo.setTestInfo(resultObj.getJSONObject(DevOpsConstants.TEST_INFO_RESPONSE.toString()));
+			JSONObject configTrackInfo = getTrackInfoForConfigKey(jobName, infoFilePath, GenericUtils.getConfigEntryTrackKey(entry.getInstanceUrl(), entry.getToolId()));
+			//{
+			//  "result": {
+			//    "status": "Success",
+			//    "track": true,
+			//    "testInfo": {
+			//		"tool": "xyz",
+			//      "pipeline": "abc",
+			//      "stages": { }
+			//    }
+			//  }
+			//}
+			// If entry doesn't exist, make the call to endpoint
+			if (configTrackInfo == null || entry.getTrackCheck()) {
+				JSONObject params = new JSONObject();
+				params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), entry.getToolId());
+				params.put("url", jobUrl);
+				params.put("name", jobName);
+				params.put("pronoun", pronoun);
+				if (branchName != null)
+					params.put("branchName", branchName);
+				params.put("isMultiBranch", isMultiBranch);
+				printDebug("isTrackingEndpoint", new String[]{ "configurationName" }, new String[]{ entry.getName() }, Level.FINE);
+				if (!GenericUtils.isEmptyOrDefault(entry.getSecretCredentialId())) {
+					Map<String, String> tokenDetails = new HashMap<String, String>();
+					tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
+							DevOpsConfigurationEntry.getTokenText(entry.getSecretCredentialId()));
+					configTrackInfo = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(),
+							entry.getTrackingUrl(), params, null,
+							DevOpsConfigurationEntry.getUser(entry.getSecretCredentialId()), entry.getPwd(entry.getSecretCredentialId()), null, null, tokenDetails);
+				} else {
+					configTrackInfo = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
+							entry.getTrackingUrl(), params, null,
+							DevOpsConfigurationEntry.getUser(entry.getCredentialsId()), DevOpsConfigurationEntry.getPwd(entry.getCredentialsId()), null, null);
 				}
-				return pipelineInfo;
-			} else if (result.equalsIgnoreCase("false")) {
-				return new DevOpsPipelineInfo(false);
-			} else if (result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
-				if (result.contains(DevOpsConstants.FAILURE_REASON_CONN_REFUSED.toString()))
-					return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_CONN_REFUSED_UI.toString());
-				else if (result.contains(DevOpsConstants.FAILURE_REASON_USER_NOAUTH.toString()))
-					return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_USER_NOAUTH_UI.toString());
-				else if (pronoun != null &&
-						result.contains(DevOpsConstants.FAILURE_REASON_PIPELINE_DETAILS_NOT_FOUND.toString()) &&
-						(pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) || pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())))
-					return new DevOpsPipelineInfo(false);
+			}
+			if (GenericUtils.checkIfAttributeExist(configTrackInfo, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString())) {
+				String configKey = GenericUtils.getConfigEntryTrackKey(entry.getInstanceUrl(), entry.getToolId());
+				configsTrackInfo.put(configKey, configTrackInfo);
+				DevOpsPipelineInfoConfig pipelineInfoConfig = getPipelineInfoConfig(configKey, configTrackInfo, pronoun, entry);
+				if (pipelineInfoConfig != null)
+					pipelineInfoConfigs.add(pipelineInfoConfig);
 			}
 		}
-		return new DevOpsPipelineInfo(false, true, DevOpsConstants.FAILURE_REASON_GENERIC_UI.toString());
+		if (!configsTrackInfo.isEmpty())
+			updatePipelineInfoInFile(jobName, configsTrackInfo, infoFilePath);
+
+		return new DevOpsPipelineInfo(pipelineInfoConfigs);
 	}
 
 	public static class DevOpsPipelineInfo {
-		private boolean track;
-		private JSONObject testInfo;
-		private boolean unreacheable;
-		private String errorMessage;
+		private List<DevOpsPipelineInfoConfig> devopsPipelineConfigs;
 
-		public DevOpsPipelineInfo(boolean track) {
-			this.track = track;
+		public DevOpsPipelineInfo(List<DevOpsPipelineInfoConfig> devopsPipelineConfigs) {
+			this.devopsPipelineConfigs = devopsPipelineConfigs;
 		}
 
-		public DevOpsPipelineInfo(boolean track, JSONObject testInfo) {
-			this.track = track;
-			this.testInfo = testInfo;
+		public List<DevOpsPipelineInfoConfig> getDevopsPipelineConfigs() {
+			return devopsPipelineConfigs;
 		}
 
-		public DevOpsPipelineInfo(boolean track, boolean unreacheable, String errorMessage) {
-			this.track = track;
-			this.unreacheable = unreacheable;
-			this.errorMessage = errorMessage;
+		public void setDevopsPipelineConfigs(List<DevOpsPipelineInfoConfig> devopsPipelineConfigs) {
+			this.devopsPipelineConfigs = devopsPipelineConfigs;
 		}
 
-		public boolean isUnreacheable() {
-			return unreacheable;
+		public boolean hasTrackedConfig() {
+			if (this.devopsPipelineConfigs == null)
+				return false;
+			for (DevOpsPipelineInfoConfig config : this.devopsPipelineConfigs) {
+				if (config.isTrack())
+					return true;
+			}
+			return false;
 		}
 
-		public void setUnreacheable(boolean unreacheable) {
-			this.unreacheable = unreacheable;
-		}
-
-		public boolean isTrack() {
-			return track;
-		}
-
-		public void setTrack(boolean track) {
-			this.track = track;
-		}
-
-		public JSONObject getTestInfo() {
-			return testInfo;
-		}
-
-		public void setTestInfo(JSONObject testInfo) {
-			this.testInfo = testInfo;
-		}
-
-		public void setErrorMessage(String message) {
-			this.errorMessage = message;
-		}
-
-		public String getErrorMessage() {
-			return errorMessage;
+		public boolean hasTrackedPullRequestConfig() {
+			if (this.devopsPipelineConfigs == null)
+				return false;
+			for (DevOpsPipelineInfoConfig config : this.devopsPipelineConfigs) {
+				DevOpsConfigurationEntry entry = config.getDevopsConfig();
+				if (entry != null && entry.getTrackPullRequestPipelinesCheck())
+					return true;
+			}
+			return false;
 		}
 
 		public String toString() {
-			return "track: " + this.track + ", unreacheable: " + this.unreacheable;
+			return "devopsPipelineConfigs: " + this.devopsPipelineConfigs.toString();
 		}
 	}
 
@@ -626,13 +684,13 @@ public class DevOpsModel {
 
 	public String sendBuildAndToken(String token, String jenkinsUrl, String buildUrl,
 	                                String jobUrl, String jobName, String stageName,
-	                                DevOpsPipelineNode stageNode, Boolean isMultiBranch, String branchName, Boolean isChangeClose) {
+	                                DevOpsPipelineNode stageNode, Boolean isMultiBranch, String branchName, Boolean isChangeClose, DevOpsConfigurationEntry devopsConfig) {
 		printDebug("sendBuildAndToken", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
 		String result = null;
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-
+		if (devopsConfig == null)
+			return null;
 		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
 		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(),
 				DevOpsConstants.TOOL_TYPE.toString());
@@ -665,18 +723,18 @@ public class DevOpsModel {
 
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				result = GenericUtils.parseResponseResult(
 						CommUtils.callV2Support(DevOpsConstants.REST_PUT_METHOD.toString(),
 								devopsConfig.getChangeControlUrl() + "/" + token, params, data.toString(),
-								devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails),
+								DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails),
 						DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 
 			} else {
 				result = GenericUtils.parseResponseResult(
 						CommUtils.call(DevOpsConstants.REST_PUT_METHOD.toString(),
 								devopsConfig.getChangeControlUrl() + "/" + token, params, data.toString(),
-								devopsConfig.getUser(), devopsConfig.getPwd(), null, null),
+								DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null),
 						DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 
 			}
@@ -690,12 +748,13 @@ public class DevOpsModel {
 
 	public String sendIsUnderChgControl(String jobUrl, String jobName,
 	                                    String stageName, DevOpsPipelineNode stageNode, Boolean isMultiBranch,
-	                                    String branchName) {
+	                                    String branchName, String configurationName) {
 		printDebug("sendIsUnderChgControl", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		String result = null;
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
+		if (devopsConfig == null)
+			return null;
 		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
 		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(),
 				DevOpsConstants.TOOL_TYPE.toString());
@@ -720,18 +779,18 @@ public class DevOpsModel {
 
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				result = GenericUtils
 						.parseResponseResult(
 								CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeControlUrl(), params, null,
-										devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails),
+										DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails),
 								DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 
 			} else {
 				result = GenericUtils
 						.parseResponseResult(
 								CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeControlUrl(), params, null,
-										devopsConfig.getUser(), devopsConfig.getPwd(), null, null),
+										DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null),
 								DevOpsConstants.COMMON_RESPONSE_CHANGE_CTRL.toString());
 
 			}
@@ -869,7 +928,7 @@ public class DevOpsModel {
 				data.put(DevOpsConstants.CR_ATTRS.toString(), crAttrJSON);
 			}
 
-//Adding config parameters to request body
+			//Adding config parameters to request body
 			if (GenericUtils.isNotEmpty(applicationName) && GenericUtils.isNotEmpty(snapshotName)) {
 				data.put(DevOpsConstants.CONFIG_APP_NAME.toString(), applicationName);
 				data.put(DevOpsConstants.CONFIG_SNAPSHOT_NAME.toString(), snapshotName);
@@ -909,13 +968,12 @@ public class DevOpsModel {
 	}
 
 	public String sendUpdateMapping(String jobUrl, String jobName, String stageName, DevOpsPipelineNode stageNode,
-	                                String stepSysId, Boolean isMultiBranch, String branchName) {
+	                                String stepSysId, Boolean isMultiBranch, String branchName, String configurationName) {
 		printDebug("sendUpdateMapping", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
 		String result = null;
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
 		params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
 		params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(),
 				DevOpsConstants.TOOL_TYPE.toString());
@@ -940,15 +998,15 @@ public class DevOpsModel {
 
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				result = GenericUtils.parseResponseResult(
 						CommUtils.callV2Support(DevOpsConstants.REST_POST_METHOD.toString(), devopsConfig.getMappingUrl(), params,
-								data.toString(), devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails),
+								data.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails),
 						DevOpsConstants.STEP_MAPPING_RESPONSE_ATTR.toString());
 			} else {
 				result = GenericUtils.parseResponseResult(
 						CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(), devopsConfig.getMappingUrl(), params,
-								data.toString(), devopsConfig.getUser(), devopsConfig.getPwd(), null, null),
+								data.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null),
 						DevOpsConstants.STEP_MAPPING_RESPONSE_ATTR.toString());
 			}
 
@@ -1001,7 +1059,7 @@ public class DevOpsModel {
 
 	public String registerFreestyleAndNotify(Queue.Item item, Job<?, ?> job, String token,
 	                                         String jobId, String jobUrl, String jobName,
-	                                         String jenkinsUrl) {
+	                                         String jenkinsUrl, String configurationName) {
 		printDebug("registerFreestyleAndNotify", null, null, Level.FINE);
 		String result = null;
 		try {
@@ -1018,22 +1076,24 @@ public class DevOpsModel {
 				}
 			}*/
 
-			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+			DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
+			if (devopsConfig == null)
+				return null;
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				result = sendJobAndCallbackUrlV2(token,
 						jobUrl, jobName, null, null,
-						jenkinsUrl, devopsConfig.getChangeControlUrl(), devopsConfig.getUser(),
-						devopsConfig.getPwd(), devopsConfig.getToolId(),
+						jenkinsUrl, devopsConfig.getChangeControlUrl(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+						DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), devopsConfig.getToolId(),
 						jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null, null, null, tokenDetails);
 
 			} else {
 				result = sendJobAndCallbackUrl(token,
 						jobUrl, jobName, null, null,
-						jenkinsUrl, devopsConfig.getChangeControlUrl(), devopsConfig.getUser(),
-						devopsConfig.getPwd(), devopsConfig.getToolId(),
+						jenkinsUrl, devopsConfig.getChangeControlUrl(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+						DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), devopsConfig.getToolId(),
 						jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null, null, null);
 
 			}
@@ -1186,10 +1246,10 @@ public class DevOpsModel {
 	public String registerPipelineAndNotify(Run<?, ?> run, Job<?, ?> controlledJob,
 	                                        String token, String jobUrl, String jobName,
 	                                        String stageId, String jenkinsUrl,
-	                                        DevOpsPipelineChangeStepExecution stepExecution, PipelineChangeResponse changeResponse) {
-		printDebug("registerPipelineAndNotify", null, null, Level.FINE);
+	                                        DevOpsPipelineChangeStepExecution stepExecution, PipelineChangeResponse changeResponse, DevOpsConfigurationEntry devopsConfig) {
 		String result = null;
 		try {
+			printDebug("registerPipelineAndNotify", new String[] { "configurationName" }, new String[] { devopsConfig.getName() }, Level.FINE);
 			DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
 			JSONObject jobDetails =
 					getJobDetailsForPipeline(run, controlledJob, jenkinsUrl, stageNode);
@@ -1213,12 +1273,12 @@ public class DevOpsModel {
 
 			String buildUrl = DevOpsPipelineGraph.getStageExecutionUrl(stageNode.getPipelineExecutionUrl(), stageNode.getId());
 			jobDetails.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
-			DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 
 				result = sendJobAndCallbackUrlV2(token,
 						jobUrl,
@@ -1226,8 +1286,8 @@ public class DevOpsModel {
 						stageNode.getName(), stageNode,
 						jenkinsUrl,
 						devopsConfig.getChangeControlUrl(),
-						devopsConfig.getUser(),
-						devopsConfig.getPwd(),
+						DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+						DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()),
 						devopsConfig.getToolId(),
 						jobDetails, GenericUtils.isMultiBranch(controlledJob),
 						vars != null ? vars.get("BRANCH_NAME") : null,
@@ -1239,8 +1299,8 @@ public class DevOpsModel {
 						stageNode.getName(), stageNode,
 						jenkinsUrl,
 						devopsConfig.getChangeControlUrl(),
-						devopsConfig.getUser(),
-						devopsConfig.getPwd(),
+						DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+						DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()),
 						devopsConfig.getToolId(),
 						jobDetails, GenericUtils.isMultiBranch(controlledJob),
 						vars != null ? vars.get("BRANCH_NAME") : null,
@@ -1306,19 +1366,18 @@ public class DevOpsModel {
 
 	// Called from DevOpsPipelineChangeStepExecution.start()
 	public PipelineChangeResponse handlePipeline(Run<?, ?> run, Job<?, ?> controlledJob,
-	                                             DevOpsPipelineChangeStepExecution stepExecution, TaskListener listener) {
+	                                             DevOpsPipelineChangeStepExecution stepExecution, TaskListener listener, DevOpsPipelineInfoConfig pipelineInfoConfig) {
 
 		printDebug("handlePipeline", null, null, Level.FINE);
 		PipelineChangeResponse changeResponse = new PipelineChangeResponse();
 		//boolean[] result = new boolean[2]; // 0: shouldAbort, 1: shouldWait
-		//resp.setResult(result);
 		if (run != null && controlledJob != null) {
 			String jobUrl = controlledJob.getAbsoluteUrl();
 			String jobName = controlledJob.getName();
 			String jenkinsUrl = getJenkinsUrl();
 			DevOpsPipelineGraph graph = run.getAction(DevOpsRunStatusAction.class).getPipelineGraph();
 
-			if (jobUrl != null && jenkinsUrl != null && jobName != null) {
+			if (jobUrl != null && jenkinsUrl != null && jobName != null && pipelineInfoConfig != null) {
 				String stageId = getCurrentStageId(stepExecution.getContext(), graph);
 				DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
 
@@ -1335,7 +1394,7 @@ public class DevOpsModel {
 				// Register the Job callback hook, then notify SN
 				String _result = registerPipelineAndNotify(run, controlledJob, token,
 						jobUrl, jobName, stageNode.getId(), jenkinsUrl,
-						stepExecution, changeResponse);
+						stepExecution, changeResponse, pipelineInfoConfig.getDevopsConfig());
 				if (_result != null) {
 					if (_result.equalsIgnoreCase(
 							DevOpsConstants.COMMON_RESPONSE_VALUE_TRUE
@@ -1428,8 +1487,12 @@ public class DevOpsModel {
 				if (changeRequestContent != null) {
 					String changeRequestId = getChangeRequestInfo(changeRequestContent);
 					printDebug("handleFreestyle", new String[]{"changeRequestId"}, new String[]{changeRequestId}, Level.INFO);
-					if (!GenericUtils.isEmpty(changeRequestId))
+					if (!GenericUtils.isEmpty(changeRequestId)) {
+						String changeComments = getChangeComments(changeRequestContent);
+						if (!GenericUtils.isEmpty(changeComments))
+							return getWaitingBlockage("Job is waiting for approval on change request: " + changeRequestId + " Change details: " + changeComments);
 						return getWaitingBlockage("Job is waiting for approval on change request: " + changeRequestId);
+					}
 				}
 
 				String jobUrl = job.getAbsoluteUrl();
@@ -1454,10 +1517,13 @@ public class DevOpsModel {
 						printDebug("handleFreestyle", new String[]{"message", "token"},
 								new String[]{"Job not registered", "null"}, Level.FINE);
 						// Check if job is being tracked
-						if (checkIsTracking(item).isTrack()) {
+						DevOpsModel.DevOpsPipelineInfo pipelineInfo = checkIsTracking(item);
+						//if (checkIsTracking(item).isTrack()) {
+						if (pipelineInfo != null) {
 							// If Job is under change control, register and notify SN with callback URL
+							String configurationName = getJobProperty(job).getConfigurationName();
 							String _result = sendIsUnderChgControl(jobUrl, jobName, null, null,
-									GenericUtils.isMultiBranch((job)), null);
+									GenericUtils.isMultiBranch((job)), null, configurationName); // TODO
 							if (_result != null) {
 								// Job is under change control
 								if (_result.equalsIgnoreCase(
@@ -1475,7 +1541,7 @@ public class DevOpsModel {
 
 									// Register the Job callback hook, then notify SN
 									_result = registerFreestyleAndNotify(item, job,
-											token, jobId, jobUrl, jobName, jenkinsUrl);
+											token, jobId, jobUrl, jobName, jenkinsUrl, configurationName);
 									if (_result != null) {
 										// Job registered successfully
 										if (_result.equalsIgnoreCase(
@@ -1582,7 +1648,8 @@ public class DevOpsModel {
 				String _result = sendUpdateMapping(jobUrl, jobName, stageNode.getName(), stageNode,
 						stepSysId,
 						GenericUtils.isMultiBranch(controlledJob),
-						vars != null ? vars.get("BRANCH_NAME") : null);
+						vars != null ? vars.get("BRANCH_NAME") : null,
+						devOpsPipelineMapStepExecution.getStep().getConfigurationName());
 				if (null != _result && !_result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 					// associated successfully
 					if (_result.equalsIgnoreCase(DevOpsConstants.COMMON_RESPONSE_VALUE_TRUE.toString())) {
@@ -1660,7 +1727,7 @@ public class DevOpsModel {
 			currentNode.setChangeCtrlInProgress(true);
 	}
 
-	public String handleArtifactRegistration(StepContext stepContext, Run<?, ?> run, TaskListener listener, String artifactPayload, EnvVars vars) {
+	public String handleArtifactRegistration(StepContext stepContext, Run<?, ?> run, TaskListener listener, String artifactPayload, EnvVars vars, String configurationName) {
 
 		String result = null;
 		printDebug("handleArtifactRegistration", new String[]{"artifactPayload --"},
@@ -1686,22 +1753,21 @@ public class DevOpsModel {
 		} else {
 			return result;
 		}
-
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
 		result = registerArtifact(listener, artifactPayload, jobName, jobUrl, buildNumber, stageName, branchName,
-				GenericUtils.isFreeStyleProject(run));
+				GenericUtils.isFreeStyleProject(run), devopsConfig);
 
 		return result;
 
 	}
 
 	public String registerArtifact(TaskListener listener, String artifactsPayload, String jobName, String jobUrl,
-	                               String buildNumber, String stageName, String branchName, boolean isFreeStyle) {
+	                               String buildNumber, String stageName, String branchName, boolean isFreeStyle, DevOpsConfigurationEntry devopsConfig) {
 
 		printDebug("registerArtifact", null, null, Level.FINE);
 		JSONObject queryParams = new JSONObject();
 		JSONObject payload = new JSONObject();
 		String result = null;
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		try {
 			// If artifact tool Id is available, add this to query param (it's an optional parameter).
 			if (devopsConfig.getSnArtifactToolId() != null && devopsConfig.getSnArtifactToolId().length() > 0)
@@ -1750,14 +1816,14 @@ public class DevOpsModel {
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				response = CommUtils.callV2Support(DevOpsConstants.REST_POST_METHOD.toString(),
 						devopsConfig.getArtifactRegistrationUrl(), queryParams, payload.toString(),
-						devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails);
+						DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails);
 			} else {
 				response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 						devopsConfig.getArtifactRegistrationUrl(), queryParams, payload.toString(),
-						devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+						DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 			}
 
 
@@ -1779,7 +1845,7 @@ public class DevOpsModel {
 		return result;
 	}
 
-	public String handleArtifactCreatePackage(StepContext stepContext, Run<?, ?> run, TaskListener listener, String packageName, String payload, EnvVars vars) {
+	public String handleArtifactCreatePackage(StepContext stepContext, Run<?, ?> run, TaskListener listener, String packageName, String payload, EnvVars vars, String configurationName) {
 
 		String result = null;
 		printDebug("handleArtifactCreatePackage", new String[]{"packageName --"}, new String[]{packageName}, Level.FINE);
@@ -1804,9 +1870,10 @@ public class DevOpsModel {
 			} else {
 				return result;
 			}
+			DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
 
 			result = createArtifactPackage(listener, packageName, payload, jobName, jobUrl, buildNumber, stageName, branchName,
-					GenericUtils.isFreeStyleProject(run));
+					GenericUtils.isFreeStyleProject(run), devopsConfig);
 		}
 
 		return result;
@@ -1814,14 +1881,13 @@ public class DevOpsModel {
 	}
 
 	public String createArtifactPackage(TaskListener listener, String artifactName, String artifactsPayload, String jobName, String jobUrl,
-	                                    String buildNumber, String stageName, String branchName, boolean isFreeStyle) {
+	                                    String buildNumber, String stageName, String branchName, boolean isFreeStyle, DevOpsConfigurationEntry devopsConfig) {
 
 		printDebug("createArtifactPackage", null, null, Level.FINE);
 		JSONObject queryParams = new JSONObject();
 		JSONObject payload = new JSONObject();
 		List<JSONObject> artifactsList = new ArrayList<JSONObject>();
 		String result = null;
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
 		try {
 			// If artifact tool Id is available, add this to query param (it's an optional parameter).
 			if (devopsConfig.getSnArtifactToolId() != null && devopsConfig.getSnArtifactToolId().length() > 0)
@@ -1887,14 +1953,14 @@ public class DevOpsModel {
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				response = CommUtils.callV2Support(DevOpsConstants.REST_POST_METHOD.toString(),
 						devopsConfig.getArtifactCreatePackageUrl(), queryParams, payload.toString(),
-						devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails);
+						DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails);
 			} else {
 				response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
 						devopsConfig.getArtifactCreatePackageUrl(), queryParams, payload.toString(),
-						devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+						DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 			}
 
 			//validate response and assign it to result.
@@ -1940,14 +2006,14 @@ public class DevOpsModel {
 
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 
 		queryParams.put(DevOpsConstants.CONFIG_APPLICATION_NAME.toString(), applicationName);
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-				devopsConfig.getCDMChangeSetCreationURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getCDMChangeSetCreationURL(), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -1975,7 +2041,7 @@ public class DevOpsModel {
 
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		filePayloadJSON.put(DevOpsConstants.CONFIG_FILE_CONTENT.toString(), fileContent);
 
@@ -1983,16 +2049,16 @@ public class DevOpsModel {
 
 		if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_COMPONENT_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getCDMUploadToComponentURL(), queryParams, fileContent, devopsConfig.getUser(),
-					devopsConfig.getPwd(), "text/plain", transactionSource);
+					devopsConfig.getCDMUploadToComponentURL(), queryParams, fileContent, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), "text/plain", transactionSource);
 		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_DEPLOYABLE_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getCDMUploadToDeployableURL(), queryParams, fileContent, devopsConfig.getUser(),
-					devopsConfig.getPwd(), "text/plain", transactionSource);
+					devopsConfig.getCDMUploadToDeployableURL(), queryParams, fileContent, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), "text/plain", transactionSource);
 		else if (target.equalsIgnoreCase(DevOpsConstants.CONFIG_COLLECTION_TYPE.toString()))
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getCDMUploadToCollectionURL(), queryParams, fileContent, devopsConfig.getUser(),
-					devopsConfig.getPwd(), "text/plain", transactionSource);
+					devopsConfig.getCDMUploadToCollectionURL(), queryParams, fileContent, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), "text/plain", transactionSource);
 		else
 			return null;
 
@@ -2004,12 +2070,12 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		String deleteURL = devopsConfig.getUploadStatusURL() + uploadId;
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				deleteURL, queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				deleteURL, queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 
@@ -2020,7 +2086,7 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		queryParams.put(DevOpsConstants.CONFIG_DEPLOYABLE_NAME.toString(), deployableName);
 		queryParams.put(DevOpsConstants.CONFIG_EXPORTER_NAME.toString(), exporterName);
@@ -2030,54 +2096,54 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.CONFIG_SNAPSHOT_NAME.toString(), snapshotName);
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-				devopsConfig.getExportRequestURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, transactionSource);
+				devopsConfig.getExportRequestURL(), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, transactionSource);
 
 		return response;
 	}
 
 	public JSONObject getImpactedDeployables(String changesetId) {
 		JSONObject queryParams = new JSONObject();
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		JSONObject filePayloadJSON = new JSONObject();
 
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getImpactedDeployableURL(changesetId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getImpactedDeployableURL(changesetId), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
 
 	public JSONObject fetchExportStatus(String exportId) {
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		String exportStatusURL = devopsConfig.getExportConfigStatusURL(exportId);
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				exportStatusURL, null, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				exportStatusURL, null, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
 
 	public JSONObject fetchExportData(String exportId) {
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		String exportDataURL = devopsConfig.getExportConfigDataURL(exportId);
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				exportDataURL, null, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				exportDataURL, null, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 		return response;
 	}
 
 	public JSONObject getSnapshotsByDeployables(String applicationName, String deployableName, String changesetNumber, boolean isValidated, String transactionSource, boolean noImapactedDeployable) {
 		JSONObject queryParams = new JSONObject();
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		String query = "deployable_id.name=" + deployableName + "^cdm_application_id.sys_id=" + applicationName;
 		String queryLimit = "";
 
@@ -2104,8 +2170,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), queryLimit);
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, transactionSource);
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, transactionSource);
 
 		return response;
 	}
@@ -2114,7 +2180,7 @@ public class DevOpsModel {
 	public JSONObject snapShotExists(String applicationName, List<String> deployableNames, String changesetNumber) {
 
 		JSONObject queryParams = new JSONObject();
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		String deployableNamesCommaSeparated = String.join(",", deployableNames);
 
 		String query = "deployable_id.nameIN" + deployableNamesCommaSeparated + "^cdm_application_id.sys_id=" + applicationName + "^changeset_id.number=" + changesetNumber;
@@ -2122,8 +2188,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,name,description,validation,last_validated,published,last_published,sys_created_on");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -2131,18 +2197,18 @@ public class DevOpsModel {
 	public JSONObject getDeployableName(String sysId) {
 		JSONObject queryParams = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), "sys_id=" + sysId);
 		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "deployable_id.name,cdm_deployable_id.environment_type");
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 		return response;
 	}
 
 	public JSONObject querySnapShotStatus(String appSysId, List<String> deployableNames, List<String> snapshotNames, int retryCount, boolean checkForNotValidated) throws InterruptedException {
 		JSONObject queryParams = new JSONObject();
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		String validationStates = "in_progress,requested";
 		String snapShotNamesCommaSeparated = String.join(",", snapshotNames);
@@ -2157,8 +2223,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "name,validation");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -2166,7 +2232,7 @@ public class DevOpsModel {
 	public JSONObject fetchSnapshotRecord(String applicationName, String deployableName, String snapshotName) {
 		JSONObject queryParams = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		String query = "deployable_id.name=" + deployableName + "^application_id.name=" + applicationName;
 		if (GenericUtils.isEmpty(snapshotName))
 			query = query + "^ORDERBYDESCsys_created_on";
@@ -2180,8 +2246,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), "1");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getSnapshotStatusURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getSnapshotStatusURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -2191,13 +2257,13 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		JSONObject response = new JSONObject();
 		try {
 			response = CommUtils.callSafe(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getPublishSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null, transactionSource);
+					devopsConfig.getPublishSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, transactionSource);
 		} catch (Exception e) {
 			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_PUBLISH_STEP_FUNCTION_NAME + " - Publish Failed due to Connection Issue");
 			response.put("failureCause", "Failed due to Exception");
@@ -2211,7 +2277,7 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		queryParams.put(DevOpsConstants.ARTIFACT_PIPELINE_NAME.toString(), pipelineName);
 		queryParams.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
@@ -2235,8 +2301,8 @@ public class DevOpsModel {
 			if (retryCount % 2 == 0)
 				retryFrequency = retryFrequency * 2;
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getPipelineRegisterURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null, null);
+					devopsConfig.getPipelineRegisterURL(), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 			if (response == null) {
 				try {
@@ -2284,13 +2350,13 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		JSONObject response = new JSONObject();
 		try {
 			response = CommUtils.callSafe(DevOpsConstants.REST_POST_METHOD.toString(),
-					devopsConfig.getValidateSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null, transactionSource);
+					devopsConfig.getValidateSnapshotURL(snapshotId), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, transactionSource);
 		} catch (Exception e) {
 			GenericUtils.printConsoleLog(listener, DevOpsConstants.CONFIG_VALIDATE_STEP_FUNCTION_NAME + " - Validation of snapshot failed " + e.getMessage());
 			response.put(DevOpsConstants.COMMON_RESULT_FAILURE.toString(), "Validate failed due to exception " + e.getMessage());
@@ -2302,7 +2368,7 @@ public class DevOpsModel {
 	public JSONObject getChangesetId(String changesetId) {
 		JSONObject queryParams = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		String query = "number=" + changesetId;
 
 		queryParams.put(DevOpsConstants.TABLE_API_QUERY.toString(), query);
@@ -2310,8 +2376,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_LIMIT.toString(), "1");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getChangesetURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getChangesetURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -2321,7 +2387,7 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		String query = "node.name=" + applicationName;
 
@@ -2329,8 +2395,8 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "sys_id,node.name");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getValidAppURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getValidAppURL(), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -2339,7 +2405,7 @@ public class DevOpsModel {
 
 		JSONObject queryParams = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		String baseQuery = "snapshot.sys_id=" + snapshotSysId + "^is_latest=true";
 		String query = "";
 
@@ -2358,8 +2424,8 @@ public class DevOpsModel {
 			}
 		}
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getPolicyValidationURL(), queryParams, null, devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getPolicyValidationURL(), queryParams, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
@@ -2378,23 +2444,25 @@ public class DevOpsModel {
 		return configStatus;
 	}
 
-	public JSONObject registerSecurityResult(JSONObject payload) {
+	public JSONObject registerSecurityResult(JSONObject payload, String configurationName) {
 		JSONObject queryParams = new JSONObject();
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		JSONObject response = null;
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
+		if (devopsConfig == null)
+			throw new IllegalStateException("DevopsConfiguration is not available");
 		String securityRegisterURL = devopsConfig.getSecurityResultRegistrationURL();
 		queryParams.put(DevOpsConstants.TOOL_ID_ATTR.toString(), devopsConfig.getToolId());
-		JSONObject response = null;
 		if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 			Map<String, String> tokenDetails = new HashMap<String, String>();
 			tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-					devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+					DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 			response = CommUtils.callV2Support(DevOpsConstants.REST_POST_METHOD.toString(),
-					securityRegisterURL, queryParams, payload.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null, null, tokenDetails);
+					securityRegisterURL, queryParams, payload.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails);
 		} else {
 			response = CommUtils.call(DevOpsConstants.REST_POST_METHOD.toString(),
-					securityRegisterURL, queryParams, payload.toString(), devopsConfig.getUser(),
-					devopsConfig.getPwd(), null, null);
+					securityRegisterURL, queryParams, payload.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+					DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 		}
 
 
@@ -2405,7 +2473,7 @@ public class DevOpsModel {
 		JSONObject queryParams = new JSONObject();
 		JSONObject filePayloadJSON = new JSONObject();
 
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 
 		String query = "cdm_app=" + appSysId;
 
@@ -2413,18 +2481,18 @@ public class DevOpsModel {
 		queryParams.put(DevOpsConstants.TABLE_API_FIELDS.toString(), "node.name");
 
 		JSONObject response = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(),
-				devopsConfig.getDeployablesURL(), queryParams, filePayloadJSON.toString(), devopsConfig.getUser(),
-				devopsConfig.getPwd(), null, null);
+				devopsConfig.getDeployablesURL(), queryParams, filePayloadJSON.toString(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
+				DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 
 		return response;
 	}
 
 	private void logLinkAndDescription(TaskListener listener, String result) {
 		try {
-		JSONObject parsedResultJSONObject = JSONObject.fromObject(result);
+			JSONObject parsedResultJSONObject = JSONObject.fromObject(result);
 			List<String> logMessages = new ArrayList<>();
-			if(parsedResultJSONObject.containsKey(DevOpsConstants.ARTIFACT_REGISTER_REQUESTS.toString())) {
-			JSONObject artifactRegisterRequestObj = parsedResultJSONObject.getJSONObject(DevOpsConstants.ARTIFACT_REGISTER_REQUESTS.toString());
+			if (parsedResultJSONObject.containsKey(DevOpsConstants.ARTIFACT_REGISTER_REQUESTS.toString())) {
+				JSONObject artifactRegisterRequestObj = parsedResultJSONObject.getJSONObject(DevOpsConstants.ARTIFACT_REGISTER_REQUESTS.toString());
 				if (artifactRegisterRequestObj != null) {
 					JSONArray createResult = artifactRegisterRequestObj.getJSONArray(DevOpsConstants.CREATE.toString());
 					JSONArray updateResult = artifactRegisterRequestObj.getJSONArray(DevOpsConstants.UPDATE.toString());
@@ -2438,7 +2506,7 @@ public class DevOpsModel {
 					if (foundResult != null && !foundResult.isEmpty()) {
 						logResponseDetails(logMessages, foundResult);
 					}
-					if(!logMessages.isEmpty()) {
+					if (!logMessages.isEmpty()) {
 						listener.getLogger().println("Response details:");
 						logMessages.forEach(msg -> listener.getLogger().println(msg));
 					}
@@ -2451,7 +2519,7 @@ public class DevOpsModel {
 
 	private void logResponseDetails(List<String> logMessages, JSONArray artifactRegisterRequestsArray) {
 		int counter = 1;
-		for(int i = 0; i< artifactRegisterRequestsArray.toArray().length; i++) {
+		for (int i = 0; i < artifactRegisterRequestsArray.toArray().length; i++) {
 			JSONObject obj = artifactRegisterRequestsArray.getJSONObject(i);
 			if (obj.containsKey(DevOpsConstants.STAGING_TYPE.toString()) && DevOpsConstants.CREATE_PACKAGE_ASSOCIATION.toString().equalsIgnoreCase(obj.getString(DevOpsConstants.STAGING_TYPE.toString()))) {
 				buildLogMessage(logMessages, artifactRegisterRequestsArray.getJSONObject(i), 1);
@@ -2460,14 +2528,14 @@ public class DevOpsModel {
 				break;
 			}
 		}
-		for(int i = 0; i< artifactRegisterRequestsArray.toArray().length; i++) {
+		for (int i = 0; i < artifactRegisterRequestsArray.toArray().length; i++) {
 			buildLogMessage(logMessages, artifactRegisterRequestsArray.getJSONObject(i), counter);
 			counter++;
 		}
 	}
 
 	private void buildLogMessage(List<String> logMessages, JSONObject obj, int counter) {
-		if(obj.containsKey(DevOpsConstants.DESCRIPTION.toString()) && obj.containsKey(DevOpsConstants.LINK.toString())) {
+		if (obj.containsKey(DevOpsConstants.DESCRIPTION.toString()) && obj.containsKey(DevOpsConstants.LINK.toString())) {
 			String description = obj.getString(DevOpsConstants.DESCRIPTION.toString());
 			logMessages.add(String.format("%s.%s Link: %s", counter, description, obj.getString(DevOpsConstants.LINK.toString())));
 		}
@@ -2475,9 +2543,9 @@ public class DevOpsModel {
 
 	private void logResponseStatus(TaskListener listener, JSONObject jsonObject) {
 		String status = "error";
-		if(jsonObject.containsKey(DevOpsConstants.COMMON_RESPONSE_RESULT.toString())) {
+		if (jsonObject.containsKey(DevOpsConstants.COMMON_RESPONSE_RESULT.toString())) {
 			JSONObject result = jsonObject.getJSONObject(DevOpsConstants.COMMON_RESPONSE_RESULT.toString());
-			if ( result.containsKey(DevOpsConstants.COMMON_RESPONSE_STATUS.toString())) {
+			if (result.containsKey(DevOpsConstants.COMMON_RESPONSE_STATUS.toString())) {
 				status = result.getString(DevOpsConstants.COMMON_RESPONSE_STATUS.toString());
 			}
 		}

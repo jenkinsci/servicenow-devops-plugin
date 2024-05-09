@@ -1,7 +1,15 @@
 package io.jenkins.plugins;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.nio.CharBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Level;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -14,11 +22,11 @@ import org.kohsuke.stapler.StaplerResponse;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import hudson.Extension;
+import hudson.FilePath;
 import hudson.model.RootAction;
 import hudson.security.csrf.CrumbExclusion;
-import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsRunStatusJobModel;
 import io.jenkins.plugins.model.DevOpsRunStatusModel;
@@ -26,21 +34,7 @@ import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExec
 import io.jenkins.plugins.utils.CommUtils;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
-
-import java.io.BufferedReader;
-import java.nio.CharBuffer;
-import java.util.logging.Level;
-
 import net.sf.json.JSONObject;
-
-import java.io.File;
-
-import hudson.FilePath;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.ArrayList;
 
 
 @Extension
@@ -126,15 +120,15 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 		return false;
 	}
 
-	private JSONObject _sendDummyNotification(String reqestedToolId, DevOpsConfiguration devopsConfig) {
+	private JSONObject _sendDummyNotification(String reqestedToolId, DevOpsConfigurationEntry devopsConfig) {
 		try {
 			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_sendDummyNotification", new String[]{"reqestedToolId"}, new String[]{reqestedToolId}, Level.FINE);
 			JSONObject params = new JSONObject();
 			params.put(DevOpsConstants.TOOL_TYPE_ATTR.toString(), DevOpsConstants.TOOL_TYPE.toString());
 			String toolId = devopsConfig.getToolId();
 			params.put(DevOpsConstants.TOOL_ID_ATTR.toString(), toolId);
-			String user = devopsConfig.getUser();
-			String pwd = devopsConfig.getPwd();
+			String user = DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId());
+			String pwd = DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId());
 
 			DevOpsRunStatusModel model = new DevOpsRunStatusModel();
 			DevOpsRunStatusJobModel jobModel = new DevOpsRunStatusJobModel();
@@ -154,7 +148,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 				Map<String, String> tokenDetails = new HashMap<String, String>();
 				tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-						devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+						DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 				jsonResult = CommUtils.callV2Support("POST", devopsConfig.getNotificationUrl(), params, data, user, pwd,
 						null, null, tokenDetails);
 			} else {
@@ -210,8 +204,14 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			JSONObject apiResponse = JSONObject.fromObject(content.toString());
 			if (apiResponse != null) {
 				String jobName = apiResponse.get(DevOpsConstants.JOBNAME_ATTR.toString()).toString();
+				Object instanceUrlObj = apiResponse.get(DevOpsConstants.INSTANCE_URL_ATTR.toString());
+				Object toolIdObj = apiResponse.get(DevOpsConstants.TOOL_ID_ATTR.toString());
+				if (toolIdObj == null || instanceUrlObj == null || jobName == null)
+					return false;
+				String instanceUrl = instanceUrlObj.toString();
+				String toolId = toolIdObj.toString();
 				String rootDirFilePath = getRootDirFilePath(jobName);
-				if (updateResponseInFile(jobName, apiResponse, rootDirFilePath)) {
+				if (updateResponseInFile(jobName, apiResponse, rootDirFilePath, toolId, instanceUrl)) {
 					return true;
 				}
 			}
@@ -220,7 +220,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 		return false;
 	}
 
-	public boolean updateResponseInFile(String jobName, JSONObject apiResponse, String rootDirFilePath) {
+	public boolean updateResponseInFile(String jobName, JSONObject apiResponse, String rootDirFilePath, String toolId, String instanceUrl) {
 		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateResponseInFile", new String[]{"jobName"}, new String[]{jobName}, Level.FINE);
 		try {
 			FilePath pipelineInfoFile = new FilePath(new File(rootDirFilePath));
@@ -228,14 +228,18 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 				String fileContents = pipelineInfoFile.readToString();
 				JSONObject pipelineInfo = JSONObject.fromObject(fileContents);
 				if (pipelineInfo != null) {
-					JSONObject updatedResponse = getUpdatedResponse(apiResponse, pipelineInfo);
-					pipelineInfoFile.write(updatedResponse.toString(), "UTF-8");
-					String logMessage = "jobName : " + jobName + " pipelineInfoFile: " + rootDirFilePath + " is updated with content: " + updatedResponse.toString();
-					GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateResponseInFile", logMessage, Level.FINE);
-					return true;
+					String configKey = GenericUtils.getConfigEntryTrackKey(instanceUrl, toolId);
+					JSONObject trackObj = GenericUtils.getTrackInfoForConfigKey(pipelineInfo, configKey);
+					if (trackObj != null) {
+						JSONObject updatedTrackObj = getUpdatedResponse(apiResponse, trackObj);
+						pipelineInfo.put(configKey, updatedTrackObj);
+						pipelineInfoFile.write(pipelineInfo.toString(), "UTF-8");
+						String logMessage = "jobName : " + jobName + " pipelineInfoFile: " + rootDirFilePath + " is updated with content: " + pipelineInfo.toString();
+						GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateResponseInFile", logMessage, Level.FINE);
+						return true;
+					}
 				}
 			}
-
 			String logMessage = "jobName : " + jobName + " pipelineInfoFile: " + rootDirFilePath + " is missing";
 			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateResponseInFile", logMessage, Level.WARNING);
 			return false;
@@ -325,19 +329,31 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			} else if (token.startsWith(DevOpsConstants.CHECK_CONFIGURATION.toString())) {
 				requestType = "Config Check";
 				String toolIdValue = request.getParameter("toolId");
-				DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
-				if (!toolIdValue.equalsIgnoreCase(devopsConfig.getToolId())) {
+				String instanceUrl = request.getParameter("instanceUrl");
+				if (GenericUtils.isEmpty(toolIdValue) || GenericUtils.isEmpty(instanceUrl)) {
 					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 					response.setContentType("text/plain");
 					try {
-						response.getWriter().print("ToolId is incorrect");
+						response.getWriter().print("Query parameters (toolId, instanceUrl) are required");
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-					GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", requestType + " Failed, reason: ToolId is incorrect for request: " + GenericUtils.getRequestInfo(request, content.toString()) + ", response: " + GenericUtils.getResponseInfo(response), Level.SEVERE);
+					GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", requestType + " Failed, reason: Query parameters (toolId, instanceUrl) are required for request: " + GenericUtils.getRequestInfo(request, content.toString()) + ", response: " + GenericUtils.getResponseInfo(response), Level.SEVERE);
 					return;
 				}
-
+				instanceUrl = GenericUtils.removeTrailingSlashes(instanceUrl);
+				DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryByInstanceUrlAndToolId(instanceUrl, toolIdValue);
+				if (devopsConfig == null) {
+					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+					response.setContentType("text/plain");
+					try {
+						response.getWriter().print("Could not find an active DevOps configuration for toolId " + toolIdValue + " and instanceUrl " + instanceUrl);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					GenericUtils.printDebug(DevOpsRootAction.class.getName(), "doDynamic", requestType + " Failed, reason: Could not find an active DevOps configuration for toolId " + toolIdValue + " and instanceUrl " + instanceUrl + " for request: " + GenericUtils.getRequestInfo(request, content.toString()) + ", response: " + GenericUtils.getResponseInfo(response), Level.SEVERE);
+					return;
+				}
 				JSONObject jsonResult = _sendDummyNotification(toolIdValue, devopsConfig);
 				if (null == jsonResult) {
 					response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -377,7 +393,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 				result = _updatePipelineInfoFile(token, content);
 			} else if (token.startsWith(DevOpsConstants.PIPELINE_INFO_DELETE_IDENTIFIER.toString())) {
 				requestType = "pipeline info update api call";
-				result = deletePipelineInfoFiles();
+				result = _deleteConfigEntryInInfoFiles(content);
 			}
 
 			if (result) {
@@ -396,9 +412,8 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 		}
 	}
 
-
-	public static JSONObject checkInfoInFile(String jobName, String path) {
-		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkInfoInFile", new String[]{"jobName", "path"}, new String[]{jobName, path}, Level.INFO);
+	public static JSONObject getTrackInfoForConfigKey(String jobName, String path, String key) {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "getTrackInfoForConfigKey", new String[]{"jobName", "path"}, new String[]{jobName, path}, Level.INFO);
 		try {
 			FilePath pipelineInfoFile = new FilePath(new File(path));
 			if (!pipelineInfoFile.exists())
@@ -406,21 +421,35 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			String fileContents = pipelineInfoFile.readToString();
 			JSONObject pipelineInfo = JSONObject.fromObject(fileContents);
 			if (pipelineInfo != null) {
-				if (GenericUtils.checkIfAttributeExist(pipelineInfo, DevOpsConstants.TRACKING_RESPONSE_ATTR.toString()))
-					return pipelineInfo;
+				return GenericUtils.getTrackInfoForConfigKey(pipelineInfo, key);
 			}
 			return null;
 		} catch (Exception e) {
-			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "checkInfoInFile", "reading pipelineInfoFile file: " + path + " failed" + "\n Exception: " + GenericUtils.getStackTraceAsString(e), Level.SEVERE);
+			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "getTrackInfoForConfigKey", "reading pipelineInfoFile file: " + path + " failed" + "\n Exception: " + GenericUtils.getStackTraceAsString(e), Level.SEVERE);
 			return null;
 		}
 	}
 
-	public static Boolean updateInfoInFile(String jobName, JSONObject infoAPIResponse, String path) {
+	public static JSONObject getTrackingObjectFromFile(String path) {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "getTrackingObjectFromFile", new String[]{"path"}, new String[]{path}, Level.INFO);
+		try {
+			FilePath pipelineInfoFile = new FilePath(new File(path));
+			if (!pipelineInfoFile.exists())
+				return null;
+			String fileContents = pipelineInfoFile.readToString();
+			JSONObject pipelineInfo = JSONObject.fromObject(fileContents);
+			return pipelineInfo;
+		} catch (Exception e) {
+			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "getTrackingObjectFromFile", "reading pipelineInfoFile file: " + path + " failed" + "\n Exception: " + GenericUtils.getStackTraceAsString(e), Level.SEVERE);
+			return null;
+		}
+	}
+
+	public static Boolean updateInfoInFile(String jobName, /*JSONObject infoAPIResponse*/ JSONObject configsTrackInfo, String path) {
 		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", new String[]{"jobName", "path"}, new String[]{jobName, path}, Level.INFO);
 		try {
 			FilePath pipelineInfoFile = new FilePath(new File(path));
-			pipelineInfoFile.write(infoAPIResponse.toString(), "UTF-8");
+			pipelineInfoFile.write(configsTrackInfo.toString(), "UTF-8");
 			return true;
 		} catch (Exception e) {
 			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "updateInfoInFile", "update pipelineInfoFile file: " + path + " failed" + "\n Exception: " + GenericUtils.getStackTraceAsString(e), Level.SEVERE);
@@ -428,6 +457,66 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 		}
 	}
 
+	public static Boolean _deleteConfigEntryInInfoFiles(StringBuffer content) {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_deleteConfigEntryInInfoFiles", new String[]{}, new String[]{}, Level.INFO);
+		try {
+			if (content != null) {
+				JSONObject apiResponse = JSONObject.fromObject(content.toString());
+				if (apiResponse != null) {
+					Object instanceUrlObj = apiResponse.get(DevOpsConstants.INSTANCE_URL_ATTR.toString());
+					Object toolIdObj = apiResponse.get(DevOpsConstants.TOOL_ID_ATTR.toString());
+					if (toolIdObj == null || instanceUrlObj == null)
+						return false;
+					String instanceUrl = instanceUrlObj.toString();
+					String toolId = toolIdObj.toString();
+					DevOpsModel devopsModel = new DevOpsModel();
+					String jenkinsDirFilePath = devopsModel.getJenkinsRootDirPath() + DevOpsConstants.JOBS_PATH.toString();
+					GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_deleteConfigEntryInInfoFiles", new String[]{"jenkinsDirFilePath"}, new String[]{jenkinsDirFilePath}, Level.INFO);
+					FilePath jenkinsRootDir = new FilePath(new File(jenkinsDirFilePath));
+					if (jenkinsRootDir.exists() && !GenericUtils.isEmpty(instanceUrl) && !GenericUtils.isEmpty(toolId)) {
+						_checkAndDeleteConfigEntryInInfoFiles(jenkinsRootDir, instanceUrl, toolId);
+						return true;
+					}
+				}
+			}
+			return false;
+		} catch (Exception e) {
+			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_deleteConfigEntryInInfoFiles", "_deleteConfigEntryInInfoFiles failed" + "\n Exception: " + GenericUtils.getStackTraceAsString(e), Level.SEVERE);
+			return false;
+		}
+	}
+
+	public static void _checkAndDeleteConfigEntryInInfoFiles(FilePath jenkinsRootDir, String instanceUrl, String toolId) {
+		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_checkAndDeleteConfigEntryInInfoFiles", new String[]{"instanceUrl", "toolId"}, new String[]{instanceUrl, toolId}, Level.INFO);
+		try {
+			String pipelineInfoFile = null;
+			String folderPipelineInfoFile = null;
+			List<FilePath> contents = new ArrayList<FilePath>(jenkinsRootDir.list());
+			for (FilePath jobPath : contents) {
+				pipelineInfoFile = jobPath + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+				FilePath pipelineInfoPath = new FilePath(new File(pipelineInfoFile));
+				if (pipelineInfoPath.exists()) {
+					String fileContents = pipelineInfoPath.readToString();
+					JSONObject pipelineInfo = JSONObject.fromObject(fileContents);
+					if (pipelineInfo != null) {
+						String configKey = GenericUtils.getConfigEntryTrackKey(instanceUrl, toolId);
+						if (pipelineInfo.containsKey(configKey))
+							pipelineInfoPath.write(pipelineInfo.discard(configKey).toString(), "UTF-8");
+					}
+				} else {
+					folderPipelineInfoFile = jobPath + DevOpsConstants.JOBS_PATH.toString();
+					FilePath folderPipelineDir = new FilePath(new File(folderPipelineInfoFile));
+					if (folderPipelineDir.exists()) {
+						_checkAndDeleteConfigEntryInInfoFiles(folderPipelineDir, instanceUrl, toolId);
+					}
+				}
+			}
+			return;
+		} catch (Exception e) {
+			GenericUtils.printDebug(DevOpsRootAction.class.getName(), "_checkAndDeleteConfigEntryInInfoFiles", "_checkAndDeleteConfigEntryInInfoFiles failed" + "\n Exception: " + GenericUtils.getStackTraceAsString(e), Level.SEVERE);
+			return;
+		}
+	}
 
 	public static Boolean deletePipelineInfoFiles() {
 		GenericUtils.printDebug(DevOpsRootAction.class.getName(), "deletePipelineInfoFiles", new String[]{}, new String[]{}, Level.INFO);

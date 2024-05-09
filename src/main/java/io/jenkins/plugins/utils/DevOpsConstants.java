@@ -13,6 +13,7 @@ public enum DevOpsConstants {
 
 	TOOL_TYPE,
 	TOOL_TYPE_ATTR,
+	INSTANCE_URL_ATTR,
 
 	CALLBACK_URL_IDENTIFIER,
 	CALLBACK_TOKEN_SEPARATOR,
@@ -282,7 +283,8 @@ public enum DevOpsConstants {
 	DESCRIPTION,
 	LINK,
 	STAGING_TYPE,
-	CREATE_PACKAGE_ASSOCIATION;
+	CREATE_PACKAGE_ASSOCIATION,
+	MAX_ALLOWED_DEVOPS_CONFIGURATIONS;
 
 
 	@Override
@@ -430,6 +432,7 @@ public enum DevOpsConstants {
 			case COMMON_RESPONSE_ERROR_MESSAGE: return "errorMessage";
 
 			case TOOL_ID_ATTR: return "toolId";
+			case INSTANCE_URL_ATTR: return "instanceUrl";
 			case ORCHESTRATION_TOOL_ID_ATTR: return "orchestrationToolId";
 			case IS_MULTI_BRANCH_ATTR: return "isMultiBranch";
 
@@ -523,7 +526,7 @@ public enum DevOpsConstants {
 			case VERSION_V1: return "v1";
 			case VERSION_V2: return "v2";
 
-			case SECURITY_RESULT_STEP_DISPLAY_NAME: return  "Servicenow Register Security Step";
+			case SECURITY_RESULT_STEP_DISPLAY_NAME: return  "ServiceNow DevOps - Register Security Step";
 			case SECURITY_RESULT_STEP_FUNCTION_NAME: return "snDevOpsSecurityResult";
 
 			case SEC_TOOL_STAGE_NAME: return "stageName";
@@ -574,6 +577,7 @@ public enum DevOpsConstants {
 			case LINK: return "link";
 			case STAGING_TYPE: return "stagingType";
 			case CREATE_PACKAGE_ASSOCIATION: return "create_package_association";
+			case MAX_ALLOWED_DEVOPS_CONFIGURATIONS: return "10";
 
 			default: throw new IllegalArgumentException();
 		}

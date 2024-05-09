@@ -17,12 +17,14 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineMapStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import io.jenkins.plugins.utils.GenericUtils;
 
-public class DevOpsPipelineMapStep extends Step implements Serializable {
+public class DevOpsPipelineMapStep extends Step implements Serializable, DevOpsStep {
 	private static final long serialVersionUID = 1L;
 	private final String m_stepSysId;
 	private boolean m_enabled;
 	private boolean m_ignoreErrors;
+	private String configurationName;
 
 	@DataBoundConstructor
 	public DevOpsPipelineMapStep() {
@@ -30,6 +32,7 @@ public class DevOpsPipelineMapStep extends Step implements Serializable {
 		m_stepSysId = null;
 		m_enabled = true;
 		m_ignoreErrors = false;
+		configurationName = null;
 
 	}
 
@@ -63,6 +66,17 @@ public class DevOpsPipelineMapStep extends Step implements Serializable {
 	@Override
 	public DescriptorImpl getDescriptor() {
 		return (DescriptorImpl) super.getDescriptor();
+	}
+
+	@Override
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
+	@DataBoundSetter
+	public void setConfigurationName(String configurationName) {
+		if (!GenericUtils.isEmpty(configurationName))
+			this.configurationName = configurationName;
 	}
 
 	@Extension

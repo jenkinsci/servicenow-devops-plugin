@@ -184,11 +184,17 @@ public class DevOpsRunStatusModel {
 		this.testSummaries = testSummaries;
 	}
 
-	public void addTotTestSummaries(DevOpsTestSummary testSummary) {
+	public void addToTestSummaries(DevOpsTestSummary testSummary) {
 		if (this.testSummaries == null)
 			this.testSummaries = new ArrayList<DevOpsTestSummary>();
 
 		this.testSummaries.add(testSummary);
+	}
+
+	public void removeFromTestSummaries(int count) {
+		if (this.testSummaries != null && count > 0 && (this.testSummaries.size() - count) >= 0) {
+			this.testSummaries = this.testSummaries.subList(0, this.testSummaries.size() - count);
+		}
 	}
 
 	public List<DevOpsSonarQubeModel> getSonarQubeAnalysisModels() {
@@ -263,7 +269,7 @@ public class DevOpsRunStatusModel {
 	}
 
 	public void addToSecurityResults(List<DevOpsSecurityResultModel> securityResults) {
-		if(this.securityResults == null){
+		if (this.securityResults == null) {
 			this.securityResults = securityResults;
 		} else {
 			this.securityResults.addAll(securityResults);

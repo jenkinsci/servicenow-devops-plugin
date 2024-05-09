@@ -2,8 +2,13 @@ package io.jenkins.plugins.freestyle.steps;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.logging.Level;
 
+import hudson.util.ListBoxModel;
+import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -35,6 +40,7 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 	private static final long serialVersionUID = 1L;
 
 	private String artifactsPayload;
+	private String configurationName;
 
 	public DevOpsRegisterArtifactBuildStep() {
 		super();
@@ -49,10 +55,19 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 		return artifactsPayload;
 	}
 
+	public void setConfigurationName(String configurationName) {
+		this.configurationName = configurationName;
+	}
+
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
 	@DataBoundSetter
 	public void setArtifactsPayload(String artifactsPayload) {
 		this.artifactsPayload = artifactsPayload;
 	}
+
 
 	public void perform(StepContext stepContext, Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener, EnvVars envVars, Boolean ignoreErrors)
 			throws InterruptedException, IOException {
@@ -66,7 +81,13 @@ public class DevOpsRegisterArtifactBuildStep extends Builder implements SimpleBu
 		// Resolve payload (to replace env/system variables)
 		String expandedPayload = envVars.expand(this.artifactsPayload);
 
-		String _result = model.handleArtifactRegistration(stepContext, run, listener, expandedPayload, envVars);
+		String configuration = null;
+		if(GenericUtils.isFreeStyleProject(run)) {
+			configuration = model.getJobProperty(run.getParent()).getConfigurationName();
+		} else {
+			configuration = this.configurationName;
+		}
+		String _result = model.handleArtifactRegistration(stepContext, run, listener, expandedPayload, envVars, configuration);
 
 		printDebug("perform", new String[]{"message"}, new String[]{"handleArtifactRegistration responded with: " + _result},
 				Level.INFO);

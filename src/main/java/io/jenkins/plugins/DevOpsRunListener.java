@@ -7,6 +7,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.actions.StageAction;
 import org.jenkinsci.plugins.workflow.actions.TagsAction;
@@ -33,7 +34,6 @@ import hudson.model.Run;
 import hudson.model.Run.RunnerAbortedException;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
-import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.model.DevOpsNotificationModel;
@@ -41,7 +41,6 @@ import io.jenkins.plugins.model.DevOpsPipelineGraph;
 import io.jenkins.plugins.model.DevOpsPipelineNode;
 import io.jenkins.plugins.model.DevOpsRunStatusModel;
 import io.jenkins.plugins.model.DevOpsRunStatusStageModel;
-import io.jenkins.plugins.model.DevOpsTestSummary;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 import jenkins.model.Jenkins;
@@ -57,12 +56,14 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		private final Run<?, ?> run;
 		private final EnvVars vars;
 		private final DevOpsNotificationModel notificationModel;
+		private DevOpsModel.DevOpsPipelineInfo pipelineInfo;
 
 		public DevOpsStageListener(Run<?, ?> run, EnvVars vars,
-		                           DevOpsNotificationModel notificationModel) {
+		                           DevOpsNotificationModel notificationModel, DevOpsModel.DevOpsPipelineInfo pipelineInfo) {
 			this.run = run;
 			this.vars = vars;
 			this.notificationModel = notificationModel;
+			this.pipelineInfo = pipelineInfo;
 		}
 
 		@Override
@@ -104,7 +105,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						action.setModel(model);
 
 						if (notificationModel != null)
-							notificationModel.send(action.getModel());
+							notificationModel.sendNotificationToConfigurations(action, pipelineInfo, true, run, vars);
+
 					} else {
 						_printDebug("onNewHead", new String[]{"message"},
 								new String[]{"Skipping declarative stage Flow-Id:" + flowNode.getId()}, Level.FINE);
@@ -132,15 +134,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 
 						action.setModel(model);
 						if (notificationModel != null)
-							notificationModel.send(action.getModel());
-
-						//call test results api
-						if (model.getTestSummaries() != null && model.getTestSummaries().size() > 0) {
-							for (DevOpsTestSummary devOpsTestSummary : model.getTestSummaries()) {
-								notificationModel
-										.sendTestResults(devOpsTestSummary);
-							}
-						}
+							notificationModel.sendNotificationToConfigurations(action, pipelineInfo, false, run, vars);
 
 					} else
 						_printDebug("onNewHead", new String[]{"message"},
@@ -319,25 +313,26 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		DevOpsModel model = new DevOpsModel();
 		printDebug("onCompleted", null, null, Level.FINE);
 		try {
-			if (model.checkIsTrackingCache(run.getParent(), run.getId())) {
+			EnvVars vars = GenericUtils.getEnvVars(run, listener);
+			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.checkIsTracking(run.getParent(),
+					run.getId(), vars.get("BRANCH_NAME"));
+			if (pipelineInfo != null) {
 				String pronoun = run.getParent().getPronoun();
 				printDebug("onCompleted", new String[]{"pronoun"}, new String[]{pronoun},
 						Level.FINE);
-				EnvVars vars = GenericUtils.getEnvVars(run, listener);
 				if (notificationModel == null)
 					notificationModel = new DevOpsNotificationModel();
 				// Pipeline
-				DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
-				if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) && devopsConfig.isTrackPullRequestPipelinesCheck() ) ||
+				if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) && pipelineInfo.hasTrackedPullRequestConfig()) ||
 						pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 						pronoun.equalsIgnoreCase(
 								DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString()))
-					handleRunCompleted(run, vars); // not necessary in case we don't want run Start/Completed events
+					handleRunCompleted(run, vars, pipelineInfo); // not necessary in case we don't want run Start/Completed events
 					// Freestyle
 				else if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
 						pronoun.equalsIgnoreCase(
 								DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()))
-					handleRunCompleted(run, vars);
+					handleRunCompleted(run, vars, pipelineInfo);
 			}
 		} finally {
 			model.removeFromTrackingCache(run.getParent().getFullName(), run.getId());
@@ -352,8 +347,6 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		DevOpsModel model = new DevOpsModel();
 		printDebug("setUpEnvironment", null, null, Level.FINE);
 		if (build != null) {
-			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.getPipelineInfo(build.getParent(), build.getId());
-			DevOpsJobProperty jobProperties = model.getJobProperty(build.getParent());
 			if (build.getParent().getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
 					build.getParent().getPronoun().equalsIgnoreCase(DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString())) {
 
@@ -369,16 +362,17 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 							jobName != null && jenkinsUrl != null && buildUrl != null) {
 
 						displayChangeRequestInfo(build, listener, build.getParent(), model);
-
+						String configurationName = model.getJobProperty(build.getParent()).getConfigurationName();
+						DevOpsConfigurationEntry devOpsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(configurationName);
 						if (token != null) {
 							if (shouldStop(build, listener, build.getParent(), model)) {
 								model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl,
-										jobName, null, null, false, null, false);
+										jobName, null, null, false, null, false, devOpsConfig);
 								build.setResult(Result.FAILURE);
 								throw new RunnerAbortedException();
 							} else
 								model.sendBuildAndToken(token, jenkinsUrl, buildUrl, jobUrl,
-										jobName, null, null, false, null, false);
+										jobName, null, null, false, null, false, devOpsConfig);
 						} else {
 							if (shouldStopDueToLocalError(build, listener, build.getParent(), model)) {
 								build.setResult(Result.FAILURE);
@@ -391,19 +385,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						//		printDebug("setupEnvironment", new String[]{"message"}, new String[]{"Next queued Job has been scheduled."}, Level.FINE);
 						//}
 					}
-				} else if (pipelineInfo != null && pipelineInfo.isUnreacheable()) {
-					if (jobProperties.isIgnoreSNErrors())
-						listener.getLogger()
-								.println("[ServiceNow DevOps] ServiceNow instance not contactable, but will ignore");
-					else {
-						printDebug("setUpEnvironment", new String[]{"message"},
-								new String[]{pipelineInfo.getErrorMessage()}, Level.WARNING);
-						listener.getLogger().println("[ServiceNow DevOps] " + pipelineInfo.getErrorMessage());
-						build.setResult(Result.FAILURE);
-						throw new RunnerAbortedException();
-					}
 				}
-
 			}
 		}
 		return super.setUpEnvironment(build, launcher, listener);
@@ -422,7 +404,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 				// Valid result available
 				if (jobId != null && _result != null && _result.contains(DevOpsConstants.COMMON_RESULT_FAILURE.toString())) {
 					DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
-					if (jobProperties.isIgnoreSNErrors()) 
+					if (jobProperties.isIgnoreSNErrors())
 						GenericUtils.printConsoleLog(listener, "IGNORED: Change creation error ignored as the Ignore ServiceNow DevOps errors option is enabled.");
 					else {
 						result = true;
@@ -478,7 +460,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 							printDebug("shouldStop", new String[]{"message"},
 									new String[]{msg},
 									Level.FINE);
-							//i
+
 							listener.getLogger().println(
 									"[ServiceNow DevOps]" + msg);
 
@@ -516,6 +498,9 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 					String changeRequestId = model.getChangeRequestInfo(_result);
 					if (!GenericUtils.isEmpty(changeRequestId))
 						listener.getLogger().println("[ServiceNow DevOps] Change Request Id : " + changeRequestId);
+					String changeComments = model.getChangeComments(_result);
+					if (!GenericUtils.isEmpty(changeComments))
+						listener.getLogger().println("[ServiceNow DevOps] Change details:\n" + changeComments);
 				}
 			}
 		}
@@ -530,35 +515,33 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		if (vars != null) {
 			DevOpsModel.DevOpsPipelineInfo pipelineInfo = model.checkIsTracking(run.getParent(),
 					run.getId(), vars.get("BRANCH_NAME"));
-			printDebug("onStarted", new String[]{"pipelineInfo"}, new String[]{pipelineInfo.toString()},
-					Level.FINE);
 			if (pipelineInfo != null) {
+				printDebug("onStarted", new String[]{"pipelineInfo"}, new String[]{pipelineInfo.toString()},
+						Level.FINE);
 				model.addToPipelineInfoCache(run.getParent().getFullName(), run.getId(), pipelineInfo);
-
-				if (pipelineInfo.isTrack()) {
-					model.addToTrackingCache(run.getParent().getFullName(), run.getId(), pipelineInfo);
+				if (pipelineInfo.hasTrackedConfig()) {
+					model.addToTrackingCache(run.getParent().getFullName(), run.getId());
 					notificationModel = new DevOpsNotificationModel();
 					String pronoun = run.getParent().getPronoun();
 					// Pipeline
-					DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
-					if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) && devopsConfig.isTrackPullRequestPipelinesCheck()) ||
+					if ((pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString()) && pipelineInfo.hasTrackedPullRequestConfig()) ||
 							pronoun.equalsIgnoreCase(DevOpsConstants.PIPELINE_PRONOUN.toString()) ||
 							pronoun.equalsIgnoreCase(
 									DevOpsConstants.BITBUCKET_MULTI_BRANCH_PIPELINE_PRONOUN.toString())) {
-						handleRunStarted(run, vars); // not necessary in case we don't want run Start/Completed events
-						handlePipeline(run, vars);//, configProp);
+						handleRunStarted(run, vars, pipelineInfo); // not necessary in case we don't want run Start/Completed events
+						handlePipeline(run, vars, pipelineInfo);//, configProp);
 					}
 					// Freestyle
 					else if (pronoun.equalsIgnoreCase(DevOpsConstants.FREESTYLE_PRONOUN.toString()) ||
 							pronoun.equalsIgnoreCase(
 									DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString()))
-						handleRunStarted(run, vars);
+						handleRunStarted(run, vars, pipelineInfo);
 				}
 			}
 		}
 	}
 
-	private void handlePipeline(final Run<?, ?> run, EnvVars vars) {
+	private void handlePipeline(final Run<?, ?> run, EnvVars vars, DevOpsModel.DevOpsPipelineInfo pipelineInfo) {
 		printDebug("handlePipeline", null, null, Level.FINE);
 		if (run instanceof WorkflowRun) {
 			ListenableFuture<FlowExecution> promise =
@@ -570,7 +553,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						FlowExecution ex =
 								((WorkflowRun) run).getExecutionPromise().get();
 						ex.addListener(
-								new DevOpsStageListener(run, vars, notificationModel));
+								new DevOpsStageListener(run, vars, notificationModel, pipelineInfo));
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					} catch (ExecutionException e) {
@@ -581,7 +564,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 		}
 	}
 
-	private void handleRunStarted(final Run<?, ?> run, EnvVars vars) {
+	private void handleRunStarted(final Run<?, ?> run, EnvVars vars, DevOpsModel.DevOpsPipelineInfo pipelineInfo) {
 		printDebug("handleRunStarted", null, null, Level.FINE);
 		if (run != null) {
 			DevOpsRunStatusAction action = new DevOpsRunStatusAction();
@@ -590,12 +573,13 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 					null);
 			action.setModel(model);
 			run.addAction(action);
-			if (notificationModel != null)
-				notificationModel.send(action.getModel());
+			if (notificationModel != null) {
+				notificationModel.sendNotificationToConfigurations(action, pipelineInfo, false, run, vars);
+			}
 		}
 	}
 
-	private void handleRunCompleted(final Run<?, ?> run, EnvVars vars) {
+	private void handleRunCompleted(final Run<?, ?> run, EnvVars vars, DevOpsModel.DevOpsPipelineInfo pipelineInfo) {
 		printDebug("handleRunCompleted", null, null, Level.FINE);
 		if (run != null) {
 			DevOpsRunStatusAction action = run.getAction(DevOpsRunStatusAction.class);
@@ -605,18 +589,8 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						null);
 				action.setModel(model);
 				if (notificationModel != null) {
-					notificationModel.send(action.getModel());
-
-					if (action.getModel().getTestSummaries() != null &&
-							action.getModel().getTestSummaries().size() > 0) {
-						for (DevOpsTestSummary devOpsTestSummary : action.getModel()
-								.getTestSummaries()) {
-							notificationModel
-									.sendTestResults(devOpsTestSummary);
-						}
-					}
+					notificationModel.sendNotificationToConfigurations(action, pipelineInfo, false, run, vars);
 				}
-
 			}
 		}
 	}

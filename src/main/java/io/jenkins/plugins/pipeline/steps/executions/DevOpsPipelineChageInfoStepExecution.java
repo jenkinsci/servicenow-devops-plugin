@@ -1,12 +1,17 @@
 package io.jenkins.plugins.pipeline.steps.executions;
 
+import hudson.EnvVars;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
+import io.jenkins.plugins.config.DevOpsJobProperty;
+import io.jenkins.plugins.model.DevOpsPipelineInfoConfig;
 import io.jenkins.plugins.pipeline.steps.DevOpsPipelineChangeInfoStep;
 import io.jenkins.plugins.utils.CommUtils;
 import net.sf.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.SynchronousStepExecution;
@@ -43,9 +48,25 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 			String pronoun = run.getParent().getPronoun();
 			boolean isPullRequestPipeline = pronoun.equalsIgnoreCase(DevOpsConstants.PULL_REQUEST_PRONOUN.toString());
 			DevOpsModel model = new DevOpsModel();
+			DevOpsJobProperty jobProperties = model.getJobProperty(run.getParent());
 			boolean pipelineTrack = model.checkIsTrackingCache(run.getParent(), run.getId());
 			TaskListener listener = getContext().get(TaskListener.class);
-			DevOpsConfiguration devopsConfig = DevOpsConfiguration.get();
+			EnvVars envVars = getContext().get(EnvVars.class);
+			DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntryOrDefault(this.step.getConfigurationName());
+			if (devopsConfig == null)
+				return String.valueOf(GenericUtils.handleConfigurationNotFound(this.step, jobProperties, listener, getContext(), false, true));
+			String devopsConfigMessage = String.format("[ServiceNow DevOps] Using DevOps configuration %s", devopsConfig.getName());
+			listener.getLogger().println(devopsConfigMessage);
+			GenericUtils.printDebug(DevOpsPipelineChageInfoStepExecution.class.getName(), "run", new String[] { "configurationName" }, new String[] { devopsConfig.getName() }, Level.FINE);
+
+			DevOpsModel.DevOpsPipelineInfo _pipelineInfo = model.checkIsTracking(run.getParent(), run.getId(), envVars.get("BRANCH_NAME"));
+			DevOpsPipelineInfoConfig pipelineInfoConfig = GenericUtils.getPipelineInfoConfigFromConfigEntry(_pipelineInfo, devopsConfig);
+
+			if (!pipelineTrack || (pipelineInfoConfig != null && !pipelineInfoConfig.isTrack())) {
+				listener.getLogger().println("[ServiceNow DevOps] Pipeline is not tracked");
+				return null;
+			}
+
 			return getChangeRequestNumber(run, isPullRequestPipeline, pipelineTrack, listener, devopsConfig, this.getStep().getChangeDetails());
 		} catch (Exception e) {
 			TaskListener listener = getContext().get(TaskListener.class);
@@ -54,7 +75,7 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 		}
 	}
 
-	private String getChangeRequestNumber(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfiguration devopsConfig, String changeDetails) {
+	private String getChangeRequestNumber(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfigurationEntry devopsConfig, String changeDetails) {
 		listener.getLogger().println(currentJenkinsStepName + " ChangeDetails => " + changeDetails);
 		String changeRequestNumber;
 		if (GenericUtils.isNotEmpty(changeDetails)) {
@@ -69,7 +90,7 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 		return changeRequestNumber;
 	}
 
-	private String getChangeRequestNumberFromChangeDetails(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfiguration devopsConfig, String changeDetails) {
+	private String getChangeRequestNumberFromChangeDetails(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfigurationEntry devopsConfig, String changeDetails) {
 		JSONObject changeDetailsJSON = JSONObject.fromObject(changeDetails);
 		JSONObject params = new JSONObject();
 
@@ -107,13 +128,13 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 		if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 			Map<String, String> tokenDetails = new HashMap<String, String>();
 			tokenDetails.put(DevOpsConstants.TOKEN_VALUE.toString(),
-					devopsConfig.getTokenText(devopsConfig.getSecretCredentialId()));
+					DevOpsConfigurationEntry.getTokenText(devopsConfig.getSecretCredentialId()));
 
 			responseJSON = CommUtils.callV2Support(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeInfoUrl(),
-					params, null, devopsConfig.getUser(), devopsConfig.getPwd(), null, null, tokenDetails);
+					params, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null, tokenDetails);
 		} else {
 			responseJSON = CommUtils.call(DevOpsConstants.REST_GET_METHOD.toString(), devopsConfig.getChangeInfoUrl(),
-					params, null, devopsConfig.getUser(), devopsConfig.getPwd(), null, null);
+					params, null, DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()), DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), null, null);
 		}
 
 		return parseResponseResult(listener, responseJSON);
@@ -146,8 +167,8 @@ public class DevOpsPipelineChageInfoStepExecution extends SynchronousStepExecuti
 	 * @param stageName
 	 * @return
 	 */
-	private String getChangeRequestNumberFromStageName(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfiguration devopsConfig, String stageName) {
-		if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.isTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
+	private String getChangeRequestNumberFromStageName(Run<?, ?> run, boolean isPullRequestPipeline, boolean pipelineTrack, TaskListener listener, DevOpsConfigurationEntry devopsConfig, String stageName) {
+		if (pipelineTrack && ((isPullRequestPipeline && devopsConfig.getTrackPullRequestPipelinesCheck()) || (!isPullRequestPipeline))) {
 			DevOpsRunStatusAction runStatusAction = run.getAction(DevOpsRunStatusAction.class);
 			if (!stageName.isEmpty()) {
 				return runStatusAction.changeRequestInfo.get(stageName);

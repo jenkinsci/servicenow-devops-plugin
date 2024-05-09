@@ -4,9 +4,12 @@ public class DevOpsConfigurationEntity {
 
 	private String instanceUrl;
 	private String toolId;
-	private String logLevel;
 	private String token;
 	private String tokenId;
+	private String name;
+	private boolean defaultConnection;
+
+	private boolean skipValidation;
 
 	public DevOpsConfigurationEntity() {}
 
@@ -26,14 +29,6 @@ public class DevOpsConfigurationEntity {
 		this.toolId = toolId;
 	}
 
-	public String getLogLevel() {
-		return logLevel;
-	}
-
-	public void setLogLevel(String logLevel) {
-		this.logLevel = logLevel;
-	}
-
 	public String getToken() {
 		return token;
 	}
@@ -49,5 +44,27 @@ public class DevOpsConfigurationEntity {
 	public void setTokenId(String tokenId) {
 		this.tokenId = tokenId;
 	}
-	
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public boolean isDefaultConnection() {
+		return defaultConnection;
+	}
+
+	public void setDefaultConnection(boolean defaultConnection) {
+		this.defaultConnection = defaultConnection;
+	}
+
+	public boolean isSkipValidation() {
+		return skipValidation;
+	}
+	public void setSkipValidation(boolean skipValidation) {
+		this.skipValidation = skipValidation;
+	}
 }

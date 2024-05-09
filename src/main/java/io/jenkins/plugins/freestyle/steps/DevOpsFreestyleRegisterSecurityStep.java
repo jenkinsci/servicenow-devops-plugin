@@ -2,10 +2,15 @@ package io.jenkins.plugins.freestyle.steps;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import hudson.util.ListBoxModel;
+import io.jenkins.plugins.actions.RegisterSecurityAction;
+import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -84,8 +89,12 @@ public class DevOpsFreestyleRegisterSecurityStep extends Builder implements Simp
 		payload.put(DevOpsConstants.SEC_TOOL_JSON_ATTR_RESULT_META_DATA.toString(), securityParams);
 		payload.put(DevOpsConstants.SEC_TOOL_JSON_ATTR_TASK_INFO.toString(), freeStyleInfo);
 
+		RegisterSecurityAction rs = new RegisterSecurityAction(securityParams.toString());
+		run.addAction(rs);
+
 		DevOpsModel model = new DevOpsModel();
-		model.registerSecurityResult(payload);
+		String configurationName = model.getJobProperty(run.getParent()).getConfigurationName();
+		model.registerSecurityResult(payload, configurationName);
 	}
 
 
@@ -109,7 +118,7 @@ public class DevOpsFreestyleRegisterSecurityStep extends Builder implements Simp
 
 		@Override
 		public String getDisplayName() {
-			return DevOpsConstants.SECURITY_RESULT_STEP_FUNCTION_NAME.toString();
+			return DevOpsConstants.SECURITY_RESULT_STEP_DISPLAY_NAME.toString();
 		}
 
 		public ListBoxModel doFillSecurityToolItems(@QueryParameter String securityTool) {

@@ -7,6 +7,8 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineUpdateChangeInfoStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
+import io.jenkins.plugins.utils.GenericUtils;
+
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
@@ -17,13 +19,25 @@ import org.kohsuke.stapler.DataBoundSetter;
 import java.io.Serializable;
 import java.util.Set;
 
-public class DevOpsPipelineUpdateChangeInfoStep extends Step implements Serializable {
+public class DevOpsPipelineUpdateChangeInfoStep extends Step implements Serializable, DevOpsStep {
 
 	private String changeRequestNumber;
 	private String changeRequestDetails;
+	private String configurationName;
 
 	public String getChangeRequestDetails() {
 		return changeRequestDetails;
+	}
+
+	@Override
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
+	@DataBoundSetter
+	public void setConfigurationName(String configurationName) {
+		if (!GenericUtils.isEmpty(configurationName))
+			this.configurationName = configurationName;
 	}
 
 	@DataBoundSetter

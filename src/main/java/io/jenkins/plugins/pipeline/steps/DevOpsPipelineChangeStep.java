@@ -15,12 +15,14 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.pipeline.steps.executions.DevOpsPipelineChangeStepExecution;
 import io.jenkins.plugins.utils.DevOpsConstants;
 import io.jenkins.plugins.utils.GenericUtils;
 
-public class DevOpsPipelineChangeStep extends Step implements Serializable {
+public class DevOpsPipelineChangeStep extends Step implements Serializable, DevOpsStep {
 	private static final long serialVersionUID = 1L;
+	private String configurationName;
 	private boolean enabled;
 	private boolean ignoreErrors;
 	private String changeRequestDetails;
@@ -38,6 +40,7 @@ public class DevOpsPipelineChangeStep extends Step implements Serializable {
 		changeRequestDetails = null;
 		abortOnChangeCreationFailure = true;
 		abortOnChangeStepTimeOut = true;
+		configurationName = null;
 	}
 	public int getPollingInterval() {
 		return pollingInterval;
@@ -103,6 +106,17 @@ public class DevOpsPipelineChangeStep extends Step implements Serializable {
 	public void setChangeRequestDetails(String changeRequestDetails) {
 		if(!GenericUtils.isEmpty(changeRequestDetails))
 			this.changeRequestDetails = changeRequestDetails;
+	}
+
+	@Override
+	public String getConfigurationName() {
+		return configurationName;
+	}
+
+	@DataBoundSetter
+	public void setConfigurationName(String configurationName) {
+		if(!GenericUtils.isEmpty(configurationName))
+			this.configurationName = configurationName;
 	}
 
 	public String getApplicationName() {

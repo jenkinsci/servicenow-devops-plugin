@@ -11,6 +11,7 @@ import hudson.model.Run;
 import hudson.model.Job;
 import hudson.model.TaskListener;
 import io.jenkins.plugins.config.DevOpsConfiguration;
+import io.jenkins.plugins.config.DevOpsConfigurationEntry;
 import io.jenkins.plugins.config.DevOpsJobProperty;
 import io.jenkins.plugins.model.DevOpsModel;
 import io.jenkins.plugins.pipeline.steps.DevOpsConfigRegisterPipelineStep;
@@ -36,7 +37,7 @@ public class DevOpsConfigRegisterPipelineStepExecution extends SynchronousStepEx
 
 		TaskListener listener = getContext().get(TaskListener.class);
 		Run<?, ?> run = getContext().get(Run.class);
-		DevOpsConfiguration devopsConfig = GenericUtils.getDevOpsConfiguration();
+		DevOpsConfigurationEntry devopsConfig = GenericUtils.getDevOpsConfigurationEntry();
 		EnvVars envVars = getContext().get(EnvVars.class);
 		DevOpsModel model = new DevOpsModel();
 		Job<?, ?> job = run.getParent();
