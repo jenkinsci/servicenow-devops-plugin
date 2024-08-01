@@ -38,8 +38,15 @@ public class DevOpsFreestyleRegisterSecurityStep extends Builder implements Simp
 	private static final Logger LOGGER = Logger.getLogger(DevOpsFreestyleRegisterSecurityStep.class.getName());
 
 	private String securityResultAttributes;
-
 	private String securityToolId;
+	private String securityTool;
+	public String getSecurityTool() {
+		return securityTool;
+	}
+	@DataBoundSetter
+	public void setSecurityTool(String securityTool) {
+		this.securityTool = securityTool;
+	}
 
 	public String getSecurityResultAttributes() {
 		return securityResultAttributes;
@@ -64,8 +71,9 @@ public class DevOpsFreestyleRegisterSecurityStep extends Builder implements Simp
 	}
 
 	@DataBoundConstructor
-	public DevOpsFreestyleRegisterSecurityStep(String securityResultAttributes) {
+	public DevOpsFreestyleRegisterSecurityStep(String securityResultAttributes, String securityTool) {
 		this.securityResultAttributes = securityResultAttributes;
+		this.securityTool = securityTool;
 	}
 
 	@Override

@@ -4,7 +4,7 @@
 
     <f:section>
         <f:entry title="Security Tool" field="securityTool">
-            <f:select onchange="updateContent(event.target.value)" />
+            <f:select onchange="updateContent(event.target.value)"/>
         </f:entry>
 
         <f:entry title="securityResultAttributes" field="securityResultAttributes">
@@ -21,6 +21,12 @@
             var contentArea = document.getElementById("securityAttributeJson");
             if (!contentArea || !(contentArea instanceof Element))
                 return;
+
+            if(selectedScanner &amp;&amp; selectedScanner == selectedOption){
+                contentArea.value = JSON.stringify(initialAttrs);
+                selectedTool.value = selectedScanner;
+                return;
+            }
             // Update content based on selected option
             if (selectedOption === "Veracode") {
                 contentArea.value = '{"scanner": "Veracode", "applicationName": "", "buildVersion": "", "securityToolId": "" } ';
@@ -32,7 +38,16 @@
                 contentArea.value = '{"scanner": "", "securityToolId": ""}';
             }
         }
+        var contentArea = document.getElementById("securityAttributeJson");
+        var selectedScanner = '';
+        if(contentArea &amp;&amp; contentArea instanceof Element &amp;&amp; contentArea.value){
+            var initialAttrs = JSON.parse(contentArea.value);
+            selectedScanner = ['Veracode', 'Checkmarx One', 'Checkmarx SAST'].indexOf(initialAttrs.scanner) !== -1 ? initialAttrs.scanner : 'Others';
+        }
+
+        if(!selectedScanner)
         updateContent("Veracode");
+
     </script>
 
 </j:jelly>
