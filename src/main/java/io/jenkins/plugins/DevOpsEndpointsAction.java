@@ -1,26 +1,5 @@
 package io.jenkins.plugins;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
-import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.WebMethod;
-import org.kohsuke.stapler.json.JsonBody;
-import org.kohsuke.stapler.json.JsonHttpResponse;
-import org.kohsuke.stapler.verb.DELETE;
-import org.kohsuke.stapler.verb.GET;
-import org.kohsuke.stapler.verb.PUT;
-
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
@@ -28,6 +7,7 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.gson.Gson;
 import hudson.Extension;
+import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.RootAction;
 import hudson.util.Secret;
@@ -39,6 +19,26 @@ import io.jenkins.plugins.utils.GenericUtils;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.WebMethod;
+import org.kohsuke.stapler.json.JsonBody;
+import org.kohsuke.stapler.json.JsonHttpResponse;
+import org.kohsuke.stapler.verb.DELETE;
+import org.kohsuke.stapler.verb.GET;
+import org.kohsuke.stapler.verb.PUT;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 @Extension
@@ -191,6 +191,20 @@ public class DevOpsEndpointsAction implements RootAction {
 		JSONArray jsonEntities = JSONArray.fromObject(entriesToJson);
 		JSONObject response = new JSONObject();
 		response.put("entries", jsonEntities);
+		return new JsonHttpResponse(response, 200);
+	}
+
+	/**
+	 * @return {"permissions":{"hasAdminRole":true}}
+	 */
+	@GET
+	@WebMethod(name = "permissions")
+	public JsonHttpResponse getUserPermissions() {
+		Jenkins jenkins = Jenkins.get();
+		Map<String, Boolean> userPermissions = new HashMap<>();
+		userPermissions.put("hasAdminRole", jenkins.hasPermission(Jenkins.ADMINISTER));
+		JSONObject response = new JSONObject();
+		response.put("permissions", userPermissions);
 		return new JsonHttpResponse(response, 200);
 	}
 
