@@ -16,6 +16,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -281,9 +282,11 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 			CharBuffer dest = CharBuffer.allocate(1024);
 			try {
 				BufferedReader reader = request.getReader();
-				while (reader.read(dest) > 0) {
-					dest.rewind();
-					content.append(dest.toString());
+				int readCount;
+				while ((readCount = reader.read(dest)) > 0) {
+					dest.flip();
+					content.append(dest, 0, readCount);
+					dest.clear();
 				}
 			} catch (Exception e) {
 				response.setStatus(400);
@@ -347,7 +350,7 @@ public class DevOpsRootAction extends CrumbExclusion implements RootAction {
 					response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 					response.setContentType("text/plain");
 					try {
-						response.getWriter().print("Could not find an active DevOps configuration for toolId " + toolIdValue + " and instanceUrl " + instanceUrl);
+						response.getWriter().print("Could not find an active DevOps configuration for toolId " + StringEscapeUtils.escapeHtml4(toolIdValue) + " and instanceUrl " + StringEscapeUtils.escapeHtml4(instanceUrl));
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
