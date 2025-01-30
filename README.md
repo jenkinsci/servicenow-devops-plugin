@@ -22,7 +22,7 @@ The following instructions demonstrate how to download and install the ServiceNo
 ### Prerequisities
 
 1. Jenkins 2.289.1+ instance
-2. ServiceNow DevOps 5.1.0 application installed in your ServiceNow instance
+2. ServiceNow DevOps Change Velocity v5.1.0 application installed in your ServiceNow instance
 
 ### Installation/Upgrade
 
