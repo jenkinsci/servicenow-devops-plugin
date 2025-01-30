@@ -1,23 +1,26 @@
 <div>
     changeRequestDetails specifies closure code and change request fields from within the pipeline (starting with version 1.24).<br/>
     <br/>
+    All fields in the Change Request [change_request] table are supported except risk, impact and risk_impact_analysis.
+    For more information, <a href="https://www.servicenow.com/docs/bundle/vancouver-it-service-management/page/product/enterprise-dev-ops/concept/dev-ops-config-change-details.html" target="_blank" style="text-decoration: underline;color:blue">see documentation</a>.
+    <br/>
     Example:
     <br/>
-<p>
-    {
-    "attributes": {
-        "short_description": "Test description",
-        "priority": "1",
-        "start_date": "2021-02-05 08:00:00",
-        "end_date": "2022-04-05 08:00:00",
-        "justification": "test justification",
-        "description": "test description",
-        "cab_required": &lt;true/false&gt;,
-        "comments": "This update for work notes is from jenkins file",
-        "work_notes": "test work notes",
-        "assignment_group": "&lt;SYS_ID&gt;"
-    },
-    "setCloseCode": &lt;true/false&gt;
-    }
-</p>
+    <p>
+        {
+        "attributes": {
+            "short_description": "Test description",
+            "priority": "1",
+            "start_date": "2021-02-05 08:00:00",
+            "end_date": "2022-04-05 08:00:00",
+            "justification": "test justification",
+            "description": "test description",
+            "cab_required": &lt;true/false&gt;,
+            "comments": "This update for work notes is from jenkins file",
+            "work_notes": "test work notes",
+            "assignment_group": "&lt;SYS_ID&gt;"
+        },
+        "setCloseCode": &lt;true/false&gt;
+        }
+    </p>
 </div>
