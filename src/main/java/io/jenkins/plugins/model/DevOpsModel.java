@@ -807,7 +807,9 @@ public class DevOpsModel {
 	                                    String endpointUrl, String user, String pwd,
 	                                    String tool, JSONObject jobDetails,
 	                                    Boolean isMultiBranch, String branchName, String changeRequestDetails, PipelineChangeResponse changeResponse,
-	                                    String applicationName, String snapshotName) {
+	                                    String applicationName, String snapshotName, Boolean isFreestyle) {
+		// isFreestyle parameter indicates whether this call is from a freestyle job (true) or a pipeline job (false)
+		// Added for STRY60968372 to distinguish between freestyle and pipeline jobs in ServiceNow DevOps
 		printDebug("sendJobAndCallbackUrl", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
@@ -822,6 +824,10 @@ public class DevOpsModel {
 			data.put(DevOpsConstants.IS_MULTI_BRANCH_ATTR.toString(),
 					Boolean.toString(isMultiBranch));
 			data.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
+
+			if (isFreestyle != null) {
+				data.put(DevOpsConstants.IS_FREESTYLE_ATTR.toString(), Boolean.toString(isFreestyle));
+			}
 
 			if (stageNode != null && null != stageNode.getPipelineExecutionUrl())
 				data.put(DevOpsConstants.PIPLINE_EXECUTION_URL.toString(), stageNode.getPipelineExecutionUrl());
@@ -886,7 +892,9 @@ public class DevOpsModel {
 	public String sendJobAndCallbackUrlV2(String token, String jobUrl, String jobName, String stageName,
 	                                      DevOpsPipelineNode stageNode, String jenkinsUrl, String endpointUrl, String user, String pwd, String tool,
 	                                      JSONObject jobDetails, Boolean isMultiBranch, String branchName, String changeRequestDetails,
-	                                      PipelineChangeResponse changeResponse, String applicationName, String snapshotName, Map<String, String> tokenDetails) {
+	                                      PipelineChangeResponse changeResponse, String applicationName, String snapshotName, Map<String, String> tokenDetails, Boolean isFreestyle) {
+		// isFreestyle parameter indicates whether this call is from a freestyle job (true) or a pipeline job (false)
+		// Added for STRY60968372 to distinguish between freestyle and pipeline jobs in ServiceNow DevOps
 		printDebug("sendJobAndCallbackUrl", null, null, Level.FINE);
 		JSONObject params = new JSONObject();
 		JSONObject data = new JSONObject();
@@ -899,6 +907,10 @@ public class DevOpsModel {
 			data.put(DevOpsConstants.JOB_URL_ATTR.toString(), jobUrl);
 			data.put(DevOpsConstants.IS_MULTI_BRANCH_ATTR.toString(), Boolean.toString(isMultiBranch));
 			data.put(DevOpsConstants.SCM_BRANCH_NAME.toString(), branchName);
+			
+			if (isFreestyle != null) {
+				data.put(DevOpsConstants.IS_FREESTYLE_ATTR.toString(), Boolean.toString(isFreestyle));
+			}
 
 			if (stageNode != null && null != stageNode.getPipelineExecutionUrl())
 				data.put(DevOpsConstants.PIPLINE_EXECUTION_URL.toString(), stageNode.getPipelineExecutionUrl());
@@ -1064,6 +1076,13 @@ public class DevOpsModel {
 		String result = null;
 		try {
 			JSONObject jobDetails = getJobDetailsForFreestyle(item, job, jenkinsUrl);
+			
+			// Add build number and full name to job details
+			// For freestyle job in Queue.Item, we estimate the next build number
+			int buildNumber = job.getNextBuildNumber();
+			String fullName = job.getFullName();
+			jobDetails.put("buildNumber", Integer.toString(buildNumber));
+			jobDetails.put("fullName", fullName);
 
 			// conditions in which the job should be cancelled (and item removed from the queue):
 			// 1 when trigger=scm, if there's no difference between revisions
@@ -1087,14 +1106,14 @@ public class DevOpsModel {
 						jobUrl, jobName, null, null,
 						jenkinsUrl, devopsConfig.getChangeControlUrl(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
 						DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), devopsConfig.getToolId(),
-						jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null, null, null, tokenDetails);
+						jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null, null, null, tokenDetails, true);
 
 			} else {
 				result = sendJobAndCallbackUrl(token,
 						jobUrl, jobName, null, null,
 						jenkinsUrl, devopsConfig.getChangeControlUrl(), DevOpsConfigurationEntry.getUser(devopsConfig.getCredentialsId()),
 						DevOpsConfigurationEntry.getPwd(devopsConfig.getCredentialsId()), devopsConfig.getToolId(),
-						jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null, null, null);
+						jobDetails, GenericUtils.isMultiBranch((job)), null, getJobProperty(job).getChangeRequestDetails(), null, null, null, true);
 
 			}
 
@@ -1253,6 +1272,13 @@ public class DevOpsModel {
 			DevOpsPipelineNode stageNode = getStageNodeById(run, stageId);
 			JSONObject jobDetails =
 					getJobDetailsForPipeline(run, controlledJob, jenkinsUrl, stageNode);
+			
+			// Add build number and full name to job details
+			// For pipeline, we can get the current build number from the Run object
+			int buildNumber = run.getNumber();
+			String fullName = controlledJob.getFullName();
+			jobDetails.put("buildNumber", Integer.toString(buildNumber));
+			jobDetails.put("fullName", fullName);
 
 			StepContext ctx = stepExecution.getContext();
 
@@ -1273,6 +1299,21 @@ public class DevOpsModel {
 
 			String buildUrl = DevOpsPipelineGraph.getStageExecutionUrl(stageNode.getPipelineExecutionUrl(), stageNode.getId());
 			jobDetails.put(DevOpsConstants.BUILD_URL_ATTR.toString(), buildUrl);
+			
+			// Extract repository URL from DevOpsRunStatusAction for multibranch pipeline jobs
+			try {
+				DevOpsRunStatusAction runStatusAction = run.getAction(DevOpsRunStatusAction.class);
+				if (runStatusAction != null && runStatusAction.getModel() != null && 
+					runStatusAction.getModel().getSCMModel() != null && 
+					GenericUtils.isNotEmpty(runStatusAction.getModel().getSCMModel().getUrl())) {
+					// Add repository URL to the payload
+					jobDetails.put(DevOpsConstants.REPOSITORY_URL_ATTR.toString(), runStatusAction.getModel().getSCMModel().getUrl());
+				}
+			} catch (Exception e) {
+				// Log exception but continue processing
+				printDebug("registerPipelineAndNotify", new String[] {"Error getting repository URL"}, 
+					new String[] {e.getMessage()}, Level.FINE);
+			}
 
 			if (!GenericUtils.isEmptyOrDefault(devopsConfig.getSecretCredentialId())) {
 
@@ -1291,7 +1332,7 @@ public class DevOpsModel {
 						devopsConfig.getToolId(),
 						jobDetails, GenericUtils.isMultiBranch(controlledJob),
 						vars != null ? vars.get("BRANCH_NAME") : null,
-						changeRequestDetails, changeResponse, applicationName, snapshotName, tokenDetails);
+						changeRequestDetails, changeResponse, applicationName, snapshotName, tokenDetails, false);
 			} else {
 				result = sendJobAndCallbackUrl(token,
 						jobUrl,
@@ -1304,7 +1345,7 @@ public class DevOpsModel {
 						devopsConfig.getToolId(),
 						jobDetails, GenericUtils.isMultiBranch(controlledJob),
 						vars != null ? vars.get("BRANCH_NAME") : null,
-						changeRequestDetails, changeResponse, applicationName, snapshotName);
+						changeRequestDetails, changeResponse, applicationName, snapshotName, false);
 			}
 
 			// only register webhook if able to post to SN endpoint
@@ -1392,6 +1433,16 @@ public class DevOpsModel {
 
 				listener.getLogger().println("[ServiceNow DevOps] Going to register callback hook with token: " + token);
 				// Register the Job callback hook, then notify SN
+				// Extract repository URL from DevOpsRunStatusAction for multibranch pipeline jobs
+				DevOpsRunStatusAction runStatusAction = run.getAction(DevOpsRunStatusAction.class);
+				if (runStatusAction != null && runStatusAction.getModel() != null && 
+					runStatusAction.getModel().getSCMModel() != null && 
+					GenericUtils.isNotEmpty(runStatusAction.getModel().getSCMModel().getUrl())) {
+					// Log the repository URL found
+					listener.getLogger().println("[ServiceNow DevOps] Found repository URL: " + 
+						runStatusAction.getModel().getSCMModel().getUrl());
+				}
+
 				String _result = registerPipelineAndNotify(run, controlledJob, token,
 						jobUrl, jobName, stageNode.getId(), jenkinsUrl,
 						stepExecution, changeResponse, pipelineInfoConfig.getDevopsConfig());

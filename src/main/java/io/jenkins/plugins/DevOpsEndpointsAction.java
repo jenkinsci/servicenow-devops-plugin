@@ -7,7 +7,6 @@ import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.gson.Gson;
 import hudson.Extension;
-import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.RootAction;
 import hudson.util.Secret;
@@ -23,6 +22,8 @@ import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.WebMethod;
 import org.kohsuke.stapler.json.JsonBody;
 import org.kohsuke.stapler.json.JsonHttpResponse;
@@ -30,6 +31,7 @@ import org.kohsuke.stapler.verb.DELETE;
 import org.kohsuke.stapler.verb.GET;
 import org.kohsuke.stapler.verb.PUT;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
@@ -40,7 +42,9 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
+/**
+ * Main entry point for ServiceNow DevOps API endpoints
+ */
 @Extension
 public class DevOpsEndpointsAction implements RootAction {
 	private static final Logger LOGGER = Logger.getLogger(DevOpsEndpointsAction.class.getName());
@@ -61,6 +65,21 @@ public class DevOpsEndpointsAction implements RootAction {
 	}
 
 	private Predicate<DevOpsConfigurationEntry> isValidConfiguration = (entry) -> StringUtils.isNotBlank(entry.getToolId()) && StringUtils.isNotBlank(entry.getInstanceUrl());
+
+	/**
+	 * Pipeline details endpoint - routes request to DevOpsDataApiAction
+	 */
+	@GET
+	@WebMethod(name = "pipeline-details")
+	public void getPipelineDetails(StaplerRequest request, StaplerResponse response) throws IOException {
+		// Check administrator permission
+		Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+		
+		// Get DevOpsDataApiAction instance
+		DevOpsDataApiAction dataApiAction = new DevOpsDataApiAction();
+		// Forward the request to DevOpsDataApiAction's business logic handler
+		dataApiAction.handlePipelineDetailsRequest(request, response);
+	}
 
 	@PUT
 	@WebMethod(name = "plugin-configuration")

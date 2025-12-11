@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -25,8 +27,37 @@ public class DevOpsNotificationModel {
 	private static final Logger LOGGER =
 			Logger.getLogger(DevOpsNotificationModel.class.getName());
 
+	/**
+	 * Constructor for DevOpsNotificationModel.
+	 * 
+	 * STRY60920723: We exclude the stageNodeId field from all serialized objects 
+	 * (security results, sonar results, and test results models) in notification events.
+	 * This exclusion was introduced while developing the pipeline-details API to ensure 
+	 * consistency and prevent unnecessary data exposure in notification payloads. 
+	 * The stageNodeId is only needed internally for pipeline graph construction and 
+	 * is not required in external notifications.
+	 */
 	public DevOpsNotificationModel() {
-		this.gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.IDENTITY).setPrettyPrinting().create();
+		// Configure Gson to exclude stageNodeId field from all serialized objects
+		this.gson = new GsonBuilder()
+			.setFieldNamingPolicy(FieldNamingPolicy.IDENTITY)
+			.setPrettyPrinting()
+			// STRY60920723: Add exclusion strategy to ignore stageNodeId in all models
+			// for security/sonar/test results in notification events
+			.setExclusionStrategies(new ExclusionStrategy() {
+				@Override
+				public boolean shouldSkipField(FieldAttributes f) {
+					// Skip the stageNodeId field in any class - used for internal pipeline graph construction only
+					return "stageNodeId".equals(f.getName());
+				}
+
+				@Override
+				public boolean shouldSkipClass(Class<?> clazz) {
+					// Don't skip any classes
+					return false;
+				}
+			})
+			.create();
 	}
 
 	public void send(DevOpsRunStatusModel model, DevOpsConfigurationEntry devopsConfig) {
@@ -108,5 +139,4 @@ public class DevOpsNotificationModel {
 	private void printDebug(String methodName, String[] variables, String[] values, Level logLevel) {
 		GenericUtils.printDebug(DevOpsNotificationModel.class.getName(), methodName, variables, values, logLevel);
 	}
-
 }

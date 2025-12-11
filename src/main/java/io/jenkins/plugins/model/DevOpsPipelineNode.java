@@ -31,8 +31,15 @@ public class DevOpsPipelineNode {
 	private boolean changeCtrlInProgress;
 	private String stageExecutionStatus;
 	private long startTime;
+	private long duration;
 	private long changeStartTime;
 	private WorkspaceAction wsAction;
+	/**
+	 * Stores the stage status value derived from tags.
+	 * This field represents the execution status that is extracted from pipeline stage tags.
+	 * Used in the pipeline details API response to provide additional stage status information.
+	 */
+	private String stageStatusFromTag;
 
 	public long getChangeStartTime() {
 		return changeStartTime;
@@ -46,6 +53,14 @@ public class DevOpsPipelineNode {
 
 	public void setStartTime(long startTime) {
 		this.startTime = startTime;
+	}
+
+	public long getDuration() {
+		return duration;
+	}
+
+	public void setDuration(long duration) {
+		this.duration = duration;
 	}
 
 	public WorkspaceAction getWsAction() {
@@ -174,6 +189,25 @@ public class DevOpsPipelineNode {
 
 	public void setStageExecStatus(String status) {
 		this.stageExecutionStatus = status;
+	}
+	
+	/**
+	 * Gets the stage status that is derived from pipeline stage tags.
+	 * 
+	 * @return The stage status value extracted from tags, or null if not set
+	 */
+	public String getStageStatusFromTag() {
+		return stageStatusFromTag;
+	}
+	
+	/**
+	 * Sets the stage status value derived from pipeline stage tags.
+	 * This value is included in the pipeline details API response when not empty.
+	 * 
+	 * @param stageStatusFromTag The stage status value to set
+	 */
+	public void setStageStatusFromTag(String stageStatusFromTag) {
+		this.stageStatusFromTag = stageStatusFromTag;
 	}
 
 	public String getPipelineExecutionUrl() {

@@ -164,6 +164,7 @@ public enum DevOpsConstants {
 
 	STEP_SYSID_ATTR,
 	BUILD_URL_ATTR,
+	REPOSITORY_URL_ATTR,
 	PARENT_BUILD_URL_ATTR,
 	IS_MULTI_BRANCH_ATTR,
 	JOB_URL_ATTR,
@@ -205,6 +206,8 @@ public enum DevOpsConstants {
 	GIT_STATUS_CMD,
 	GIT_NAME_REV_CMD,
 	SCM_BRANCH_NAME,
+	// Flag indicating if the job is a freestyle job (added for STRY60968372)
+	IS_FREESTYLE_ATTR,
 
 	GIT_PLUGIN_BRANCH_CLASS,
 	GIT_PLUGIN_SCM_CLASS,
@@ -435,6 +438,7 @@ public enum DevOpsConstants {
 			case INSTANCE_URL_ATTR: return "instanceUrl";
 			case ORCHESTRATION_TOOL_ID_ATTR: return "orchestrationToolId";
 			case IS_MULTI_BRANCH_ATTR: return "isMultiBranch";
+			case IS_FREESTYLE_ATTR: return "isFreestyle";
 
 			case FAILURE_REASON_CONN_REFUSED: return "IOException: Connection refused";
 			case FAILURE_REASON_CONN_REFUSED_UI: return "ServiceNow instance is down or not reacheable";
@@ -458,6 +462,7 @@ public enum DevOpsConstants {
 			case DECLARATIVE_STAGE: return "Declarative:";
 
 			case BUILD_URL_ATTR: return "taskExecutionURL";
+			case REPOSITORY_URL_ATTR: return "repositoryUrl";
 			case PARENT_BUILD_URL_ATTR: return "parentTaskExecutionURL";
 			case JOB_URL_ATTR: return "orchestrationTaskURL";
 			case JOB_NAME_ATTR: return "orchestrationTaskName";

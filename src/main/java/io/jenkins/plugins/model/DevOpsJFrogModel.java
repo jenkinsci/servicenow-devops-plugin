@@ -15,12 +15,20 @@ public class DevOpsJFrogModel {
 	private String startedTimeStamp;
 
 	private transient String artifactoryUrl;
+	
+	// Used to associate this model with a specific pipeline stage
+	private String stageNodeId;
 
 	public DevOpsJFrogModel(String buildName, String buildNumber, String startedTimeStamp, String artifactoryUrl) {
+		this(buildName, buildNumber, startedTimeStamp, artifactoryUrl, null);
+	}
+	
+	public DevOpsJFrogModel(String buildName, String buildNumber, String startedTimeStamp, String artifactoryUrl, String stageNodeId) {
 		this.buildName = buildName;
 		this.buildNumber = buildNumber;
 		this.startedTimeStamp = startedTimeStamp;
 		this.artifactoryUrl = artifactoryUrl;
+		this.stageNodeId = stageNodeId;
 	}
 
 	@Override
@@ -30,14 +38,16 @@ public class DevOpsJFrogModel {
 		if (o == null || getClass() != o.getClass())
 			return false;
 		DevOpsJFrogModel that = (DevOpsJFrogModel) o;
+		// stageNodeId removed from comparison to avoid duplicates in JFrog results
 		return buildName.equalsIgnoreCase(that.buildName) &&
 				buildNumber.equalsIgnoreCase(that.buildNumber) &&
 				(startedTimeStamp == null || (startedTimeStamp.equals(that.startedTimeStamp))) &&
-				artifactoryUrl.equals(that.artifactoryUrl);
+				Objects.equals(artifactoryUrl, that.artifactoryUrl);
 	}
 
 	@Override
 	public int hashCode() {
+		// stageNodeId removed from hashCode for consistency with equals method
 		return Objects.hash(buildName, buildNumber, startedTimeStamp, artifactoryUrl);
 	}
 
@@ -71,5 +81,13 @@ public class DevOpsJFrogModel {
 
 	public void setArtifactoryUrl(String artifactoryUrl) {
 		this.artifactoryUrl = artifactoryUrl;
+	}
+	
+	public String getStageNodeId() {
+		return stageNodeId;
+	}
+	
+	public void setStageNodeId(String stageNodeId) {
+		this.stageNodeId = stageNodeId;
 	}
 }
