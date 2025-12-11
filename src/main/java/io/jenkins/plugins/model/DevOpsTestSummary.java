@@ -25,6 +25,7 @@ public class DevOpsTestSummary {
 	private String fileContent;
 	private String branch;
 	private String isMultiBranch;
+	private String stageNodeId;
 
 
 
@@ -47,6 +48,7 @@ public class DevOpsTestSummary {
 		private String fileContent;
 		private String branchName;
 		private String multiBranch;
+		private String stageNodeId;
 
 
 		public Builder(String name) {
@@ -138,6 +140,11 @@ public class DevOpsTestSummary {
 			this.multiBranch = multi;
 			return this;
 		}
+		
+		public Builder stageNodeId(String stageNodeId) {
+			this.stageNodeId = stageNodeId;
+			return this;
+		}
 
 		public DevOpsTestSummary build() {
 
@@ -175,6 +182,7 @@ public class DevOpsTestSummary {
 
 			testSummary.isMultiBranch = this.multiBranch;
 			testSummary.branch = this.branchName;
+			testSummary.stageNodeId = this.stageNodeId;
 
 			return testSummary;
 		}
@@ -343,6 +351,14 @@ public class DevOpsTestSummary {
 	public void setMultiBranch(String multiBranch) {
 		isMultiBranch = multiBranch;
 	}
+	
+	public String getStageNodeId() {
+		return stageNodeId;
+	}
+	
+	public void setStageNodeId(String stageNodeId) {
+		this.stageNodeId = stageNodeId;
+	}
 
 	@Override public boolean equals(Object o) {
 		if (this == o)
@@ -350,17 +366,16 @@ public class DevOpsTestSummary {
 		if (o == null || getClass() != o.getClass())
 			return false;
 		DevOpsTestSummary that = (DevOpsTestSummary) o;
-		return passedTests == that.passedTests &&
-		       failedTests == that.failedTests &&
-		       skippedTests == that.skippedTests &&
-		       blockedTests == that.blockedTests &&
-		       totalTests == that.totalTests &&
-		       getUrlForEquals().equals(that.getUrlForEquals()) &&
-		       geFileContentForEquals().equals(that.geFileContentForEquals());
+		return buildNumber == that.buildNumber &&
+			Objects.equals(pipelineName, that.pipelineName) &&
+			Objects.equals(getUrlForEquals(), that.getUrlForEquals()) &&
+			Objects.equals(geFileContentForEquals(), that.geFileContentForEquals()) &&
+			Objects.equals(branch, that.branch);
+		// stageName and stageNodeId removed from comparison to avoid duplicates in test results
 	}
 
 	@Override public int hashCode() {
-		return Objects.hash(passedTests, failedTests, skippedTests, blockedTests, totalTests, url
-				, fileContent);
+		return Objects.hash(buildNumber, pipelineName, getUrlForEquals(), geFileContentForEquals(), branch);
+		// stageName and stageNodeId removed from hashCode for consistency with equals method
 	}
 }

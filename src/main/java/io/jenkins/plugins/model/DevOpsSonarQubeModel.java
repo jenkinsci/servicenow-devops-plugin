@@ -5,6 +5,7 @@ import java.util.Objects;
 public class DevOpsSonarQubeModel {
 	private String scanID;
 	private String url;
+	private String stageNodeId;
 
 
 	public DevOpsSonarQubeModel() {
@@ -18,10 +19,12 @@ public class DevOpsSonarQubeModel {
 		DevOpsSonarQubeModel that = (DevOpsSonarQubeModel) o;
 		return scanID.equalsIgnoreCase(that.scanID) &&
 				url.equalsIgnoreCase(that.url);
+		// stageNodeId removed from comparison to avoid duplicates in results
 	}
 
 	@Override public int hashCode() {
-		return Objects.hash(url,scanID);
+		return Objects.hash(url, scanID);
+		// stageNodeId removed from hashCode for consistency with equals method
 	}
 
 	public String getScanID() {
@@ -39,8 +42,16 @@ public class DevOpsSonarQubeModel {
 	public void setUrl(String url) {
 		this.url = url;
 	}
+	
+	public String getStageNodeId() {
+		return stageNodeId;
+	}
+
+	public void setStageNodeId(String stageNodeId) {
+		this.stageNodeId = stageNodeId;
+	}
 	@Override
 	public String toString() {
-		return ("scanID: "+this.scanID + "   url: " + this.url+"  ");
+		return ("scanID: " + this.scanID + "   url: " + this.url + "   stageNodeId: " + this.stageNodeId + "  ");
 	}
 }

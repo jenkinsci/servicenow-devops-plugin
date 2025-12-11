@@ -130,6 +130,7 @@ public class DevOpsRunListener extends RunListener<Run<?, ?>> {
 						if (GenericUtils.isNotEmpty(stageStatusFromTag)) {
 							DevOpsRunStatusStageModel stageModel = model.getStageModel();
 							stageModel.setStageStatusFromTag(stageStatusFromTag);
+							devOpsPipelineNode.setStageStatusFromTag(stageStatusFromTag);
 						}
 
 						action.setModel(model);

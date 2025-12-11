@@ -282,7 +282,8 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 						DevOpsConstants.FREESTYLE_MAVEN_PRONOUN.toString().equals(job.getPronoun())) &&
 						DevOpsConstants.NOTIFICATION_COMPLETED.toString().equals(runPhase)) || (
 						stageModel != null && GenericUtils.isNotEmpty(stageModel.getId()))) {
-					List<DevOpsJFrogModel> jfrogModelsList = getJfrogBuildDetails(run);
+					String currentStageNodeId = stageModel.getId();
+					List<DevOpsJFrogModel> jfrogModelsList = getJfrogBuildDetails(run, currentStageNodeId);
 
 					for (DevOpsJFrogModel jfrogModel : jfrogModelsList) {
 						if (!this.pipelineGraph.isJFrogModelResultPublished(jfrogModel)) {
@@ -636,6 +637,7 @@ public class DevOpsRunStatusAction extends InvisibleAction {
 			if (job != null) {
 				status.setName(job.getName());
 				status.setUrl(job.getAbsoluteUrl());
+				status.setFullName(job.getFullName());
 			}
 		}
 		return status;
@@ -669,8 +671,13 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 				StepStartNode startNode = ((StepEndNode) fn).getStartNode();
 				if (startNode != null) {
 					stageModel.setId(startNode.getId());
-					stageModel.setDuration(getTime(startNode, (StepEndNode) fn));
+					long duration = getTime(startNode, (StepEndNode) fn);
+					stageModel.setDuration(duration);
 
+					// Set duration directly on the pipeline node
+					// Note: devOpsPipelineNode is known to be non-null in this context
+					devOpsPipelineNode.setDuration(duration);
+					LOGGER.log(Level.FINE, "Set duration " + duration + "ms on pipeline node " + devOpsPipelineNode.getId());
 
 					setStageModelDetailsFromPipelineNode(devOpsPipelineNode, stageModel);
 					stageModel.setWaitForChildExecutions(pipelineGraph.getWaitForChildExecutions(devOpsPipelineNode.getId()));
@@ -893,13 +900,61 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 
 			if (vars.get("GIT_COMMIT") != null)
 				status.setCommit(vars.get("GIT_COMMIT"));
+			
+			// If we're missing repository URL and this is a multibranch pipeline job, try to get it from Git BuildData
+			if (GenericUtils.isEmpty(status.getUrl()) && GenericUtils.isMultiBranch(run.getParent())) {
+				populateSCMInfoFromBuildData(run, status);
+			}
+			
 			status.setChanges(getChangedFiles(run));
 			status.setCulprits(getCulprits(run));
 		}
 		return status;
 	}
+	
+	/**
+	 * Helper method to extract SCM information from Git BuildData action when environment variables
+	 * don't provide the necessary information.
+	 * 
+	 * @param run The build run
+	 * @param status The SCM model to populate
+	 */
+	private void populateSCMInfoFromBuildData(final Run<?, ?> run, DevOpsRunStatusSCMModel status) {
+		try {
+			for (Action runAction : run.getAllActions()) {
+				if (runAction.getClass().getName().equalsIgnoreCase("hudson.plugins.git.util.BuildData")) {
+					// Get repository URL if not already set
+					if (GenericUtils.isEmpty(status.getUrl())) {
+						try {
+							Method[] methods = runAction.getClass().getMethods();
+							Map<String, Method> methodMap = new HashMap<String, Method>();
+							for (Method m : methods) {
+								methodMap.put(m.getName(), m);
+							}
+							
+							if (methodMap.containsKey("getRemoteUrls")) {
+								Method m = methodMap.get("getRemoteUrls");
+								Object remoteUrls = m.invoke(runAction);
+								if (remoteUrls instanceof Set && !((Set<?>) remoteUrls).isEmpty()) {
+									String url = ((Set<?>) remoteUrls).iterator().next().toString();
+									status.setUrl(url);
+								}
+							}
+						} catch (Exception e) {
+							LOGGER.log(Level.FINE, "Failed to get remote URLs: " + e.getMessage());
+						}
+					}
+					break; // Found the BuildData action, no need to continue
+				}
+			}
+		} catch (RuntimeException ignore) {
+			LOGGER.log(Level.WARNING, "Error extracting SCM info from BuildData: " + ignore.getMessage());
+		} catch (Exception ignore) {
+			LOGGER.log(Level.WARNING, "Exception while extracting SCM info from BuildData: " + ignore.getMessage());
+		}
+	}
 
-	public List<DevOpsJFrogModel> getJfrogBuildDetails(final Run<?, ?> run) {
+	public List<DevOpsJFrogModel> getJfrogBuildDetails(final Run<?, ?> run, String stageNodeId) {
 		List<DevOpsJFrogModel> finalJfrogModelList = new ArrayList<>();
 
 		try {
@@ -947,7 +1002,7 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 								startedTimeStamp = (String) startedTimeStampPrivateField.get(publishedBuildDetails);
 							}
 
-							DevOpsJFrogModel jFrogModel = new DevOpsJFrogModel(buildName, buildNumber, startedTimeStamp, artifactoryUrl);
+							DevOpsJFrogModel jFrogModel = new DevOpsJFrogModel(buildName, buildNumber, startedTimeStamp, artifactoryUrl, stageNodeId);
 							finalJfrogModelList.add(jFrogModel);
 						}
 					}
@@ -973,7 +1028,7 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 					DevOpsSonarQubeModel sonarModel = new DevOpsSonarQubeModel();
 					Method[] methods = sonarAction.getClass().getMethods();
 					String ceTaskId = null;
-					String url = null;
+					// Using StringBuffer directly for URL building
 					StringBuffer urlBuilder = new StringBuffer();
 
 					Map<String, Method> methodMap = new HashMap<String, Method>();
@@ -1001,6 +1056,7 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 
 					sonarModel.setScanID(ceTaskId);
 					sonarModel.setUrl(urlBuilder.toString());
+					sonarModel.setStageNodeId(blockId);
 					finalSonarQubeModelList.add(sonarModel);
 				}
 			}
@@ -1113,6 +1169,7 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 								.reportUrl(reptUrl)
 								.branchName(branchName)
 								.multiBranch(isMultiBranch)
+								.stageNodeId(blockId)
 								.build();
 
 				devOpsTestSummaryList.add(testSummary);
@@ -1417,7 +1474,9 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 							attributes.put(DevOpsConstants.VERACODE_APP_ID.toString(), appId);
 							attributes.put(DevOpsConstants.VERACODE_BUILD_ID.toString(), buildId);
 							attributes.put(DevOpsConstants.CREATE_IBE.toString(), true);
-							veracodeModels.add(new DevOpsSecurityResultModel(attributes.toString()));
+							DevOpsSecurityResultModel model = new DevOpsSecurityResultModel(attributes.toString());
+							model.setStageNodeId(blockId);
+							veracodeModels.add(model);
 						}
 					}
 				}
@@ -1477,7 +1536,9 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 								attributes.put(DevOpsConstants.CHECKMARX_SCAN_ID.toString(), scanId);
 								attributes.put(DevOpsConstants.CHECKMARX_PROJECT_ID.toString(), projectId);
 								attributes.put(DevOpsConstants.CREATE_IBE.toString(), true);
-								checkmarxModels.add(new DevOpsSecurityResultModel(attributes.toString()));
+								DevOpsSecurityResultModel model = new DevOpsSecurityResultModel(attributes.toString());
+								model.setStageNodeId(blockId);
+								checkmarxModels.add(model);
 							}
 						}
 					}
@@ -1502,6 +1563,7 @@ http://localhost:8090/jenkins/job/felipe-pipeline/6/execution/node/6/wfapi/descr
 				if (action.getClass().getName().equalsIgnoreCase(RegisterSecurityAction.class.getName())) {
 					RegisterSecurityAction ra = (RegisterSecurityAction) action;
 					DevOpsSecurityResultModel securityResultModel = new DevOpsSecurityResultModel(ra.getSecurityToolAttributes().toString());
+					securityResultModel.setStageNodeId(blockId);
 					finalSecurityResultModel.add(securityResultModel);
 				}
 			}

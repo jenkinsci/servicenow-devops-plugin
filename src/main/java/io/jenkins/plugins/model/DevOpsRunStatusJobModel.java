@@ -3,10 +3,12 @@ package io.jenkins.plugins.model;
 public class DevOpsRunStatusJobModel {
     private String name;
     private String url;
+    private String fullName;
 
     public DevOpsRunStatusJobModel() {
         this.name = "";
         this.url = "";
+        this.fullName = "";
     }
     public String getUrl() {
         return url;
@@ -19,5 +21,11 @@ public class DevOpsRunStatusJobModel {
     }
     public void setName(String name) {
         this.name = name;
+    }
+    public String getFullName() {
+        return fullName;
+    }
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 }
