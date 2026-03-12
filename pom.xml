@@ -230,7 +230,7 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
-            <version>4.12.0</version>
+            <version>3.14.9</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
