@@ -224,7 +224,6 @@ public class DevopsJenkinsAPITest {
         }
     }
 
-	@Ignore
 	@Test
 	public void testDoTestConnectionWithBasicAuth() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -245,25 +244,28 @@ public class DevopsJenkinsAPITest {
 					.addCredentials(Domain.global(), credentials);
 
 			// Call the descriptor method directly with SYSTEM permissions
-			DevOpsConfigurationEntry.DescriptorImpl descriptor = 
+			DevOpsConfigurationEntry.DescriptorImpl descriptor =
 					(DevOpsConfigurationEntry.DescriptorImpl) j.jenkins.getDescriptor(DevOpsConfigurationEntry.class);
-			
+
+			// Use localhost explicitly to satisfy checkUrlValid regex (http://localhost:PORT only)
+			String testUrl = "http://localhost:" + mockServer.getPort();
 			hudson.util.FormValidation result = descriptor.doTestConnection(
-					mockServerUrl,
+					testUrl,
 					"test-tool-id",
 					"test-cred-id",
 					"",
 					true
 			);
 
-			// Assert successful connection
+			// Assert successful connection - check for both encoded and raw single quote variants
 			assertEquals("FormValidation should be OK", hudson.util.FormValidation.Kind.OK, result.kind);
-			assertTrue("Response should contain success message", 
-					result.getMessage().contains("Connection using &#039;Credentials&#039; is successful!"));
+			String msg = result.getMessage();
+			assertTrue("Response should contain success message",
+					msg.contains("Connection using &#039;Credentials&#039; is successful!") ||
+					msg.contains("Connection using 'Credentials' is successful!"));
 		}
 	}
 
-	@Ignore
 	@Test
 	public void testDoTestConnectionWithTokenAuth() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -283,25 +285,28 @@ public class DevopsJenkinsAPITest {
 					.addCredentials(Domain.global(), secretCredentials);
 
 			// Call the descriptor method directly with SYSTEM permissions
-			DevOpsConfigurationEntry.DescriptorImpl descriptor = 
+			DevOpsConfigurationEntry.DescriptorImpl descriptor =
 					(DevOpsConfigurationEntry.DescriptorImpl) j.jenkins.getDescriptor(DevOpsConfigurationEntry.class);
-			
+
+			// Use localhost explicitly to satisfy checkUrlValid regex (http://localhost:PORT only)
+			String testUrl = "http://localhost:" + mockServer.getPort();
 			hudson.util.FormValidation result = descriptor.doTestConnection(
-					mockServerUrl,
+					testUrl,
 					"test-tool-id",
 					"",
 					"test-secret-cred-id",
 					true
 			);
 
-			// Assert successful connection
+			// Assert successful connection - check for both encoded and raw single quote variants
 			assertEquals("FormValidation should be OK", hudson.util.FormValidation.Kind.OK, result.kind);
-			assertTrue("Response should contain success message", 
-					result.getMessage().contains("Connection using &#039;Secret Credentials&#039; is successful!"));
+			String msg = result.getMessage();
+			assertTrue("Response should contain success message",
+					msg.contains("Connection using &#039;Secret Credentials&#039; is successful!") ||
+					msg.contains("Connection using 'Secret Credentials' is successful!"));
 		}
 	}
 
-	@Ignore
 	@Test
 	public void testDoTestConnectionWithBothAuthMethods() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -335,23 +340,28 @@ public class DevopsJenkinsAPITest {
 					.addCredentials(Domain.global(), secretCredentials);
 
 			// Call the descriptor method directly with SYSTEM permissions
-			DevOpsConfigurationEntry.DescriptorImpl descriptor = 
+			DevOpsConfigurationEntry.DescriptorImpl descriptor =
 					(DevOpsConfigurationEntry.DescriptorImpl) j.jenkins.getDescriptor(DevOpsConfigurationEntry.class);
-			
+
+			// Use localhost explicitly to satisfy checkUrlValid regex (http://localhost:PORT only)
+			String testUrl = "http://localhost:" + mockServer.getPort();
 			hudson.util.FormValidation result = descriptor.doTestConnection(
-					mockServerUrl,
+					testUrl,
 					"test-tool-id",
 					"test-cred-id",
 					"test-secret-cred-id",
 					true
 			);
 
-			// Assert successful connection for both methods
+			// Assert successful connection for both methods - check for both encoded and raw single quote variants
 			assertEquals("FormValidation should be OK", hudson.util.FormValidation.Kind.OK, result.kind);
-			assertTrue("Response should contain basic auth success message", 
-					result.getMessage().contains("Connection using &#039;Credentials&#039; is successful!"));
-            assertTrue("Response should contain success message",
-                    result.getMessage().contains("Connection using &#039;Secret Credentials&#039; is successful!"));
+			String msg = result.getMessage();
+			assertTrue("Response should contain basic auth success message",
+					msg.contains("Connection using &#039;Credentials&#039; is successful!") ||
+					msg.contains("Connection using 'Credentials' is successful!"));
+			assertTrue("Response should contain token auth success message",
+					msg.contains("Connection using &#039;Secret Credentials&#039; is successful!") ||
+					msg.contains("Connection using 'Secret Credentials' is successful!"));
 		}
 	}
 
