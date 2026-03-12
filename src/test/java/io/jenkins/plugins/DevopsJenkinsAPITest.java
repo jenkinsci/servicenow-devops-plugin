@@ -224,7 +224,6 @@ public class DevopsJenkinsAPITest {
         }
     }
 
-    @Ignore("Disabling until assertion format is fixed")
 	@Test
 	public void testDoTestConnectionWithBasicAuth() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -263,7 +262,6 @@ public class DevopsJenkinsAPITest {
 		}
 	}
 
-    @Ignore("Disabling until assertion format is fixed")
 	@Test
 	public void testDoTestConnectionWithTokenAuth() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -301,7 +299,6 @@ public class DevopsJenkinsAPITest {
 		}
 	}
 
-    @Ignore("Disabling until assertion format is fixed")
 	@Test
 	public void testDoTestConnectionWithBothAuthMethods() throws Exception {
 		mockServer.enqueue(new MockResponse()
