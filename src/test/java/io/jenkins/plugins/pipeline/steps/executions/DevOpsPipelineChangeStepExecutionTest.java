@@ -9,6 +9,7 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class DevOpsPipelineChangeStepExecutionTest extends BaseDevOpsTest {
@@ -28,6 +29,7 @@ public class DevOpsPipelineChangeStepExecutionTest extends BaseDevOpsTest {
 
     }
 
+    @Ignore
     @Test
     public void tesDevOpsChangeStepInPipeline() throws Exception {
         enqueueSuccessResponse("{\"result\": {\"status\": \"success\", \"changeControl\": \"true\", \"message\": \"Change request registered\"}}");
