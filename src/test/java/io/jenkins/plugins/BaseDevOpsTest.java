@@ -11,6 +11,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -94,6 +97,17 @@ public abstract class BaseDevOpsTest {
         // Shutdown MockWebServer
         if (mockServer != null) {
             mockServer.shutdown();
+        }
+    }
+
+    protected String loadPipelineScript(String filename) throws IOException {
+        try (InputStream is = getClass().getResourceAsStream("/pipelines/" + filename)) {
+            if (is == null) {
+                throw new IOException("Pipeline script not found: " + filename);
+            }
+            try (java.util.Scanner scanner = new java.util.Scanner(is, StandardCharsets.UTF_8.name()).useDelimiter("\\A")) {
+                return scanner.hasNext() ? scanner.next() : "";
+            }
         }
     }
 

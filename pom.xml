@@ -33,7 +33,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>servicenow-devops</artifactId>
-    <version>6.2.0</version>
+    <version>6.3.0</version>
     <packaging>hpi</packaging>
     <properties>
         <jenkins.version>2.289.1</jenkins.version>
@@ -177,6 +177,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Mockito inline for static mocking support -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>3.12.4</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- PowerMockito for private method mocking -->
         <dependency>
             <groupId>org.powermock</groupId>
@@ -222,7 +230,7 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>
-            <version>4.12.0</version>
+            <version>3.14.9</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>

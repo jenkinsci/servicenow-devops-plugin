@@ -375,8 +375,9 @@ public class DevOpsModel {
 			return null;
 		String jobDir = job.getRootDir().getAbsolutePath();
 		if (GenericUtils.isMultiBranch(job))
-			jobDir = jobDir.split(DevOpsConstants.MULTIBRANCH_PATH_SEPARATOR.toString())[0];
-		return jobDir + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
+            jobDir = jobDir.split(java.util.regex.Pattern.quote(DevOpsConstants.MULTIBRANCH_PATH_SEPARATOR.toString()))[0];
+
+        return jobDir + DevOpsConstants.PATH_SEPARATOR.toString() + DevOpsConstants.SERVICENOW_PIPELINE_INFO_FILE_NAME.toString();
 	}
 
 	public DevOpsPipelineInfoConfig getPipelineInfoConfig(String key, JSONObject configTrackInfo, String pronoun, DevOpsConfigurationEntry entry) {

@@ -15,26 +15,12 @@ import static io.jenkins.plugins.utils.DevOpsConstants.FAILURE_REASON_USER_NOAUT
 public class DevOpsJenkinsConfigurationTest extends BaseDevOpsTest {
     private WorkflowJob job;
 
-
-
     @Before
     public void setUp() throws Exception {
         super.setUp();
         DevOpsRootAction.setSnPipelineInfo("TestJob_1", null);
         job = jenkins.createProject(WorkflowJob.class, "TestJob");
-        job.setDefinition(new CpsFlowDefinition(
-                "pipeline {\n" +
-                        "    agent any\n" +
-                        "    stages {\n" +
-                        "        stage('Test') {\n" +
-                        "            steps {\n" +
-                        "               snDevOpsPackage artifactsPayload: '{\"artifacts\":[{\"name\": \"sa-web.jar\", \"version\": \"1.9\", \"repositoryName\": \"services-1031\"}, {\"name\": \"sa-db.jar\", \"version\": \"1.3.2\", \"repositoryName\": \"services-1032\"}], \"branchName\": \"master\"}', name: 'packageName'\n" +
-                        "            }\n" +
-                        "        }\n" +
-                        "    }\n" +
-                        "}",
-                true
-        ));
+        job.setDefinition(new CpsFlowDefinition(loadPipelineScript("package-artifacts.groovy"), true));
     }
 
     @Test
