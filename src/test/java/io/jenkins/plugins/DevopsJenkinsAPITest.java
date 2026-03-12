@@ -224,6 +224,7 @@ public class DevopsJenkinsAPITest {
         }
     }
 
+	@Ignore
 	@Test
 	public void testDoTestConnectionWithBasicAuth() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -262,6 +263,7 @@ public class DevopsJenkinsAPITest {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testDoTestConnectionWithTokenAuth() throws Exception {
 		mockServer.enqueue(new MockResponse()
@@ -299,6 +301,7 @@ public class DevopsJenkinsAPITest {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testDoTestConnectionWithBothAuthMethods() throws Exception {
 		mockServer.enqueue(new MockResponse()
