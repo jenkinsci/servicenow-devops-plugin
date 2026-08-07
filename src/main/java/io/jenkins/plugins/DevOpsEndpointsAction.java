@@ -18,7 +18,6 @@ import io.jenkins.plugins.utils.GenericUtils;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.kohsuke.stapler.QueryParameter;
@@ -41,6 +40,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import hudson.Util;
 
 /**
  * Main entry point for ServiceNow DevOps API endpoints
@@ -64,7 +64,7 @@ public class DevOpsEndpointsAction implements RootAction {
 		return "sndevops-api";
 	}
 
-	private Predicate<DevOpsConfigurationEntry> isValidConfiguration = (entry) -> StringUtils.isNotBlank(entry.getToolId()) && StringUtils.isNotBlank(entry.getInstanceUrl());
+	private Predicate<DevOpsConfigurationEntry> isValidConfiguration = (entry) -> Util.fixEmptyAndTrim(entry.getToolId()) != null && Util.fixEmptyAndTrim(entry.getInstanceUrl()) != null;
 
 	/**
 	 * Pipeline details endpoint - routes request to DevOpsDataApiAction
@@ -138,13 +138,13 @@ public class DevOpsEndpointsAction implements RootAction {
 						devOpsConfigurationEntry.setToolId(request.getToolId());
 						devOpsConfigurationEntry.setSecretCredentialId(credential);
 						devOpsConfigurationEntry.setActive(isActive);
-						if (StringUtils.isNotBlank(request.getName())) {
+						if (Util.fixEmptyAndTrim(request.getName()) != null) {
 							devOpsConfigurationEntry.setName(request.getName());
 						}
 						if (!devOpsConfigurationEntry.getDefaultConnection()) {
 							devOpsConfigurationEntry.setDefaultConnection(request.isDefaultConnection());
 						}
-						if (StringUtils.isBlank(devOpsConfigurationEntry.getSnArtifactToolId())) {
+						if (Util.fixEmptyAndTrim(devOpsConfigurationEntry.getSnArtifactToolId()) == null) {
 							devOpsConfigurationEntry.setSnArtifactToolId("");
 						}
 						if (numEntries == 1)
@@ -273,7 +273,7 @@ public class DevOpsEndpointsAction implements RootAction {
 	}
 
 	private String buildConfigurationName(DevOpsConfigurationEntity request) throws URISyntaxException {
-		if (StringUtils.isBlank(request.getName())) {
+		if (Util.fixEmptyAndTrim(request.getName()) == null) {
 			String domain = new URI(request.getInstanceUrl()).getHost();
 			String instanceName = domain.startsWith("www.") ? domain.substring(4) : domain;
 			return String.format("DevOps-%s-%s", instanceName, new Date().getTime());
