@@ -10,7 +10,6 @@ import hudson.util.ListBoxModel;
 import io.jenkins.plugins.actions.RegisterSecurityAction;
 import io.jenkins.plugins.config.DevOpsConfiguration;
 import io.jenkins.plugins.config.DevOpsConfigurationEntry;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 

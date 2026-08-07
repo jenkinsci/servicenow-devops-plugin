@@ -10,11 +10,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 
 import hudson.FilePath;
 import io.jenkins.plugins.DevOpsRunListener;
+import hudson.Util;
 
 /*
  * The graph(hashMap) holds the ordered-list of children for each nodes
@@ -131,7 +131,7 @@ public class DevOpsPipelineGraph {
 
 	public DevOpsPipelineNode addNode(String parentId, String shortName, FlowNode flowNode, String pipelineExecutionUrl, String status) {
 		String name = shortName;
-		if (!StringUtils.isEmpty(parentId)) {
+		if (Util.fixEmpty(parentId) != null) {
 			DevOpsPipelineNode parentNode = map.get(parentId);
 			if (parentNode != null)
 				name = parentNode.getName() + "/" + shortName;
@@ -163,7 +163,7 @@ public class DevOpsPipelineGraph {
 
 
 	private void populateParentDetails(String parentStageId, String stageId) {
-		if (!StringUtils.isEmpty(parentStageId)) {
+		if (Util.fixEmpty(parentStageId) != null) {
 			DevOpsPipelineNode parentNode = getNodeById(parentStageId);
 			DevOpsPipelineNode node = getNodeById(stageId);
 
